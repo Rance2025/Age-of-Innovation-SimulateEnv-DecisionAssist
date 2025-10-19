@@ -21,7 +21,8 @@ class Agent:
 
         immediate_action_to_be_executed_list = self.action_system.execute_action(action_id)
 
-        return immediate_action_to_be_executed_list
+        if immediate_action_to_be_executed_list:
+            return immediate_action_to_be_executed_list
     
     def execute_immediate_action(self):
         pass

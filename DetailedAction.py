@@ -44,13 +44,7 @@ class DetailedAction:
             41: {'action': 'quick_magics', 'args': 6},
             42: {'action': 'quick_magics', 'args': 7},
             43: {'action': 'quick_magics', 'args': 8},
-            44: {'action': 'quick_magics', 'args': 9},
-            45: {'action': 'quick_magics', 'args': 10},
-            46: {'action': 'quick_magics', 'args': 11},
-            47: {'action': 'quick_magics', 'args': 12},
-            48: {'action': 'quick_magics', 'args': 13},
-            49: {'action': 'quick_magics', 'args': 14},
-            50: {'action': 'pass', 'args': None},
+            44: {'action': 'pass', 'args': []},
         }
         '''
         self.all_immediate_actions = {

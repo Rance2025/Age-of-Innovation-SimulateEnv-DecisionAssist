@@ -10,10 +10,11 @@ class EffectObject:
         super().__init_subclass__(**kwargs)
         # 为子类创建独立属性
         cls.owner_list = []
-
+    
     # 检查是否可获取
-    def check_get(self, player_id: int) -> bool:
-        if player_id in self.owner_list or len(self.owner_list) >= self.max_owner:
+    @classmethod
+    def check_get(cls, player_id: int) -> bool:
+        if player_id in cls.owner_list or len(cls.owner_list) >= cls.max_owner:
             return False
         return True
 
@@ -71,8 +72,8 @@ class GameState:
             self.available_palace_tiles = []        # [int]
             self.available_round_boosters = []      # [int]
             
-            # 当前全局资源
-            self.current_global_resource = {
+            # 当前全局书资源
+            self.current_global_books = {
                 'bank_book': 12,                   # 银行书总量上限
                 'law_book': 12,                    # 法律书总量上限
                 'engineering_book': 12,            # 工程书总量上限
@@ -423,12 +424,48 @@ class GameState:
                     7: self.DesertPlanningCard
                 },
                 'faction': {
-
+                    1: self.BlessedFaction,
+                    2: self.FelinesFaction,
+                    3: self.GoblinsFaction,
+                    4: self.IllusionistsFaction,
+                    5: self.InventorsFaction,
+                    6: self.LizardsFaction,
+                    7: self.MolesFaction,
+                    8: self.MonksFaction,
+                    9: self.NavigatorsFaction,
+                    10: self.OmarFaction,
+                    11: self.PhilosophersFaction,
+                    12: self.PsychicsFaction
                 },
                 'palace_tile': {
-
+                    1: self.PalaceTile1,
+                    2: self.PalaceTile2,
+                    3: self.PalaceTile3,
+                    4: self.PalaceTile4,
+                    5: self.PalaceTile5,
+                    6: self.PalaceTile6,
+                    7: self.PalaceTile7,
+                    8: self.PalaceTile8,
+                    9: self.PalaceTile9,
+                    10: self.PalaceTile10,
+                    11: self.PalaceTile11,
+                    12: self.PalaceTile12,
+                    13: self.PalaceTile13,
+                    14: self.PalaceTile14,
+                    15: self.PalaceTile15,
+                    16: self.PalaceTile16
                 },
                 'round_booster': {
+                    1: self.RoundBooster1,
+                    2: self.RoundBooster2,
+                    3: self.RoundBooster3,
+                    4: self.RoundBooster4,
+                    5: self.RoundBooster5,
+                    6: self.RoundBooster6,
+                    7: self.RoundBooster7,
+                    8: self.RoundBooster8,
+                    9: self.RoundBooster9,
+                    10: self.RoundBooster10,
 
                 },
                 'ability_tile': {
@@ -450,52 +487,168 @@ class GameState:
             pass
 
         class PlainPlanningCard(EffectObject):
-            def available_actions(self):
+            
+            # 减少升级铲子花费
+            # 写在check_improve_shovel_level_action过程中了
 
-                return []
+            pass
 
         class SwampPlanningCard(EffectObject):
             def immediate_effect(self):
                 effect = [
-                    ('meeple',('get',1)), 
-                    ('magics',('get',2)), 
+                    ('meeple','get',1), 
+                    ('magics','get',2), 
                 ]
                 return effect
             
         class LakePlanningCard(EffectObject):
             def immediate_effect(self):
                 reward = [
-
+                    ('navigation')
                 ]
                 return reward
             
         class ForestPlanningCard(EffectObject):
             def immediate_effect(self):
                 effect = [
-                    ('magics',('get',1)), 
-                    ('tracks',('get','bank',1)), 
-                    ('tracks',('get','law',1)), 
-                    ('tracks',('get','engineering',1)),
-                    ('tracks',('get','medical',1))
+                    ('magics','get',1), 
+                    ('tracks','get','bank',1), 
+                    ('tracks','get','law',1), 
+                    ('tracks','get','engineering',1),
+                    ('tracks','get','medical',1)
                 ]
                 return effect
             
         class MountainPlanningCard(EffectObject):
+            # TODO 收入额外2块，第一个工会多收入1块
             pass
             
         class WastelandPlanningCard(EffectObject):
             def immediate_effect(self):
                 effect = [
-                    ('magics',('get',2)), 
-                    ('meeple',('get',1)), 
+                    ('ore','get',1), 
+                    ('book','get','any',1), 
                 ]
                 return effect
+            # TODO 第二项发明少付1书
 
         class DesertPlanningCard(EffectObject):
+            # TODO 立即一铲子
+            pass
+        
+        class BlessedFaction(EffectObject):
             pass
 
+        class FelinesFaction(EffectObject):
+            pass
 
+        class GoblinsFaction(EffectObject):
+            pass
 
+        class IllusionistsFaction(EffectObject):
+            pass
+
+        class InventorsFaction(EffectObject):
+            pass
+
+        class LizardsFaction(EffectObject):
+            pass
+
+        class MolesFaction(EffectObject):
+            pass
+
+        class MonksFaction(EffectObject):
+            pass
+
+        class NavigatorsFaction(EffectObject):
+            pass
+
+        class OmarFaction(EffectObject):
+            pass
+
+        class PhilosophersFaction(EffectObject):
+            pass
+
+        class PsychicsFaction(EffectObject):
+            pass
+
+        class PalaceTile1(EffectObject):
+            pass
+
+        class PalaceTile2(EffectObject):
+            pass
+
+        class PalaceTile3(EffectObject):
+            pass
+
+        class PalaceTile4(EffectObject):
+            pass
+
+        class PalaceTile5(EffectObject):
+            pass
+
+        class PalaceTile6(EffectObject):
+            pass
+
+        class PalaceTile7(EffectObject):
+            pass
+
+        class PalaceTile8(EffectObject):
+            pass
+
+        class PalaceTile9(EffectObject):
+            pass        
+
+        class PalaceTile10(EffectObject):
+            pass
+
+        class PalaceTile11(EffectObject):
+            pass
+
+        class PalaceTile12(EffectObject):
+            pass
+
+        class PalaceTile13(EffectObject):
+            pass
+
+        class PalaceTile14(EffectObject):
+            pass
+
+        class PalaceTile15(EffectObject):
+            pass
+
+        class PalaceTile16(EffectObject):
+            pass
+
+        class RoundBooster1(EffectObject):
+            pass
+
+        class RoundBooster2(EffectObject):
+            pass
+
+        class RoundBooster3(EffectObject):
+            pass
+
+        class RoundBooster4(EffectObject):
+            pass
+
+        class RoundBooster5(EffectObject):
+            pass
+
+        class RoundBooster6(EffectObject):
+            pass
+
+        class RoundBooster7(EffectObject):
+            pass
+
+        class RoundBooster8(EffectObject):
+            pass
+
+        class RoundBooster9(EffectObject):
+            pass
+
+        class RoundBooster10(EffectObject):
+            pass        
 
     def __init__(self, num_players: int = 3):
         self.num_players = num_players                                                    # 玩家数量
@@ -525,27 +678,26 @@ class GameState:
         
         def check_book(player_id, where, typ, num):
             
-            match where:
+            match where, typ:
+                case 'self', 'any':
+                    if sum([self.players[player_id].resources[f'{x}_book'] for x in ['bank','law','engineering','medical']]) >= num:
+                        return True
                 case 'self':
-                    if typ:
-                        if self.players[player_id].resources[f'{typ}_book'] >= num:
-                            return True
-                    else:
-                        if sum([self.players[player_id].resources[f'{x}_book'] for x in ['bank','law','engineering','medical']]) >= num:
-                            return True
+                    if self.players[player_id].resources[f'{typ}_book'] >= num:
+                        return True
+                case 'all', 'any':
+                    if sum([self.setup.current_global_books[f'{x}_book'] for x in ['bank','law','engineering','medical']]) >= 1:
+                        return True
                 case 'all':
-                    if typ:
-                        if self.setup.current_global_resource[f'{typ}_book'] >= num:
-                            return True
-                    else:
-                        if sum([self.setup.current_global_resource[f'{x}_book'] for x in ['bank','law','engineering','medical']]) >= 1:
-                            return True
+                    if self.setup.current_global_books[f'{typ}_book'] >= num:
+                        return True
                 case _:
                     raise ValueError(f'不存在【{where}】处的书')
                 
             return False              
         
         def check_meeple(player_id, where, num):
+
             match where:
                 case 'self':
                     if self.players[player_id].resources['meeples'] >= num:
@@ -589,7 +741,8 @@ class GameState:
         
         def check_improve_navigation_level(player_id):
             if (
-                self.check(player_id, [('meeple',('self',1)),('money',(4,))])
+                check_meeple(player_id, 'self', 1)
+                and check_money(player_id, 4)
                 and self.players[player_id].navigation_level < 3
             ):
                 return True
@@ -597,7 +750,15 @@ class GameState:
         
         def check_improve_shovel_level(player_id):
             if (
-                self.check(player_id, [('meeple',('self',1)),('ore',(1,)),('money',(5,))])
+                check_meeple(player_id, 'self', 1)
+                and check_ore(player_id, 1)
+                and (
+                    check_money(player_id, 5) 
+                    or (
+                        self.players[player_id].planning_card_id == 1 
+                        and check_money(player_id, 1)
+                    )
+                )
                 and self.players[player_id].shovel_level > 1
             ):
                 return True
@@ -616,7 +777,7 @@ class GameState:
             'shovel': check_improve_shovel_level
         }
         
-        for check_item, check_args in list_to_be_checked:
+        for check_item, *check_args in list_to_be_checked:
             if check_item not in self.all_check_list:
                 raise ValueError(f'非法状态检查对象：{check_item}')
             else:
@@ -629,26 +790,31 @@ class GameState:
         def adjust_money(player_id: int, mode: str, num: int):
             mode_factor = 1 if mode == 'get' else -1
             self.players[player_id].resources['money'] += mode_factor * num
-            return tuple()
+            return []
         
         def adjust_ore(player_id:int , mode: str, num:int):
             mode_factor = 1 if mode == 'get' else -1
             self.players[player_id].resources['ore'] += mode_factor * num
-            return tuple()
+            return []
         
         def adjust_book(player_id:int , mode: str, typ: str, num: int):
-            match mode:
+            match mode, typ: # TODO 书的立即行动
+                case 'get', 'any':
+                    act_num = min(sum(self.setup.current_global_books.values()), num)
+                    return [(player_id, 'select_books', num)]
                 case 'get':
-                    act_num = min(self.setup.current_global_resource[f'{typ}_book'], num)
-                    self.setup.current_global_resource[f'{typ}_book'] -= act_num
+                    act_num = min(self.setup.current_global_books[f'{typ}_book'], num)
+                    self.setup.current_global_books[f'{typ}_book'] -= act_num
                     self.players[player_id].resources[f'{typ}_book'] += act_num
+                case 'use', 'any':
+                    return [(player_id, 'select_books', num)]
                 case 'use':
                     if num <= self.players[player_id].resources[f'{typ}_book']:
                         self.players[player_id].resources[f'{typ}_book'] -= num
-                        self.setup.current_global_resource[f'{typ}_book'] += num
+                        self.setup.current_global_books[f'{typ}_book'] += num
                     else:
                         raise ValueError(f'{player_id + 1}号玩家未拥有{typ}书{num}本')
-            return tuple()
+            return []
         
         def adjust_meeple(player_id, mode, args):
             match mode:
@@ -679,13 +845,13 @@ class GameState:
                         climb_num = 1
                         self.players[player_id].resources['all_meeples'] +=  1
                     climb_track(player_id, typ, climb_num)
-            return tuple()
+            return []
          
         def adjust_bridge(player_id, mode, where, num): # TODO 调整桥
-            return tuple()
+            return []
         
         def adjust_building(*arg): # TODO 调整建筑
-            return tuple()
+            return []
 
         def adjust_score(player_id, mode, which, num):
             mode_factor = 1 if mode == 'get' else -1
@@ -700,7 +866,7 @@ class GameState:
                     self.players[player_id].resourcescore += mode_factor * num
                 case _:
                     raise ValueError(f'不存在【{which}】板块分数')
-            return tuple()
+            return []
     
         def magic_rotation(player_id, mode, num):
             match mode:
@@ -729,7 +895,7 @@ class GameState:
                 case 'else':
                     self.players[player_id].magics[3] += num
                     # 科技板块效果-宫殿
-            return tuple()
+            return []
                     
 
         def climb_track(player_id, typ, num):
@@ -765,27 +931,43 @@ class GameState:
                 magic_rotation(player_id, 'get', 2)
             if before_climb < 12 <= after_climb:
                 magic_rotation(player_id, 'get', 3)
-            return tuple()
+
+            return []
         
         def improve_navigation_level(player_id):
+
             self.players[player_id].navigation_level += 1
-            reward = []
-            immediate_action = tuple()
-            match self.players[player_id].navigation_level:
-                case 1:
-                    reward = [('score',('get','board',2))]
-                case 2:
-                    reward = [('book',('get',2))]
-                    immediate_action =  ('select_book', 2)
-                case 3:
-                    reward = [('score',('get','board',4))]
-            self.adjust(player_id, reward)
-            return immediate_action
+
+            if self.players[player_id].planning_card_id == 3:
+                match self.players[player_id].navigation_level:
+                    case 1:
+                        return []
+                    case 2:
+                        return adjust_score(player_id, 'get', 'board', 3)
+                    case 3:
+                        return adjust_book(player_id, 'get', 'any', 2)
+            else:
+                match self.players[player_id].navigation_level:
+                    case 1:
+                        return adjust_score(player_id, 'get', 'board', 2)
+                    case 2:
+                        return adjust_book(player_id, 'get', 'any', 2)
+                    case 3:
+                        return adjust_score(player_id, 'get', 'board', 4)
+            return []
 
 
 
         def improve_shovel_level(player_id):
-            return tuple()
+
+            self.players[player_id].shovel_level -= 1
+
+            match self.players[player_id].shovel_level:
+                case 2:
+                    return adjust_book(player_id, 'get', 'any', 2)
+                case 1:
+                    return adjust_score(player_id, 'get', 'board', 6)
+            return []
 
         self.all_adjust_list = {
             'money': adjust_money,
@@ -796,19 +978,19 @@ class GameState:
             'building': adjust_building,
             'score': adjust_score,
             'magics': magic_rotation,
-            'track': climb_track,
+            'tracks': climb_track,
             'navigation': improve_navigation_level,
             'shovel': improve_shovel_level
         }
 
-        immediate_action_list = []
+        current_action_all_immediate_action_list = []
 
-        for adjust_item, adjust_args in list_to_be_adjusted:
+        for adjust_item, *adjust_args in list_to_be_adjusted:
             if adjust_item not in self.all_adjust_list:
                 raise ValueError(f'非法状态调整对象：{adjust_item}')
             else:
-                immediate_action = self.all_adjust_list[adjust_item](player_id, *adjust_args)
-                if immediate_action:
-                    immediate_action_list.append(immediate_action)
-        return immediate_action_list
+                immediate_action_list = self.all_adjust_list[adjust_item](player_id, *adjust_args)
+                if immediate_action_list:
+                    current_action_all_immediate_action_list.extend(immediate_action_list)
+        return current_action_all_immediate_action_list
  

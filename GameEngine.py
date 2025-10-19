@@ -17,7 +17,7 @@ class GameEngine:
 
         # 如有立即行动，则根据主要行动返回值，遍历执行立即行动（可能涉及多个玩家）
         if immediate_action_list:
-            for temp_player_id, immediate_action_data in immediate_action_list:
+            for temp_player_id, *immediate_action_data in immediate_action_list:
                 self.agents[temp_player_id].execute_immediate_action(*immediate_action_data)
 
         # 执行完毕后，重置该主要行动所致的待执行立即行动列表
