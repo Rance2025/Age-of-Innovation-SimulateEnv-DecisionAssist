@@ -10,7 +10,7 @@ class ActionSystem:
         self.player = game_state.players[player_id]                                     # 当前玩家
         self.all_detailed_actions = DetailedAction().all_detailed_actions               # 所有具体行动                             
         self.immediate_action_need_to_be_executed_list = []                             # 待执行立即行动列表
-        self.all_effect_object_dict = self.game_state.effect_object.all_object_dict     # 效果板块索引  
+        self.all_available_object_dict = self.game_state.all_available_object_dict      # 效果板块索引
 
         # 动作定义
         self.actions = {
@@ -46,7 +46,7 @@ class ActionSystem:
                 'execute': self.improve_navigation_level_action,
                 'check': self.check_improve_navigation_level_action
             },
-            'improve_navigation_level':{
+            'improve_shovel_level':{
                 'execute':self.improve_shovel_level_action,
                 'check':self.check_improve_shovel_level_action
             }
@@ -64,20 +64,14 @@ class ActionSystem:
             
         return available_action_ids
     
-    def execute_action(self, action_id) -> list:
+    def execute_action(self, action_id):
         
         action_name = self.all_detailed_actions[action_id]['action']
         action_arg = self.all_detailed_actions[action_id]['args']
 
         # 执行主要行动（含快速行动）并返回立即行动列表
-        immediate_action_list = self.actions[action_name]['execute'](action_arg)
+        self.actions[action_name]['execute'](action_arg)
         
-        # 如有立即行动
-        if immediate_action_list:
-            # 则将其返回
-            return immediate_action_list
-        
-        return []
     
     def is_next_action_exist(self) -> bool:
         
@@ -106,10 +100,12 @@ class ActionSystem:
         # 重置是否已选择跳过标记
         self.player.ispass = False
 
+    def execute_setup_action(self):
+
+        pass
+
     def check_select_planning_card_action(self, args) -> bool:
         """检查选择规划卡动作是否合法"""
-
-        selected_planning_card_id = self.game_state.setup.available_planning_cards[args]
     
         if (
             # 判断是否为可选回合
@@ -119,7 +115,7 @@ class ActionSystem:
             # 判断主行动是否已执行
             and self.player.main_action_is_done == False
             # 判断该规划卡是否可被选择
-            and self.all_effect_object_dict['planning_card'][selected_planning_card_id].check_get(self.player_id)
+            and self.all_available_object_dict['planning_card'][args].check_get(self.player_id)
         ):
 
             return True
@@ -129,18 +125,12 @@ class ActionSystem:
 
         # 标记已执行主行动
         self.player.main_action_is_done = True
-        # 获取选择的规划卡id
-        selected_planning_card_id = self.game_state.setup.available_planning_cards[args]
         # 向玩家添加已选择的规划卡id
-        self.player.planning_card_id = selected_planning_card_id
-        # 向已选择的规划卡列表中添加已选择的规划卡id
-        self.all_effect_object_dict['planning_card'][selected_planning_card_id].owner_list.append(self.player_id)
-        # 获取所选规划卡效果板块的立即执行效果
-        immediate_effect = self.all_effect_object_dict['planning_card'][selected_planning_card_id]().immediate_effect()
-        # 执行立即执行效果
-        immediate_action_list = self.game_state.adjust(self.player_id, immediate_effect)
-
-        return immediate_action_list
+        self.player.planning_card_id = self.game_state.setup.available_planning_cards[args]
+        # 向已选择的规划卡拥有者列表中添加玩家id
+        self.all_available_object_dict['planning_card'][args].owner_list.append(self.player_id)
+        # 执行所选规划卡效果板块的汇总效果
+        self.all_available_object_dict['planning_card'][args].all_effect_trigger()
 
     def check_select_faction_action(self, args) -> bool:
 
@@ -154,7 +144,7 @@ class ActionSystem:
             # 检测行动参数是否合法
             and args <= self.game_state.num_players
             # 判断该派系是否未被选择
-            and self.all_effect_object_dict['faction'][self.game_state.setup.selected_factions[args]].check_get(self.player_id)
+            and self.all_available_object_dict['faction'][args].check_get(self.player_id)
         ):
 
             return True
@@ -164,18 +154,13 @@ class ActionSystem:
 
         # 设置主行动已执行
         self.player.main_action_is_done = True
-        # 获取玩家选择的派系id
-        selected_faction_id = self.game_state.setup.selected_factions[args]
         # 设置玩家派系id
-        self.player.faction_id = selected_faction_id
-        # 添加派系已选择列表
-        self.all_effect_object_dict['faction'][selected_faction_id].owner_list.append(self.player_id)
-        # 获取所选派系的立即执行效果
-        immediate_effect = self.all_effect_object_dict['faction'][selected_faction_id]().immediate_effect()
-        # 执行立即执行效果
-        immediate_action_list = self.game_state.adjust(self.player_id, immediate_effect)
+        self.player.faction_id = self.game_state.setup.selected_factions[args]
+        # 向已选择的派系拥有者列表中添加玩家id
+        self.all_available_object_dict['faction'][args].owner_list.append(self.player_id)
+        # 执行所选派系效果板块的汇总效果
+        self.all_available_object_dict['faction'][args].all_effect_trigger()
 
-        return immediate_action_list
 
     def check_select_palace_tile_action(self, args) -> bool:
 
@@ -189,7 +174,7 @@ class ActionSystem:
             # 判断行动参数是否合法
             and args <= self.game_state.num_players
             # 判断该宫殿板块是否未被选择
-            and self.all_effect_object_dict['palace_tile'][self.game_state.setup.available_palace_tiles[args]].check_get(self.player_id)
+            and self.all_available_object_dict['palace_tile'][args].check_get(self.player_id)
         ):
 
             return True
@@ -199,18 +184,12 @@ class ActionSystem:
 
         # 设置主行动已执行
         self.player.main_action_is_done = True
-        # 获取玩家选择的宫殿板块id
-        selected_palace_tile_id = self.game_state.setup.available_palace_tiles[args]
         # 设置玩家宫殿板块
-        self.player.palace_tile_id = selected_palace_tile_id
-        # 添加到已选择的宫殿板块列表中
-        self.all_effect_object_dict['palace_tile'][selected_palace_tile_id].owner_list.append(self.player_id)
-        # 获取所选宫殿板块的立即执行效果
-        immediate_effect = self.all_effect_object_dict['palace_tile'][selected_palace_tile_id]().immediate_effect()
-        # 执行立即执行效果
-        immediate_action_list = self.game_state.adjust(self.player_id, immediate_effect)
-
-        return immediate_action_list
+        self.player.palace_tile_id = self.game_state.setup.available_palace_tiles[args]
+        # 向已选择的宫殿板块拥有者列表中添加玩家id
+        self.all_available_object_dict['palace_tile'][args].owner_list.append(self.player_id)
+        # 执行所选宫殿效果板块的汇总效果
+        self.all_available_object_dict['palace_tile'][args].all_effect_trigger()
 
     def check_select_round_booster_action(self, args) -> bool:
 
@@ -224,7 +203,7 @@ class ActionSystem:
             # 判断该行动参数是否合法
             and args <= self.game_state.num_players + 2
             # 检车该回合助推板是否未被选择
-            and self.all_effect_object_dict['round_booster'][self.game_state.setup.available_round_boosters[args]].check_get(self.player_id)
+            and self.all_available_object_dict['round_booster'][args].check_get(self.player_id)
         ):
 
             return True
@@ -233,19 +212,13 @@ class ActionSystem:
     def select_round_booster_action(self, args):
 
         # 设置主行动已执行
-        self.player.main_action_is_done = True
-        # 获取玩家选择回合助推板id
-        selected_booster_id = self.game_state.setup.available_round_boosters[args]      
+        self.player.main_action_is_done = True   
         # 设置玩家回合助推板
-        self.player.booster_ids.append(selected_booster_id)
-        # 添加到已选择回合助推板列表中
-        self.all_effect_object_dict['round_booster'][selected_booster_id].owner_list.append(self.player_id)
-        # 获取所选派系的立即执行效果
-        immediate_effect = self.all_effect_object_dict['round_booster'][selected_booster_id]().immediate_effect()
-        # 执行立即执行效果
-        immediate_action_list = self.game_state.adjust(self.player_id, immediate_effect)
-
-        return immediate_action_list
+        self.player.booster_ids.append(self.game_state.setup.available_round_boosters[args])
+        # 向已选择的回合助推板拥有者列表中添加玩家id
+        self.all_available_object_dict['round_booster'][args].owner_list.append(self.player_id)
+        # 执行所选回合助推效果板块的汇总效果
+        self.all_available_object_dict['round_booster'][args].all_effect_trigger()
 
     def check_pass_this_round_action(self, args) -> bool:
 
@@ -261,7 +234,7 @@ class ActionSystem:
                 (
                     args != -1 
                     and self.game_state.round != 6 
-                    and self.all_effect_object_dict['round_booster'][self.game_state.setup.available_round_boosters[args]].check_get(self.player_id)
+                    and self.all_available_object_dict['round_booster'][args].check_get(self.player_id)
                 )
                 or(
                     args == -1 
@@ -277,24 +250,19 @@ class ActionSystem:
 
         # 设置主行动已执行
         self.player.main_action_is_done = True
-        # 获取玩家选择的回合助推板id
-        selected_booster_id = self.game_state.setup.available_round_boosters[args]
         # 获取玩家将交还的回合助推板id
         returned_booster_id = self.player.booster_ids[-1]
-        # 设置玩家新一轮回合助推板
-        self.player.booster_ids.append(selected_booster_id)
-        # 向将选择的回合助推板的持有者列表中添加玩家id，即标记为已被持有
-        self.all_effect_object_dict['round_booster'][selected_booster_id].owner_list.append(self.player_id)
-        # 获取获得回合助推板时的立即效果
-        immediate_effect = self.all_effect_object_dict['round_booster'][selected_booster_id]().immediate_effect()
-        # 执行立即效果
-        immediate_action_list = self.game_state.adjust(self.player_id,immediate_effect)
+
+        if args != -1:
+            # 设置玩家新一轮回合助推板
+            self.player.booster_ids.append(self.game_state.setup.available_round_boosters[args])
+            # 向将选择的回合助推板的持有者列表中添加玩家id，即标记为已被持有
+            self.all_available_object_dict['round_booster'][args].owner_list.append(self.player_id)
+            # 执行所选回合助推效果板块的汇总效果
+            self.all_available_object_dict['round_booster'][args].all_effect_trigger()
+
         # 从将交还的回合助推板的持有者列表中移除玩家id，即标记为未被持有
-        self.all_effect_object_dict['round_booster'][returned_booster_id].owner_list.remove(self.player_id)
-        # TODO 获取略过回合时的效果
-
-        # TODO 执行略过回合效果
-
+        self.all_available_object_dict['round_booster'][returned_booster_id].owner_list.remove(self.player_id)
         # 将该玩家id从当前回合玩家行动顺序中移除
         self.game_state.current_player_order.remove(self.player_id)
         # 将该玩家id加入当前回合跳过顺序列表
@@ -302,7 +270,6 @@ class ActionSystem:
         # 设置玩家已跳过
         self.player.ispass = True
 
-        return immediate_action_list
 
     def check_quick_magics_action(self, args) -> bool:
         
@@ -360,8 +327,8 @@ class ActionSystem:
         action_args = self.all_quick_magics_actions_list[args]
         # 执行调整该行动影响
         immediate_action_list = self.game_state.adjust(self.player_id, action_args['effect'])
-
-        return immediate_action_list
+        # 将快速魔力行动可能所致的立即行动添加至立即行动列表
+        self.game_state.all_players_immediate_action_list.extend(immediate_action_list)
 
     
     def check_pass_action(self, args) -> bool:
@@ -379,7 +346,7 @@ class ActionSystem:
     def pass_action(self, args):
         
         # 设置玩家选择跳过
-        self.ispass = True
+        self.player.ispass = True
 
     def check_improve_navigation_level_action(self, args):
 
@@ -401,8 +368,8 @@ class ActionSystem:
         self.player.main_action_is_done = True     
         # 执行提升航行等级动作
         immediate_action_list = self.game_state.adjust(self.player_id, [('navigation',)])  
-
-        return immediate_action_list
+        # 将提升航行可能所致的立即行动添加至立即行动列表 [(player_id, 'select_books', 'get', num)]
+        self.game_state.all_players_immediate_action_list.extend(immediate_action_list)
 
     def check_improve_shovel_level_action(self, args):
         
@@ -424,5 +391,5 @@ class ActionSystem:
         self.player.main_action_is_done = True     
         # 执行提升铲子等级动作
         immediate_action_list = self.game_state.adjust(self.player_id, [('shovel',)])  
-
-        return immediate_action_list
+        # 将提升铲子可能所致的立即行动添加至立即行动列表
+        self.game_state.all_players_immediate_action_list.extend(immediate_action_list)

@@ -1,47 +1,6 @@
 import random
 import time
 
-class EffectObject:
-    """效果对象抽象基类"""
-    max_owner = 1
-    
-    # 子类初始化时调用
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
-        # 为子类创建独立属性
-        cls.owner_list = []
-    
-    # 检查是否可获取
-    @classmethod
-    def check_get(cls, player_id: int) -> bool:
-        if player_id in cls.owner_list or len(cls.owner_list) >= cls.max_owner:
-            return False
-        return True
-
-    # 获取代价检查
-    def check_get_cost(self) -> list:
-        return []
-    
-    # 立即执行方法
-    def immediate_effect(self) -> list:
-        return []
-    
-    # 回合收入方法
-    def income_effect(self) -> list:
-        return []
-    
-    # 可用行动方法
-    def available_actions(self) -> list: 
-        return []
-    
-    # 行动效果方法
-    def action_effect(self) -> list:
-        return []
-    
-    # 回合结束方法
-    def round_end_effect(self) -> list:
-        return []
-
 class GameState:
     """游戏状态类"""
     class GameSetup: # TODO 轮次计分的限制性规定判定
@@ -145,12 +104,19 @@ class GameState:
             self.booster_ids = []         # 使用过的助推板ID
 
             self.main_action_is_done = False # 主要行动是否完成
-            self.ispass = False              # 是否已跳过
+            self.ispass = False              # 是否已跳过 
+            self.income_effect_list:list = [ # 收入阶段效果列表
+                (False, 'ore', 'get', 10-self.buildings[1] if self.buildings[1]>=5 else 9-self.buildings[1]),
+                (False, 'money', 'get', 2*(4-self.buildings[2])),
+                (False, 'magics', 'get', 4-self.buildings[2] if self.buildings[2]>=2 else 2*(4-self.buildings[2])-2), 
+                (False, 'meeple', 'get', 3-self.buildings[4] + 1-self.buildings[5])
+            ]     
+            self.round_end_effect_list = []  # 轮次结束效果列表
             
             # 资源系统
             self.resources = {
-                'money': 0,             # 钱
-                'ore': 0,               # 矿
+                'money': 15,            # 钱
+                'ore': 3,               # 矿
                 'bank_book': 0,         # 银行书
                 'law_book': 0,          # 法律书
                 'engineering_book': 0,  # 工程书
@@ -408,259 +374,21 @@ class GameState:
                 }
             }     
 
-    class ActualObject:
-        """实际对象"""
-
-        def __init__(self) -> None:
-
-            self.all_object_dict = {
-                'planning_card': {
-                    1: self.PlainPlanningCard,
-                    2: self.SwampPlanningCard,
-                    3: self.LakePlanningCard,
-                    4: self.ForestPlanningCard,
-                    5: self.MountainPlanningCard,
-                    6: self.WastelandPlanningCard,
-                    7: self.DesertPlanningCard
-                },
-                'faction': {
-                    1: self.BlessedFaction,
-                    2: self.FelinesFaction,
-                    3: self.GoblinsFaction,
-                    4: self.IllusionistsFaction,
-                    5: self.InventorsFaction,
-                    6: self.LizardsFaction,
-                    7: self.MolesFaction,
-                    8: self.MonksFaction,
-                    9: self.NavigatorsFaction,
-                    10: self.OmarFaction,
-                    11: self.PhilosophersFaction,
-                    12: self.PsychicsFaction
-                },
-                'palace_tile': {
-                    1: self.PalaceTile1,
-                    2: self.PalaceTile2,
-                    3: self.PalaceTile3,
-                    4: self.PalaceTile4,
-                    5: self.PalaceTile5,
-                    6: self.PalaceTile6,
-                    7: self.PalaceTile7,
-                    8: self.PalaceTile8,
-                    9: self.PalaceTile9,
-                    10: self.PalaceTile10,
-                    11: self.PalaceTile11,
-                    12: self.PalaceTile12,
-                    13: self.PalaceTile13,
-                    14: self.PalaceTile14,
-                    15: self.PalaceTile15,
-                    16: self.PalaceTile16
-                },
-                'round_booster': {
-                    1: self.RoundBooster1,
-                    2: self.RoundBooster2,
-                    3: self.RoundBooster3,
-                    4: self.RoundBooster4,
-                    5: self.RoundBooster5,
-                    6: self.RoundBooster6,
-                    7: self.RoundBooster7,
-                    8: self.RoundBooster8,
-                    9: self.RoundBooster9,
-                    10: self.RoundBooster10,
-
-                },
-                'ability_tile': {
-
-                },
-                'science_tile': {
-
-                },
-                'round_scoring': {
-
-                },
-                'final_scoring': {
-
-                },
-                'book_action': {
-
-                }
-            }
-            pass
-
-        class PlainPlanningCard(EffectObject):
-            
-            # 减少升级铲子花费
-            # 写在check_improve_shovel_level_action过程中了
-
-            pass
-
-        class SwampPlanningCard(EffectObject):
-            def immediate_effect(self):
-                effect = [
-                    ('meeple','get',1), 
-                    ('magics','get',2), 
-                ]
-                return effect
-            
-        class LakePlanningCard(EffectObject):
-            def immediate_effect(self):
-                reward = [
-                    ('navigation')
-                ]
-                return reward
-            
-        class ForestPlanningCard(EffectObject):
-            def immediate_effect(self):
-                effect = [
-                    ('magics','get',1), 
-                    ('tracks','get','bank',1), 
-                    ('tracks','get','law',1), 
-                    ('tracks','get','engineering',1),
-                    ('tracks','get','medical',1)
-                ]
-                return effect
-            
-        class MountainPlanningCard(EffectObject):
-            # TODO 收入额外2块，第一个工会多收入1块
-            pass
-            
-        class WastelandPlanningCard(EffectObject):
-            def immediate_effect(self):
-                effect = [
-                    ('ore','get',1), 
-                    ('book','get','any',1), 
-                ]
-                return effect
-            # TODO 第二项发明少付1书
-
-        class DesertPlanningCard(EffectObject):
-            # TODO 立即一铲子
-            pass
-        
-        class BlessedFaction(EffectObject):
-            pass
-
-        class FelinesFaction(EffectObject):
-            pass
-
-        class GoblinsFaction(EffectObject):
-            pass
-
-        class IllusionistsFaction(EffectObject):
-            pass
-
-        class InventorsFaction(EffectObject):
-            pass
-
-        class LizardsFaction(EffectObject):
-            pass
-
-        class MolesFaction(EffectObject):
-            pass
-
-        class MonksFaction(EffectObject):
-            pass
-
-        class NavigatorsFaction(EffectObject):
-            pass
-
-        class OmarFaction(EffectObject):
-            pass
-
-        class PhilosophersFaction(EffectObject):
-            pass
-
-        class PsychicsFaction(EffectObject):
-            pass
-
-        class PalaceTile1(EffectObject):
-            pass
-
-        class PalaceTile2(EffectObject):
-            pass
-
-        class PalaceTile3(EffectObject):
-            pass
-
-        class PalaceTile4(EffectObject):
-            pass
-
-        class PalaceTile5(EffectObject):
-            pass
-
-        class PalaceTile6(EffectObject):
-            pass
-
-        class PalaceTile7(EffectObject):
-            pass
-
-        class PalaceTile8(EffectObject):
-            pass
-
-        class PalaceTile9(EffectObject):
-            pass        
-
-        class PalaceTile10(EffectObject):
-            pass
-
-        class PalaceTile11(EffectObject):
-            pass
-
-        class PalaceTile12(EffectObject):
-            pass
-
-        class PalaceTile13(EffectObject):
-            pass
-
-        class PalaceTile14(EffectObject):
-            pass
-
-        class PalaceTile15(EffectObject):
-            pass
-
-        class PalaceTile16(EffectObject):
-            pass
-
-        class RoundBooster1(EffectObject):
-            pass
-
-        class RoundBooster2(EffectObject):
-            pass
-
-        class RoundBooster3(EffectObject):
-            pass
-
-        class RoundBooster4(EffectObject):
-            pass
-
-        class RoundBooster5(EffectObject):
-            pass
-
-        class RoundBooster6(EffectObject):
-            pass
-
-        class RoundBooster7(EffectObject):
-            pass
-
-        class RoundBooster8(EffectObject):
-            pass
-
-        class RoundBooster9(EffectObject):
-            pass
-
-        class RoundBooster10(EffectObject):
-            pass        
-
     def __init__(self, num_players: int = 3):
         self.num_players = num_players                                                    # 玩家数量
         self.setup = __class__.GameSetup(num_players)                                     # 游戏初始状态设置
         self.players = [__class__.PlayerState(i) for i in range(num_players)]             # 玩家状态
         self.map_board_state = __class__.MapBoardState()                                  # 地图状态
-        self.displaye_board_state = __class__.DisplayBoardState(num_players)              # 展示板状态
-        self.effect_object = __class__.ActualObject()                                     # 效果板块状态
+        self.display_board_state = __class__.DisplayBoardState(num_players)               # 展示板状态
         self.init_player_order = random.sample(list(range(num_players)),num_players)      # 初始玩家顺位
         self.current_player_order = self.init_player_order.copy()                         # 当前玩家顺位
         self.pass_order = list(reversed(self.current_player_order))                       # 本回合玩家结束顺序
-        self.round = 0                                                                    # 当前回合 (0表示设置阶段)  
+        self.round = 0                                                                    # 当前回合 (0表示设置阶段)
+        self.all_players_immediate_action_list = []                                       # 立即行动列表  
+        self.all_players_setup_action_list: list[tuple[int, str, str]] = [                # 初始设置完毕后主要轮次开始前行动列表
+            (player_idx, 'building', 'only_build') 
+            for player_idx in list(reversed(self.current_player_order)) + self.current_player_order
+        ]
 
     def check(self, player_id: int, list_to_be_checked: list): # TODO 检查状态
 
@@ -686,7 +414,7 @@ class GameState:
                     if self.players[player_id].resources[f'{typ}_book'] >= num:
                         return True
                 case 'all', 'any':
-                    if sum([self.setup.current_global_books[f'{x}_book'] for x in ['bank','law','engineering','medical']]) >= 1:
+                    if sum([self.setup.current_global_books[f'{x}_book'] for x in ['bank','law','engineering','medical']]) >= num:
                         return True
                 case 'all':
                     if self.setup.current_global_books[f'{typ}_book'] >= num:
@@ -764,6 +492,9 @@ class GameState:
                 return True
             return False
         
+        def check_build_and_shovel(play_id, typ):
+            pass 
+        
         self.all_check_list = {
             'money': check_money,
             'ore': check_ore,
@@ -774,7 +505,8 @@ class GameState:
             'magics': check_magics,
             'score':check_score,
             'navigation': check_improve_navigation_level,
-            'shovel': check_improve_shovel_level
+            'shovel': check_improve_shovel_level,
+            'building': check_build_and_shovel
         }
         
         for check_item, *check_args in list_to_be_checked:
@@ -787,27 +519,27 @@ class GameState:
 
     def adjust(self, player_id: int, list_to_be_adjusted): # TODO 修改状态
 
-        def adjust_money(player_id: int, mode: str, num: int):
+        def adjust_money(player_id: int, mode: str, num: int) -> list:
             mode_factor = 1 if mode == 'get' else -1
             self.players[player_id].resources['money'] += mode_factor * num
             return []
         
-        def adjust_ore(player_id:int , mode: str, num:int):
+        def adjust_ore(player_id:int , mode: str, num:int) -> list:
             mode_factor = 1 if mode == 'get' else -1
             self.players[player_id].resources['ore'] += mode_factor * num
             return []
         
-        def adjust_book(player_id:int , mode: str, typ: str, num: int):
+        def adjust_book(player_id:int , mode: str, typ: str, num: int) -> list:
             match mode, typ: # TODO 书的立即行动
                 case 'get', 'any':
                     act_num = min(sum(self.setup.current_global_books.values()), num)
-                    return [(player_id, 'select_books', num)]
+                    return [(player_id, 'select_books', 'get', num)]
                 case 'get':
                     act_num = min(self.setup.current_global_books[f'{typ}_book'], num)
                     self.setup.current_global_books[f'{typ}_book'] -= act_num
                     self.players[player_id].resources[f'{typ}_book'] += act_num
                 case 'use', 'any':
-                    return [(player_id, 'select_books', num)]
+                    return [(player_id, 'select_books', 'use', num)]
                 case 'use':
                     if num <= self.players[player_id].resources[f'{typ}_book']:
                         self.players[player_id].resources[f'{typ}_book'] -= num
@@ -816,7 +548,7 @@ class GameState:
                         raise ValueError(f'{player_id + 1}号玩家未拥有{typ}书{num}本')
             return []
         
-        def adjust_meeple(player_id, mode, args):
+        def adjust_meeple(player_id: int, mode: str, args) -> list:
             match mode:
                 case 'get':
                     num = args
@@ -834,8 +566,8 @@ class GameState:
                     typ = args
                     self.players[player_id].resources['meeples'] -= 1
                     for i in range(4):
-                        if self.displaye_board_state.science_tracks[typ]['meeples'][i] == False:
-                            self.displaye_board_state.science_tracks[typ]['meeples'][i] = True
+                        if self.display_board_state.science_tracks[typ]['meeples'][i] == False:
+                            self.display_board_state.science_tracks[typ]['meeples'][i] = True
                             if i == 0:
                                 climb_num = 3
                             else:
@@ -847,13 +579,13 @@ class GameState:
                     climb_track(player_id, typ, climb_num)
             return []
          
-        def adjust_bridge(player_id, mode, where, num): # TODO 调整桥
+        def adjust_bridge(player_id: int, mode: str, where: str, num: int) -> list: # TODO 调整桥
             return []
         
-        def adjust_building(*arg): # TODO 调整建筑
+        def adjust_building(*arg) -> list: # TODO 调整建筑
             return []
 
-        def adjust_score(player_id, mode, which, num):
+        def adjust_score(player_id: int, mode: str, which: str, num: int) -> list:
             mode_factor = 1 if mode == 'get' else -1
             match which:
                 case 'board':
@@ -868,7 +600,7 @@ class GameState:
                     raise ValueError(f'不存在【{which}】板块分数')
             return []
     
-        def magic_rotation(player_id, mode, num):
+        def magic_rotation(player_id: int, mode:str, num:int) -> list:
             match mode:
                 case 'get':
                     if self.players[player_id].magics[1] > 0:
@@ -898,19 +630,19 @@ class GameState:
             return []
                     
 
-        def climb_track(player_id, typ, num):
+        def climb_track(player_id: int, typ: str, num: int) -> list:
 
             player = self.players[player_id]
 
             before_climb = self.players[player_id].tracks[typ]
 
             if player.tracks[typ] > 7: 
-                if self.displaye_board_state.science_tracks[typ]['is_crowned'] == True:
+                if self.display_board_state.science_tracks[typ]['is_crowned'] == True:
                     act_arrive_value = min(player.tracks[typ] + num, 11)
                 else:
                     act_arrive_value = min(player.tracks[typ] + num, 12)
                     if act_arrive_value == 12:
-                        self.displaye_board_state.science_tracks[typ]['is_crowned'] = True
+                        self.display_board_state.science_tracks[typ]['is_crowned'] = True
                 self.players[player_id].tracks[typ] = act_arrive_value
             else:
                 if player.tracks_over_7_amount >= player.citys_amount:
@@ -929,12 +661,26 @@ class GameState:
                 magic_rotation(player_id, 'get', 2)
             if before_climb < 7 <= after_climb:
                 magic_rotation(player_id, 'get', 2)
+            if before_climb < 7 <= after_climb:
+                effect = ()
+                match typ:
+                    case 'bank':
+                        effect = (False, 'money', 'get', 3)
+                    case 'law':
+                        effect = (False, 'magics', 'get', 6)
+                    case 'engineer':
+                        effect = (False, 'ore', 'get', 1)
+                    case 'medical':
+                        effect = (False, 'score', 'get', 'board', 3)
+                self.players[player_id].income_effect_list.append(effect)
             if before_climb < 12 <= after_climb:
                 magic_rotation(player_id, 'get', 3)
 
             return []
         
-        def improve_navigation_level(player_id):
+        def improve_navigation_level(player_id: int) -> list:
+
+            follow_up_action_list = []
 
             self.players[player_id].navigation_level += 1
 
@@ -943,32 +689,43 @@ class GameState:
                     case 1:
                         return []
                     case 2:
-                        return adjust_score(player_id, 'get', 'board', 3)
+                        follow_up_action_list.extend(adjust_score(player_id, 'get', 'board', 3))
                     case 3:
-                        return adjust_book(player_id, 'get', 'any', 2)
+                        follow_up_action_list.extend(adjust_book(player_id, 'get', 'any', 2))
             else:
                 match self.players[player_id].navigation_level:
                     case 1:
-                        return adjust_score(player_id, 'get', 'board', 2)
+                        follow_up_action_list.extend(adjust_score(player_id, 'get', 'board', 2))
                     case 2:
-                        return adjust_book(player_id, 'get', 'any', 2)
+                        follow_up_action_list.extend(adjust_book(player_id, 'get', 'any', 2))
                     case 3:
-                        return adjust_score(player_id, 'get', 'board', 4)
-            return []
+                        follow_up_action_list.extend(adjust_score(player_id, 'get', 'board', 4))
 
+            follow_up_action_list.extend(adjust_meeple(player_id, 'use', 1))
+            follow_up_action_list.extend(adjust_money(player_id, 'use', 4))
 
+            return follow_up_action_list
 
-        def improve_shovel_level(player_id):
+        def improve_shovel_level(player_id: int) -> list:
 
+            follow_up_action_list = []
+
+            follow_up_action_list.extend(adjust_meeple(player_id, 'use', 1))
+            follow_up_action_list.extend(adjust_ore(player_id, 'use', 1))
+            follow_up_action_list.extend(adjust_money(player_id, 'use', 5 if self.players[player_id].planning_card_id != 1 else 1))
             self.players[player_id].shovel_level -= 1
 
             match self.players[player_id].shovel_level:
                 case 2:
-                    return adjust_book(player_id, 'get', 'any', 2)
+                    follow_up_action_list.extend(adjust_book(player_id, 'get', 'any', 2))
                 case 1:
-                    return adjust_score(player_id, 'get', 'board', 6)
-            return []
-
+                    follow_up_action_list.extend(adjust_score(player_id, 'get', 'board', 6))
+                
+            return follow_up_action_list
+        
+        def build_and_shovel(player_id: int, mode: str, typ: str):
+            pass
+        
         self.all_adjust_list = {
             'money': adjust_money,
             'ore': adjust_ore,
@@ -980,17 +737,409 @@ class GameState:
             'magics': magic_rotation,
             'tracks': climb_track,
             'navigation': improve_navigation_level,
-            'shovel': improve_shovel_level
+            'shovel': improve_shovel_level,
+            'building': build_and_shovel
         }
 
-        current_action_all_immediate_action_list = []
+        current_action_all_follow_up_action_list = []
 
         for adjust_item, *adjust_args in list_to_be_adjusted:
             if adjust_item not in self.all_adjust_list:
                 raise ValueError(f'非法状态调整对象：{adjust_item}')
             else:
-                immediate_action_list = self.all_adjust_list[adjust_item](player_id, *adjust_args)
-                if immediate_action_list:
-                    current_action_all_immediate_action_list.extend(immediate_action_list)
-        return current_action_all_immediate_action_list
+                follow_up_action_list = self.all_adjust_list[adjust_item](player_id, *adjust_args)
+                if follow_up_action_list:
+                    current_action_all_follow_up_action_list.extend(follow_up_action_list)
+
+        return current_action_all_follow_up_action_list
  
+    def effect_object(self): # TODO 效果板块
+
+        def actual_object_store(typ, id):
+            """实际对象仓库"""
+
+            out_ref = self
+            
+            class EffectObject:
+                """效果对象抽象基类"""
+                max_owner = 1
+                
+                # 子类初始化时调用
+                def __init_subclass__(cls, **kwargs):
+                    super().__init_subclass__(**kwargs)
+                    # 为子类创建独立属性
+                    cls.owner_list = []
+                
+                # 检查是否可获取
+                def check_get(self, player_id: int) -> bool:
+                    if player_id in self.owner_list or len(self.owner_list) >= self.max_owner:
+                        return False
+                    return True
+
+                # 获取代价检查
+                def check_get_cost(self):
+                    pass
+                
+                # 立即执行方法
+                def immediate_effect(self):
+                    pass
+                
+                # 回合收入方法
+                def income_effect(self):
+                    pass
+                
+                '''
+                # 可用行动方法
+                def available_actions(self): 
+                    pass
+                
+                # 行动效果方法
+                def action_effect(self):
+                    pass
+                '''
+
+                # 回合结束方法
+                def round_end_effect(self):
+                    pass
+                
+                # 略过回合方法
+                def pass_effect(self):
+                    pass
+                
+                # 初始设置行动方法
+                def setup_action(self):
+                    pass
+                
+                # 所有效果的汇总触发器
+                def all_effect_trigger(self):
+                    self.immediate_effect()
+                    self.income_effect()
+                    '''
+                    self.available_actions()
+                    self.action_effect()
+                    '''
+                    self.round_end_effect()
+                    self.pass_effect()
+                    self.setup_action()
+                    
+                        
+            class PlanningCard(EffectObject):
+                max_owner = 1
+                pass
+            
+            class Faction(EffectObject):
+                max_owner = 1
+                pass
+
+            class PalaceTile(EffectObject):
+                max_owner = 1
+                pass
+
+            class RoundBooster(EffectObject):
+                max_owner = 1
+                pass
+
+            class AbilityTile(EffectObject):
+                max_owner = 4
+                pass
+
+            class ScienceTile(EffectObject):
+                max_owner = 1
+                pass
+
+            class RoundScoring(EffectObject):
+
+                max_owner = out_ref.num_players
+
+                def __init_subclass__(cls, **kwargs):
+                    super().__init_subclass__(**kwargs)
+                    cls.owner_list = list(range(out_ref.num_players))
+                
+            class FinalScoring(EffectObject):
+
+                max_owner = out_ref.num_players
+
+                def __init_subclass__(cls, **kwargs):
+                    super().__init_subclass__(**kwargs)
+                    cls.owner_list = list(range(out_ref.num_players))
+                    
+            class BookAction(EffectObject):
+                max_owner = 1
+                pass
+
+            class PlainPlanningCard(PlanningCard):
+                
+                # 减少升级铲子花费
+                # 写在check_improve_shovel_level_action过程中了
+
+                pass
+
+            class SwampPlanningCard(PlanningCard):
+                
+                def immediate_effect(self):
+                    # 获取1米宝+2魔力
+                    effect = [
+                        ('meeple','get',1), 
+                        ('magics','get',2), 
+                    ]
+                    out_ref.adjust(self.owner_list[0], effect)
+                
+            class LakePlanningCard(PlanningCard):
+                
+                def immediate_effect(self):
+                    # 免费提升1航行
+                    effect = [
+                        ('navigation',)
+                    ]
+                    out_ref.adjust(self.owner_list[0], effect)
+                
+            class ForestPlanningCard(PlanningCard):
+                
+                def immediate_effect(self):
+                    # 获取1魔力+各轨道推1格
+                    effect = [              
+                        ('magics','get',1), 
+                        ('tracks','bank',1), 
+                        ('tracks','law',1), 
+                        ('tracks','engineering',1),
+                        ('tracks','medical',1)
+                    ]
+                    out_ref.adjust(self.owner_list[0], effect)
+                
+            class MountainPlanningCard(PlanningCard):
+                
+                def income_effect(self):
+                    # 收入额外2块，第一个工会多收入1块
+                    effect = [
+                        (False, 'money', 'get', 2),
+                        (False, 'money', 'get', min(1, 4-out_ref.players[self.owner_list[0]].buildings))
+                    ]
+                    out_ref.players[self.owner_list[0]].income_effect_list.extend(effect)
+                
+            class WastelandPlanningCard(PlanningCard):
+
+                def immediate_effect(self):
+                    # 获取1矿+任意1书
+                    effect = [
+                        ('ore','get',1), 
+                        ('book','get','any',1), 
+                    ]
+                    out_ref.adjust(self.owner_list[0], effect)
+                # TODO 第二项发明少付1书
+
+            class DesertPlanningCard(PlanningCard):
+                def setup_action(self):
+                    # 在游戏开始后（初始房子都摆好之后）立即一铲不可建房
+                    action = [
+                        (self.owner_list[0],'building','only_shovel')
+                    ]
+                    out_ref.all_players_setup_action_list.extend(action)
+            
+            class BlessedFaction(Faction):
+                pass
+
+            class FelinesFaction(Faction):
+                pass
+
+            class GoblinsFaction(Faction):
+                pass
+
+            class IllusionistsFaction(Faction):
+                pass
+
+            class InventorsFaction(Faction):
+                pass
+
+            class LizardsFaction(Faction):
+                pass
+
+            class MolesFaction(Faction):
+                pass
+
+            class MonksFaction(Faction):
+                pass
+
+            class NavigatorsFaction(Faction):
+                pass
+
+            class OmarFaction(Faction):
+                pass
+
+            class PhilosophersFaction(Faction):
+                pass
+
+            class PsychicsFaction(Faction):
+                pass
+
+            class PalaceTile1(PalaceTile):
+                pass
+
+            class PalaceTile2(PalaceTile):
+                pass
+
+            class PalaceTile3(PalaceTile):
+                pass
+
+            class PalaceTile4(PalaceTile):
+                pass
+
+            class PalaceTile5(PalaceTile):
+                pass
+
+            class PalaceTile6(PalaceTile):
+                pass
+
+            class PalaceTile7(PalaceTile):
+                pass
+
+            class PalaceTile8(PalaceTile):
+                pass
+
+            class PalaceTile9(PalaceTile):
+                pass        
+
+            class PalaceTile10(PalaceTile):
+                pass
+
+            class PalaceTile11(PalaceTile):
+                pass
+
+            class PalaceTile12(PalaceTile):
+                pass
+
+            class PalaceTile13(PalaceTile):
+                pass
+
+            class PalaceTile14(PalaceTile):
+                pass
+
+            class PalaceTile15(PalaceTile):
+                pass
+
+            class PalaceTile16(PalaceTile):
+                pass
+
+            class RoundBooster1(RoundBooster):
+                pass
+
+            class RoundBooster2(RoundBooster):
+                pass
+
+            class RoundBooster3(RoundBooster):
+                pass
+
+            class RoundBooster4(RoundBooster):
+                pass
+
+            class RoundBooster5(RoundBooster):
+                pass
+
+            class RoundBooster6(RoundBooster):
+                pass
+
+            class RoundBooster7(RoundBooster):
+                pass
+
+            class RoundBooster8(RoundBooster):
+                pass
+
+            class RoundBooster9(RoundBooster):
+                pass
+
+            class RoundBooster10(RoundBooster):
+                pass   
+
+            all_object_dict = {
+                'planning_card': {
+                    1: PlainPlanningCard,
+                    2: SwampPlanningCard,
+                    3: LakePlanningCard,
+                    4: ForestPlanningCard,
+                    5: MountainPlanningCard,
+                    6: WastelandPlanningCard,
+                    7: DesertPlanningCard
+                },
+                'faction': {
+                    1: BlessedFaction,
+                    2: FelinesFaction,
+                    3: GoblinsFaction,
+                    4: IllusionistsFaction,
+                    5: InventorsFaction,
+                    6: LizardsFaction,
+                    7: MolesFaction,
+                    8: MonksFaction,
+                    9: NavigatorsFaction,
+                    10: OmarFaction,
+                    11: PhilosophersFaction,
+                    12: PsychicsFaction
+                },
+                'palace_tile': {
+                    1: PalaceTile1,
+                    2: PalaceTile2,
+                    3: PalaceTile3,
+                    4: PalaceTile4,
+                    5: PalaceTile5,
+                    6: PalaceTile6,
+                    7: PalaceTile7,
+                    8: PalaceTile8,
+                    9: PalaceTile9,
+                    10: PalaceTile10,
+                    11: PalaceTile11,
+                    12: PalaceTile12,
+                    13: PalaceTile13,
+                    14: PalaceTile14,
+                    15: PalaceTile15,
+                    16: PalaceTile16
+                },
+                'round_booster': {
+                    1: RoundBooster1,
+                    2: RoundBooster2,
+                    3: RoundBooster3,
+                    4: RoundBooster4,
+                    5: RoundBooster5,
+                    6: RoundBooster6,
+                    7: RoundBooster7,
+                    8: RoundBooster8,
+                    9: RoundBooster9,
+                    10: RoundBooster10,
+                },
+                'ability_tile': {
+
+                },
+                'science_tile': {
+
+                },
+                'round_scoring': {
+
+                },
+                'final_scoring': {
+
+                },
+                'book_action': {
+
+                }
+            }
+
+            return all_object_dict[typ][id]()
+        
+        # 本局所有需实例化效果板块对象字典
+        self.all_available_object_dict = {}
+
+        all_typ_dict = {
+            'planning_card': self.setup.available_planning_cards,
+            'faction': self.setup.selected_factions,
+            'palace_tile': self.setup.available_palace_tiles,
+            'round_booster': self.setup.available_round_boosters,
+            'ability_tile': self.setup.ability_tiles_order,
+            'science_tile': self.setup.science_tiles_order,
+            'round_scoring': self.setup.round_scoring_order,
+            'final_scoring': [self.setup.final_scoring],
+            'book_action': self.setup.selected_book_actions
+        }
+
+        for typ_name, typ_available_id_list in all_typ_dict:
+
+            self.all_available_object_dict[typ_name] = {
+                arg : actual_object_store(typ_name, id) 
+                for arg, id in enumerate(typ_available_id_list)
+            }

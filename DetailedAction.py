@@ -45,6 +45,8 @@ class DetailedAction:
             42: {'action': 'quick_magics', 'args': 7},
             43: {'action': 'quick_magics', 'args': 8},
             44: {'action': 'pass', 'args': []},
+            45: {'action': 'improve_navigation_level', 'args': []},
+            46: {'action': 'improve_shovel_level', 'args': []},
         }
         '''
         self.all_immediate_actions = {

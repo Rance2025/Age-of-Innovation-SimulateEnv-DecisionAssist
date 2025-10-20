@@ -19,10 +19,7 @@ class Agent:
         action_id = random.choice(self.available_actions))
         '''
 
-        immediate_action_to_be_executed_list = self.action_system.execute_action(action_id)
-
-        if immediate_action_to_be_executed_list:
-            return immediate_action_to_be_executed_list
+        self.action_system.execute_action(action_id)
     
-    def execute_immediate_action(self):
+    def execute_non_primary_action(self, mode: str):
         pass
