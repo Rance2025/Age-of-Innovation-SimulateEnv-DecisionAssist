@@ -21,15 +21,15 @@ class GameState:
             self.all_round_boosters = list(range(1, 11)) # 共10回合助推板
             
             # 初始化设置结果
+            self.selected_planning_cards = []       # [int]
             self.selected_factions = []             # [int]
-            self.available_planning_cards = []      # [int]
+            self.selected_palace_tiles = []         # [int]
+            self.selected_round_boosters = []       # [int]            
             self.round_scoring_order = []           # [int] 顺序重要
             self.final_scoring = 0                  # int
-            self.selected_book_actions = []         # [int] 顺序不重要
             self.ability_tiles_order = []           # [int] 顺序重要
             self.science_tiles_order = []           # [int] 顺序重要
-            self.available_palace_tiles = []        # [int]
-            self.available_round_boosters = []      # [int]
+            self.selected_book_actions = []         # [int] 顺序不重要
             
             # 当前全局书资源
             self.current_global_books = {
@@ -48,35 +48,36 @@ class GameState:
             random.seed(self.seedid)
             # print(f'seed:{self.seedid}')
 
-            # 1. 选择人数+1的派系板块
-            self.selected_factions = random.sample(self.all_factions, self.num_players + 1)
+            # 1. 选择6张规划卡
+            self.selected_planning_cards =sorted(random.sample(self.all_planning_cards, 6))
+
+            # 2. 选择人数+1的派系板块
+            self.selected_factions = sorted(random.sample(self.all_factions, self.num_players + 1))
             
-            # 2. 选择6张规划卡
-            self.available_planning_cards =random.sample(self.all_planning_cards, 6)
+            # 3. 选取人数+1个宫殿板块作为可选项
+            self.selected_palace_tiles = sorted(random.sample(self.all_palace_tiles, self.num_players + 1))
             
-            # 3. 选取6个轮次计分板块并随机排序
+            # 4. 选取人数+3个回合助推板作为可选项
+            self.selected_round_boosters = sorted(random.sample(self.all_round_boosters, self.num_players + 3))
+            
+            # 5. 选取6个轮次计分板块并随机排序
             self.round_scoring_order = random.sample(self.all_round_scoring, 6)
             random.shuffle(self.round_scoring_order)
 
-            # 4. 随机选取1个最终计分板块
+            # 6. 随机选取1个最终计分板块
             self.final_scoring = random.choice(self.all_final_scoring)
-            
-            # 5. 选取3个书本行动
-            self.selected_book_actions = random.sample(self.all_book_actions, 3)
-            
-            # 6. 对共12块能力板块随机排序
+
+            # 7. 对共12块能力板块随机排序
             self.ability_tiles_order = random.sample(self.all_ability_tiles, 12)
             random.shuffle(self.ability_tiles_order)
             
-            # 7. 选取2+人数*2的科学板块并随机排序
+            # 8. 选取2+人数*2的科学板块并随机排序
             self.science_tiles_order = random.sample(self.all_science_tiles, self.num_players * 2 + 2)
             random.shuffle(self.science_tiles_order)
             
-            # 8. 选取人数+1个宫殿板块作为可选项
-            self.available_palace_tiles = random.sample(self.all_palace_tiles, self.num_players + 1)
-            
-            # 9. 选取人数+3个回合助推板作为可选项
-            self.available_round_boosters = random.sample(self.all_round_boosters, self.num_players + 3)
+            # 9. 选取3个书本行动
+            self.selected_book_actions = sorted(random.sample(self.all_book_actions, 3))            
+
         
         def __str__(self):
             """返回设置结果的字符串表示"""
@@ -84,34 +85,24 @@ class GameState:
                 f"游戏初始设置 ({self.num_players}玩家):\n"
                 f"随机种子: {self.seedid}\n"
                 f"派系板块: {self.selected_factions}\n"
-                f"可用规划卡: {self.available_planning_cards}\n"
+                f"可用规划卡: {self.selected_planning_cards}\n"
                 f"轮次计分顺序: {self.round_scoring_order}\n"
                 f"最终计分: {self.final_scoring}\n"
                 f"书本行动: {self.selected_book_actions}\n"
                 f"能力板块顺序: {self.ability_tiles_order}\n"
                 f"科学板块顺序: {self.science_tiles_order}\n"
-                f"可用宫殿板块: {self.available_palace_tiles}\n"
-                f"可用回合助推板: {self.available_round_boosters}"
+                f"可用宫殿板块: {self.selected_palace_tiles}\n"
+                f"可用回合助推板: {self.selected_round_boosters}"
             )
     
     class PlayerState:
         """玩家状态类"""
         def __init__(self, player_id: int):
             self.player_id = player_id    # 玩家ID
-            self.faction_id = 0           # 选择的派系ID
             self.planning_card_id = 0     # 选择的规划卡ID
+            self.faction_id = 0           # 选择的派系ID
             self.palace_tile_id = 0       # 选择的宫殿板块ID
             self.booster_ids = []         # 使用过的助推板ID
-
-            self.main_action_is_done = False # 主要行动是否完成
-            self.ispass = False              # 是否已跳过 
-            self.income_effect_list:list = [ # 收入阶段效果列表
-                (False, 'ore', 'get', 10-self.buildings[1] if self.buildings[1]>=5 else 9-self.buildings[1]),
-                (False, 'money', 'get', 2*(4-self.buildings[2])),
-                (False, 'magics', 'get', 4-self.buildings[2] if self.buildings[2]>=2 else 2*(4-self.buildings[2])-2), 
-                (False, 'meeple', 'get', 3-self.buildings[4] + 1-self.buildings[5])
-            ]     
-            self.round_end_effect_list = []  # 轮次结束效果列表
             
             # 资源系统
             self.resources = {
@@ -169,7 +160,17 @@ class GameState:
             self.trackscore = 0     # 当前科技轨分数
             self.chainscore = 0     # 当前大链分数
             self.resourcescore = 0  # 当前资源分数
-    
+
+            self.main_action_is_done = False # 主要行动是否完成
+            self.ispass = False              # 是否已跳过 
+            self.income_effect_list:list = [ # 收入阶段效果列表
+                (False, 'ore', 'get', 10-self.buildings[1] if self.buildings[1]>=5 else 9-self.buildings[1]),
+                (False, 'money', 'get', 2*(4-self.buildings[2])),
+                (False, 'magics', 'get', 4-self.buildings[2] if self.buildings[2]>=2 else 2*(4-self.buildings[2])-2), 
+                (False, 'meeple', 'get', 3-self.buildings[4] + 1-self.buildings[5])
+            ]     
+            self.round_end_effect_list = []  # 轮次结束效果列表
+
         def __str__(self):
             """玩家状态的中文表示"""
             # 初始状态
@@ -389,6 +390,7 @@ class GameState:
             (player_idx, 'building', 'only_build') 
             for player_idx in list(reversed(self.current_player_order)) + self.current_player_order
         ]
+        self.effect_object()
 
     def check(self, player_id: int, list_to_be_checked: list): # TODO 检查状态
 
@@ -912,7 +914,7 @@ class GameState:
                     # 收入额外2块，第一个工会多收入1块
                     effect = [
                         (False, 'money', 'get', 2),
-                        (False, 'money', 'get', min(1, 4-out_ref.players[self.owner_list[0]].buildings))
+                        (False, 'money', 'get', min(1, 4-out_ref.players[self.owner_list[0]].buildings[2]))
                     ]
                     out_ref.players[self.owner_list[0]].income_effect_list.extend(effect)
                 
@@ -1047,7 +1049,163 @@ class GameState:
                 pass
 
             class RoundBooster10(RoundBooster):
-                pass   
+                pass
+            
+            class AbilityTile1(AbilityTile):
+                pass
+
+            class AbilityTile2(AbilityTile):
+                pass
+
+            class AbilityTile3(AbilityTile):
+                pass
+            
+            class AbilityTile4(AbilityTile):
+                pass
+
+            class AbilityTile5(AbilityTile):
+                pass
+
+            class AbilityTile6(AbilityTile):
+                pass
+
+            class AbilityTile7(AbilityTile):
+                pass
+
+            class AbilityTile8(AbilityTile):
+                pass
+
+            class AbilityTile9(AbilityTile):
+                pass
+
+            class AbilityTile10(AbilityTile):
+                pass
+
+            class AbilityTile11(AbilityTile):
+                pass
+
+            class AbilityTile12(AbilityTile):
+                pass
+
+            class ScienceTile1(ScienceTile):
+                pass
+            
+            class ScienceTile2(ScienceTile):
+                pass
+
+            class ScienceTile3(ScienceTile):
+                pass
+
+            class ScienceTile4(ScienceTile):
+                pass
+
+            class ScienceTile5(ScienceTile):
+                pass
+
+            class ScienceTile6(ScienceTile):
+                pass
+
+            class ScienceTile7(ScienceTile):
+                pass
+
+            class ScienceTile8(ScienceTile):
+                pass
+
+            class ScienceTile9(ScienceTile):
+                pass
+
+            class ScienceTile10(ScienceTile):
+                pass
+
+            class ScienceTile11(ScienceTile):
+                pass
+
+            class ScienceTile12(ScienceTile):
+                pass
+
+            class ScienceTile13(ScienceTile):
+                pass
+
+            class ScienceTile14(ScienceTile):
+                pass
+
+            class ScienceTile15(ScienceTile):
+                pass
+            
+            class ScienceTile16(ScienceTile):
+                pass
+
+            class ScienceTile17(ScienceTile):
+                pass
+
+            class ScienceTile18(ScienceTile):
+                pass
+
+            class RoundScoring1(RoundScoring):
+                pass
+            
+            class RoundScoring2(RoundScoring):
+                pass
+
+            class RoundScoring3(RoundScoring):
+                pass
+
+            class RoundScoring4(RoundScoring):
+                pass
+
+            class RoundScoring5(RoundScoring):
+                pass
+
+            class RoundScoring6(RoundScoring):
+                pass
+
+            class RoundScoring7(RoundScoring):
+                pass
+
+            class RoundScoring8(RoundScoring):
+                pass
+
+            class RoundScoring9(RoundScoring):
+                pass
+
+            class RoundScoring10(RoundScoring):
+                pass
+
+            class RoundScoring11(RoundScoring):
+                pass
+
+            class RoundScoring12(RoundScoring):
+                pass
+
+            class FinalScoring1(FinalScoring):
+                pass
+            
+            class FinalScoring2(FinalScoring):
+                pass
+
+            class FinalScoring3(FinalScoring):
+                pass
+
+            class FinalScoring4(FinalScoring):
+                pass
+
+            class BookAction1(BookAction):
+                pass
+            
+            class BookAction2(BookAction):
+                pass
+
+            class BookAction3(BookAction):
+                pass
+
+            class BookAction4(BookAction):
+                pass
+
+            class BookAction5(BookAction):
+                pass
+
+            class BookAction6(BookAction):
+                pass
 
             all_object_dict = {
                 'planning_card': {
@@ -1104,19 +1262,66 @@ class GameState:
                     10: RoundBooster10,
                 },
                 'ability_tile': {
-
+                    1: AbilityTile1,
+                    2: AbilityTile2,
+                    3: AbilityTile3,
+                    4: AbilityTile4,
+                    5: AbilityTile5,
+                    6: AbilityTile6,
+                    7: AbilityTile7,
+                    8: AbilityTile8,
+                    9: AbilityTile9,
+                    10: AbilityTile10,
+                    11: AbilityTile11,
+                    12: AbilityTile12
                 },
                 'science_tile': {
-
+                    1: ScienceTile1,
+                    2: ScienceTile2,
+                    3: ScienceTile3,
+                    4: ScienceTile4,
+                    5: ScienceTile5,
+                    6: ScienceTile6,
+                    7: ScienceTile7,
+                    8: ScienceTile8,
+                    9: ScienceTile9,
+                    10: ScienceTile10,
+                    11: ScienceTile11,
+                    12: ScienceTile12,
+                    13: ScienceTile13,
+                    14: ScienceTile14,
+                    15: ScienceTile15,
+                    16: ScienceTile16,
+                    17: ScienceTile17,
+                    18: ScienceTile18,
                 },
                 'round_scoring': {
-
+                    1: RoundScoring1,
+                    2: RoundScoring2,
+                    3: RoundScoring3,
+                    4: RoundScoring4,
+                    5: RoundScoring5,
+                    6: RoundScoring6,
+                    7: RoundScoring7,
+                    8: RoundScoring8,
+                    9: RoundScoring9,
+                    10: RoundScoring10,
+                    11: RoundScoring11,
+                    12: RoundScoring12
                 },
                 'final_scoring': {
-
+                    1: FinalScoring1,
+                    2: FinalScoring2,
+                    3: FinalScoring3,
+                    4: FinalScoring4,
                 },
                 'book_action': {
-
+                    1: BookAction1,
+                    2: BookAction2,
+                    3: BookAction3,
+                    4: BookAction4,
+                    5: BookAction5,
+                    6: BookAction6,
                 }
             }
 
@@ -1126,10 +1331,10 @@ class GameState:
         self.all_available_object_dict = {}
 
         all_typ_dict = {
-            'planning_card': self.setup.available_planning_cards,
+            'planning_card': self.setup.selected_planning_cards,
             'faction': self.setup.selected_factions,
-            'palace_tile': self.setup.available_palace_tiles,
-            'round_booster': self.setup.available_round_boosters,
+            'palace_tile': self.setup.selected_palace_tiles,
+            'round_booster': self.setup.selected_round_boosters,
             'ability_tile': self.setup.ability_tiles_order,
             'science_tile': self.setup.science_tiles_order,
             'round_scoring': self.setup.round_scoring_order,
@@ -1137,9 +1342,9 @@ class GameState:
             'book_action': self.setup.selected_book_actions
         }
 
-        for typ_name, typ_available_id_list in all_typ_dict:
+        for typ_name, typ_available_id_list in all_typ_dict.items():
 
             self.all_available_object_dict[typ_name] = {
-                arg : actual_object_store(typ_name, id) 
-                for arg, id in enumerate(typ_available_id_list)
+                id : actual_object_store(typ_name, id) 
+                for id in typ_available_id_list
             }

@@ -66,7 +66,7 @@ class GameEngine:
         
         # TODO 正式轮次阶段
         print(f"\n=== 正式轮次阶段 ===")
-        for round_idx in range(1,6): # TODO 调试
+        for round_idx in range(1,7): # TODO 调试
             
             # 设置游戏当前轮次
             self.game_state.round = round_idx  
