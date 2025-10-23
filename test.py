@@ -1,6 +1,3 @@
-list_to_be_adjusted = [('navigation',),('navigation',)]  
-for adjust_item, *adjust_args in list_to_be_adjusted:
-    print(adjust_item, adjust_args)
-
-def abc(a):
-    return a
+a,b,c,d = 8,5,6,101
+if sum(x>7 for x in [a,b,c,d]):
+    print(sum(x>7 for x in [a,b,c,d]))

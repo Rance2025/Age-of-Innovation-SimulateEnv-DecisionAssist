@@ -10,12 +10,12 @@ class GameEngine:
         self.agents = [Agent(self.game_state,i) for i in range(num_players)]                        # 行动系统
         self.action_history = []                                                                    # 行动记录
     
-    def action(self, player_id: int, mode: str,):
+    def action(self, player_id: int = -1, mode: str = ''):
 
         match mode:
             case 'normal':
                 # 当前玩家执行一个主要行动（含快速行动）
-                self.agents[player_id].execute_action()
+                self.agents[player_id].execute_primary_action()
 
                 # 执行立即行动（如有）
                 self.action(player_id, 'immediate')
@@ -31,28 +31,33 @@ class GameEngine:
             case 'setup':
                 while self.game_state.all_players_setup_action_list:
                     player_idx = self.game_state.all_players_setup_action_list[0][0]
-                    self.agents[player_idx].execute_non_primary_action('immediate')
+                    self.agents[player_idx].execute_non_primary_action_and_effect('setup')
                     self.game_state.all_players_setup_action_list.pop(0)
-                # 执行立即行动（如有）
-                self.action(player_id, 'immediate')
+                    # 执行立即行动
+                    self.action(player_idx, 'immediate')
             
             case 'income':
                 for player_idx in self.current_round_init_player_order:
-                    self.agents[player_idx].execute_non_primary_action('income')
-                # 执行立即行动（如有）
-                self.action(player_id, 'immediate')
+                    while self.game_state.players[player_idx].income_effect_list:
+                        self.agents[player_idx].execute_non_primary_action_and_effect('income')
+                        self.game_state.players[player_idx].income_effect_list.pop(0)
+                        # 执行立即行动
+                        self.action(player_idx, 'immediate')
 
-            case 'round_end':
+            case 'round_end': 
                 for player_idx in self.current_round_init_player_order:
-                    self.agents[player_idx].execute_non_primary_action('round_end')
-                # 执行立即行动（如有）
-                self.action(player_id, 'immediate')
+                    while self.game_state.players[player_idx].round_end_effect_list:
+                        self.agents[player_idx].execute_non_primary_action_and_effect('round_end')
+                        self.game_state.players[player_idx].round_end_effect_list.pop(0)
+                        # 执行立即行动
+                        self.action(player_idx, 'immediate')
                 
             case 'immediate':
                 # 如有立即行动，则依次执行，直至没有（可能涉及多个玩家）
                 while self.game_state.all_players_immediate_action_list:
                     player_idx = self.game_state.all_players_immediate_action_list[0][0]
-                    self.agents[player_idx].execute_non_primary_action('immediate')
+                    self.agents[player_idx].execute_non_primary_action_and_effect('immediate')
+                    self.game_state.all_players_immediate_action_list.pop(0)
 
     def show_players_state(self):
         for player in self.game_state.players:
@@ -93,9 +98,14 @@ class GameEngine:
                 current_turn_order = self.game_state.pass_order
 
             for player_idx in current_turn_order:
+                print()
                 self.action(player_idx, 'normal')
-
-        self.action(-1, 'setup')
+                
+        
+        # 确定初始设置行动顺序
+        self.game_state.create_setup_action_order()
+        # 执行初始设置行动
+        self.action(mode='setup')
 
         # 设置第一回合回合玩家行动顺序为初始设置阶段跳过顺序
         self.game_state.current_player_order = self.game_state.pass_order.copy()
@@ -114,6 +124,7 @@ class GameEngine:
 
         print(f'\n--- 第{self.game_state.round}轮收入阶段 ---')
         for player_idx in self.current_round_init_player_order:
+            print()
             self.action(player_idx, 'income')
         
         print(f'\n--- 第{self.game_state.round}轮行动阶段 ---')
