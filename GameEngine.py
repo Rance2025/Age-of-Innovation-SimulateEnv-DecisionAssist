@@ -1,4 +1,4 @@
-from GameState import GameState
+from GameState import GameStateBase
 from Agent import Agent
 
 
@@ -6,58 +6,43 @@ class GameEngine:
     """游戏引擎"""
     def __init__(self, num_players: int):
         self.num_players = num_players                                                              # 玩家数量
-        self.game_state = GameState(num_players)                                                    # 游戏状态
+        self.game_state = self.create_game_state()                                                  # 游戏状态
+        self.game_state.effect_object()                                                             # 效果板块
         self.agents = [Agent(self.game_state,i) for i in range(num_players)]                        # 行动系统
         self.action_history = []                                                                    # 行动记录
     
-    def action(self, player_id: int = -1, mode: str = ''):
+    def create_game_state(self):
+        """创建游戏状态"""
+        out_ref = self
 
+        class GameState(GameStateBase):
+            def __init__(self) -> None:
+                super().__init__(out_ref.num_players)
+                return
+            def invoke_aciton(self, player_id: int, mode:str, args: tuple):
+                out_ref.action(player_id, mode, args)
+
+        return GameState()
+        
+    
+    def action(self, player_id: int = -1, mode: str = '', args: tuple = tuple()):
         match mode:
-            case 'normal':
-                # 当前玩家执行一个主要行动（含快速行动）
-                self.agents[player_id].execute_primary_action()
+            case 'normal' | 'immediate':
+                # 当前玩家执行一个行动
+                id = self.agents[player_id].action(mode, args)
+                # 记录该行动
+                self.action_history.append((player_id, mode, id))
 
-                # 执行立即行动（如有）
-                self.action(player_id, 'immediate')
-
-                # 如果当前玩家当前轮中仍可继续行动
-                if self.agents[player_id].action_system.is_next_action_exist():
-                    # 则递归让该玩家继续行动
-                    return self.action(player_id, 'normal')
-                else:
-                    # 否则重置当前行动状态为每轮初始状态
-                    self.agents[player_id].action_system.reset_action_state()
-
-            case 'setup':
-                while self.game_state.all_players_setup_action_list:
-                    player_idx = self.game_state.all_players_setup_action_list[0][0]
-                    self.agents[player_idx].execute_non_primary_action_and_effect('setup')
-                    self.game_state.all_players_setup_action_list.pop(0)
-                    # 执行立即行动
-                    self.action(player_idx, 'immediate')
-            
-            case 'income':
-                for player_idx in self.current_round_init_player_order:
-                    while self.game_state.players[player_idx].income_effect_list:
-                        self.agents[player_idx].execute_non_primary_action_and_effect('income')
-                        self.game_state.players[player_idx].income_effect_list.pop(0)
-                        # 执行立即行动
-                        self.action(player_idx, 'immediate')
-
-            case 'round_end': 
-                for player_idx in self.current_round_init_player_order:
-                    while self.game_state.players[player_idx].round_end_effect_list:
-                        self.agents[player_idx].execute_non_primary_action_and_effect('round_end')
-                        self.game_state.players[player_idx].round_end_effect_list.pop(0)
-                        # 执行立即行动
-                        self.action(player_idx, 'immediate')
-                
-            case 'immediate':
-                # 如有立即行动，则依次执行，直至没有（可能涉及多个玩家）
-                while self.game_state.all_players_immediate_action_list:
-                    player_idx = self.game_state.all_players_immediate_action_list[0][0]
-                    self.agents[player_idx].execute_non_primary_action_and_effect('immediate')
-                    self.game_state.all_players_immediate_action_list.pop(0)
+                if mode == 'normal':
+                    # 如果当前玩家当前轮中仍可继续行动
+                    if self.agents[player_id].action_system.is_next_action_exist():
+                        # 则递归让该玩家继续行动
+                        return self.action(player_id, 'normal')
+                    else:
+                        # 否则重置当前行动状态为每轮初始状态
+                        self.agents[player_id].action_system.reset_action_state()
+            case _ :
+                raise ValueError(f"非法动作模式: {mode}")
 
     def show_players_state(self):
         for player in self.game_state.players:
@@ -65,9 +50,77 @@ class GameEngine:
 
     def run_game(self):
         """运行整个游戏"""
+        
+        def initial_setup_phase(self: GameEngine):
+            """初始设置阶段"""
+            print("\n=== 初始设置阶段 ===")
+            
+            # 4轮选择（逆蛇轮抽）
+            for round_idx in range(1,7):
+                print(f"\n--- 第{round_idx }轮初始设置行动 ---")
+
+                # 确定本轮玩家顺序
+                if round_idx in [1,3,6]:
+                    current_turn_order = self.game_state.current_player_order
+                else:
+                    current_turn_order = self.game_state.pass_order
+                if round_idx == 5:
+                    self.game_state.setup_choice_is_completed = True
+                    print("\n初始设置及轮抽完成!")
+
+                for player_idx in current_turn_order:
+                    print()
+                    self.action(player_idx, 'normal')
+
+            print("\n=== 初始特殊建筑摆放、铲子及其他效果获取阶段 ===")
+                
+            # round_idx = 1
+            # # 当存在初始行动时
+            # while not self.game_state.setup_is_completed:
+
+            #     # 确定本轮玩家顺序
+            #     if round_idx == 2:
+            #         current_turn_order = self.game_state.current_player_order 
+            #     else:
+            #         current_turn_order = self.game_state.pass_order
+                
+            #     for player_idx in current_turn_order:
+            #         print()
+            #         self.action(player_idx, 'setup')
+   
+            # 设置第一回合回合玩家行动顺序为初始设置阶段跳过顺序
+            self.game_state.current_player_order = self.game_state.pass_order.copy()
+
+        def execute_formal_round(self: GameEngine):
+            # 备份本回合初始时的玩家行动顺序
+            self.current_round_init_player_order = self.game_state.current_player_order.copy()
+
+            self.game_state.pass_order.clear()
+            current_player_order = self.game_state.current_player_order.copy()
+            print(f"当前轮玩家行动顺序：{','.join(map(lambda x:str(x+1),current_player_order))}")       
+
+            print(f'\n--- 第{self.game_state.round}轮收入阶段 ---')
+            for player_idx in self.current_round_init_player_order:
+                for income_effect in self.game_state.players[player_idx].income_effect_list:
+                    income_effect(player_idx)
+            
+            print(f'\n--- 第{self.game_state.round}轮行动阶段 ---')
+            while current_player_order:
+                for player_idx in current_player_order:
+                    self.action(player_idx, 'normal')
+                current_player_order = self.game_state.current_player_order.copy()
+
+            print(f'\n--- 第{self.game_state.round}轮回合结束结算阶段 ---')
+            for player_idx in self.current_round_init_player_order:
+                for round_end_effect in self.game_state.players[player_idx].round_end_effect_list:
+                    round_end_effect(player_idx)
+            
+            self.game_state.current_player_order = self.game_state.pass_order.copy()
+        
+        self.current_round_init_player_order = []  # 当前轮初始玩家行动顺序
 
         # 初始设置阶段
-        self.initial_setup_phase()
+        initial_setup_phase(self)
         
         # TODO 正式轮次阶段
         print(f"\n=== 正式轮次阶段 ===")
@@ -77,65 +130,12 @@ class GameEngine:
             self.game_state.round = round_idx  
 
             print(f"\n--- 第{round_idx}轮 ---")
-            self.execute_formal_round()
+            execute_formal_round(self)
 
             
         # TODO 终局结算阶段
         print("\n=== 终局结算阶段 ===\n")
  
-    def initial_setup_phase(self):
-        """初始设置阶段"""
-        print("\n=== 初始设置阶段 ===")
         
-        # 4轮选择（逆蛇轮抽）
-        for round_idx in range(4):
-            print(f"\n--- 第{round_idx + 1}轮选择 ---")
 
-            # 确定本轮玩家顺序
-            if round_idx % 2 == 0:
-                current_turn_order = self.game_state.current_player_order
-            else:
-                current_turn_order = self.game_state.pass_order
-
-            for player_idx in current_turn_order:
-                print()
-                self.action(player_idx, 'normal')
-                
-        
-        # 确定初始设置行动顺序
-        self.game_state.create_setup_action_order()
-        # 执行初始设置行动
-        self.action(mode='setup')
-
-        # 设置第一回合回合玩家行动顺序为初始设置阶段跳过顺序
-        self.game_state.current_player_order = self.game_state.pass_order.copy()
-
-        # 设置完成
-        print("\n初始设置及轮抽完成!")
-        
-    def execute_formal_round(self):
-
-        # 备份本回合初始时的玩家行动顺序
-        self.current_round_init_player_order = self.game_state.current_player_order.copy()
-
-        self.game_state.pass_order.clear()
-        current_player_order = self.game_state.current_player_order.copy()
-        print(f"当前轮玩家行动顺序：{','.join(map(lambda x:str(x+1),current_player_order))}")       
-
-        print(f'\n--- 第{self.game_state.round}轮收入阶段 ---')
-        for player_idx in self.current_round_init_player_order:
-            print()
-            self.action(player_idx, 'income')
-        
-        print(f'\n--- 第{self.game_state.round}轮行动阶段 ---')
-        while current_player_order:
-            for player_idx in current_player_order:
-                self.action(player_idx, 'normal')
-            current_player_order = self.game_state.current_player_order.copy()
-
-        print(f'\n--- 第{self.game_state.round}轮回合结束结算阶段 ---')
-        for player_idx in self.current_round_init_player_order:
-            self.action(player_idx, 'round_end')
-        
-        self.game_state.current_player_order = self.game_state.pass_order.copy()
     

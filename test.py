@@ -1,3 +1,9 @@
-a,b,c,d = 8,5,6,101
-if sum(x>7 for x in [a,b,c,d]):
-    print(sum(x>7 for x in [a,b,c,d]))
+
+terrain = 5
+controller = 1
+player_id = 1
+
+if terrain != 5 or (controller == -1 | player_id):
+    print(True)
+else:
+    print(False)
