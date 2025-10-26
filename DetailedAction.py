@@ -179,5 +179,8 @@ class DetailedAction:
             163: {'action': 'select_position', 'args': (8,11),  'description': '选择地图坐标I12'},
             164: {'action': 'select_position', 'args': (8,12),  'description': '选择地图坐标I13'},
             
-            165: {'action': 'setup_build', 'args': ('build', 'anywhere', 1, False), 'description': '全图原生地选择一个建造自己的车间'}
+            165: {'action': 'setup_build', 'args': ('build_setup', 1, False), 'description': '全图原生地选择建造一个自己的车间'},
+            166: {'action': 'setup_build', 'args': ('build_setup', 5, False), 'description': '全图原生地选择建造一个自己的大学'},
+            167: {'action': 'setup_build', 'args': ('build_setup', 6, True),  'description': '全图原生地选择建造一个中立的塔楼'},
+            
         }

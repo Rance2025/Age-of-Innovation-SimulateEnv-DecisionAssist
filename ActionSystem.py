@@ -562,13 +562,19 @@ class ActionSystem:
                 # 判断主行动是否已被执行
                 and self.player.main_action_is_done == False
             ):
-                # 所有可用行动id: 165
+                # 所有可用行动id: 165-167
                 available_action_ids_list = [165]
                 
                 match self.player.faction_id:
                     case 8:
-                        self.player.main_action_is_done = True
-                        return [65] # 僧侣建大学无车间，所以跳过
+                        return [166]
+                    case 10:
+                        if self.player.buildings[1] >= 8 and self.player.buildings[6] > 0:
+                            return [165, 167]
+                        elif self.player.buildings[1] == 7:
+                            return [167]
+                        else:
+                            return [165]
                     case _:
                         return available_action_ids_list 
             else:

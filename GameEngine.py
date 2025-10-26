@@ -56,39 +56,46 @@ class GameEngine:
             print("\n=== 初始设置阶段 ===")
             
             # 4轮选择（逆蛇轮抽）
-            for round_idx in range(1,7):
+            for round_idx in range(1,5):
                 print(f"\n--- 第{round_idx }轮初始设置行动 ---")
 
                 # 确定本轮玩家顺序
-                if round_idx in [1,3,6]:
+                if round_idx % 2 == 1:
                     current_turn_order = self.game_state.current_player_order
                 else:
                     current_turn_order = self.game_state.pass_order
-                if round_idx == 5:
-                    self.game_state.setup_choice_is_completed = True
-                    print("\n初始设置及轮抽完成!")
 
                 for player_idx in current_turn_order:
                     print()
                     self.action(player_idx, 'normal')
+                    
+            self.game_state.setup_choice_is_completed = True
+            print("\n初始设置及轮抽完成!")
 
-            print("\n=== 初始特殊建筑摆放、铲子及其他效果获取阶段 ===")
-                
-            # round_idx = 1
-            # # 当存在初始行动时
-            # while not self.game_state.setup_is_completed:
+            print("\n=== 初始建筑摆放阶段 ===")
+            build_order = []
+            faction_8_owner_id = -1
+            faction_10_owner_id = -1
 
-            #     # 确定本轮玩家顺序
-            #     if round_idx == 2:
-            #         current_turn_order = self.game_state.current_player_order 
-            #     else:
-            #         current_turn_order = self.game_state.pass_order
-                
-            #     for player_idx in current_turn_order:
-            #         print()
-            #         self.action(player_idx, 'setup')
-   
-            # 设置第一回合回合玩家行动顺序为初始设置阶段跳过顺序
+            for idx in range(self.num_players):
+                if self.game_state.players[idx].faction_id == 8:
+                    faction_8_owner_id = idx
+                if self.game_state.players[idx].faction_id == 10:
+                    faction_10_owner_id = idx
+            match faction_8_owner_id, faction_10_owner_id:
+                case x,y if x != -1 and y != -1:
+                    build_order = [idx for idx in self.game_state.pass_order + self.game_state.current_player_order if idx != faction_8_owner_id] + [faction_10_owner_id, faction_8_owner_id]
+                case x,y if x != -1 and y == -1:
+                    build_order = [idx for idx in self.game_state.pass_order + self.game_state.current_player_order if idx != faction_8_owner_id] + [faction_8_owner_id]
+                case x,y if x == -1 and y != -1:
+                    build_order = self.game_state.pass_order + self.game_state.current_player_order + [faction_10_owner_id]
+                case x,y if x == -1 and y == -1:
+                    build_order = self.game_state.pass_order + self.game_state.current_player_order
+
+            for player_idx in build_order:
+                print()
+                self.action(player_idx, 'normal')
+            
             self.game_state.current_player_order = self.game_state.pass_order.copy()
 
         def execute_formal_round(self: GameEngine):

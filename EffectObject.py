@@ -188,17 +188,10 @@ class AllEffectObject:
         pass
 
     class MonksFaction(Faction):
-        def execute_setup_effect(self, executed_player_id):
-            self.setup_effect.extend([
-                ('building', 'anywhere', ((1,2,False),(6,1,True)))
-            ])
-
         pass
 
     class NavigatorsFaction(Faction):
-        def execute_setup_effect(self, executed_player_id):
-
-            pass
+        pass
 
     class OmarFaction(Faction):
         pass

@@ -148,9 +148,9 @@ class GameStateBase:
                 3: 0,  # 三区魔力
             }
 
-            self.controlled_territory_ids = [] # 当前控制的领土ID列表
-            self.adjacent_coords = []          # 相邻坐标列表（排除控制领土）
-            self.reachable_coords = []         # 可抵达坐标列表（排除控制领土）
+            self.controlled_map_ids = []       # 当前控制的领土ID列表
+            self.adjacent_map_ids = []         # 相邻坐标列表（排除控制领土）
+            self.reachable_map_ids = []        # 可抵达坐标列表（排除控制领土）
             self.science_tile_ids = []         # 当前已获得科技板块ID列表
             self.ability_tile_ids = []         # 当前已获得能力板块ID列表
             self.all_effect_objects = []       # 所有效果板块列表
@@ -166,7 +166,7 @@ class GameStateBase:
 
             self.main_action_is_done = False # 主要行动是否完成
             self.ispass = False              # 是否已跳过
-            self.choice_position = tuple()   # 玩家选择位置标记
+            self.choice_position = tuple()   # 玩家选择地图坐标记录
 
             self.income_effect_list: list[Callable[[int],None]] = []        # 收入阶段效果列表 
             self.pass_effect_list: list[Callable[[int],None]] = []          # 略过动作效果列表
@@ -222,9 +222,9 @@ class GameStateBase:
             
             # 坐标状态
             coords_str = ", ".join([
-                f"控制领土: {self.controlled_territory_ids}",
-                f"相邻坐标: {self.adjacent_coords}",
-                f"可抵达坐标: {self.reachable_coords}"
+                f"控制领土: {self.controlled_map_ids}",
+                f"相邻坐标: {self.adjacent_map_ids}",
+                f"可抵达坐标: {self.reachable_map_ids}"
             ])
             
             # 分数状态
@@ -401,7 +401,7 @@ class GameStateBase:
             self.setup_choice_is_completed = False                                            # 初始选择是否完成
 
     def invoke_aciton(self, player_id: int, mode: str, args: tuple):
-        return 
+        return
 
     def check(self, player_id: int, list_to_be_checked: list) -> bool:
 
@@ -674,45 +674,58 @@ class GameStateBase:
         def shovel(player_id: int, mode: str, pos: tuple, num: int):
             pass
 
-        def adjust_building(player_id: int, mode:str, pos, post_building_id: int, is_neutral: bool):
-            match pos:
-                case 'anywhere':
-                    args = ('select_position', 'anywhere')
-                    self.invoke_aciton(player_id, 'immediate', args)
-                    pos = self.players[player_id].choice_position
-                    adjust_building(player_id, mode, pos, post_building_id, is_neutral)
-                case x if type(x) == tuple:
-                    i,j = pos
-                    terrain, controller, pre_building_id, pre_side_building_num, pre_is_neutral = self.map_board_state.map_grid[i][j]
-                    if terrain != self.players[player_id].planning_card_id:
-                        raise ValueError(f'{pos}处目前不是你的原生地形')
-                    if controller != -1 and controller != player_id:    
-                        raise ValueError(f'{pos}处已被其他玩家控制')
-                    match mode:
-                        case 'build':
-                            if post_building_id == 8:
-                                raise ValueError(f'不可通过build模式建造侧楼')
-                            if pre_building_id !=0:
-                                raise ValueError(f'不可在已有建筑物的地方建造，仅可升级')
-                            self.map_board_state.map_grid[i][j] = [terrain, player_id, post_building_id, pre_side_building_num, is_neutral]
-                            if not is_neutral:
-                                self.players[player_id].buildings[post_building_id] -= 1
-                        case 'upgrade':
-                            if pre_building_id in (3,5,6,7) or pre_is_neutral == True:
-                                raise ValueError(f'该建筑不可升级')
-                            if is_neutral:
-                                raise ValueError(f'参数不合法，不可将常规建筑升级为中立建筑')
-                            match pre_building_id, post_building_id:
-                                case (1,2)|(2,3)|(2,4)|(4,5):
-                                    self.map_board_state.map_grid[i][j] = [terrain, player_id, post_building_id, pre_side_building_num, is_neutral]
-                                case _ :
-                                    raise ValueError(f'{pre_building_id}->{post_building_id}升级路径不合法')
-                        case 'side_build':
+        def adjust_building(player_id: int, mode:str, to_build_id: int, is_neutral: bool):
+
+            match mode:
+                case 'build_setup'|'build_special':
+                    self.invoke_aciton(player_id, 'immediate', ('select_position', 'anywhere'))
+                case 'build_normal'|'build_neutral':
+                    self.invoke_aciton(player_id, 'immediate', ('select_position', 'reachable'))
+                case 'upgrade'|'build_annex'|'degrade':
+                    self.invoke_aciton(player_id, 'immediate', ('select_position', 'controlled'))
+                case _:
+                    raise ValueError(f'非法建造模式: {mode}')
+                
+            i,j = self.players[player_id].choice_position
+
+            match self.map_board_state.map_grid[i][j]:
+                # 该地形被其他玩家控制的情况
+                case [_,controller, _, _, _] if controller != -1 and controller != player_id:  
+                    raise ValueError(f'{chr(ord('A')+i)}{j+1}处已被其他玩家控制')
+                
+                # 该地形非该玩家原生地形的情况
+                case [terrain, _, _, _, _] if terrain != self.players[player_id].planning_card_id:
+                    raise ValueError(f'{chr(ord('A')+i)}{j+1}处目前不是你的原生地形')
+
+                # 该地形已存在该玩家建筑的情况
+                case [_, _, pre_building_id, pre_side_building_num, pre_is_neutral] if pre_building_id != 0:
+                    match mode, pre_building_id, pre_is_neutral, pre_side_building_num, to_build_id, is_neutral:
+                        case 'upgrade', pre_building_id, False, _, to_build_id, False if (pre_building_id, to_build_id) in [(1,2),(2,3),(2,4),(4,5)]:
                             pass
-                        case 'degrade':
+                        case 'build_annex', _, _, 0, 8, True:
                             pass
-                case _ :
-                    raise ValueError(f'非法建筑调整位置模式：{pos}')
+                        case 'degrade', 4, False, _, 2, False:
+                            pass
+                        case _:
+                            raise ValueError(f'已存在建筑物的地形上进行非法操作')
+                        
+                # 该地形为该玩家原生地形且无建筑的情况
+                case _:
+                    match mode, to_build_id, is_neutral:
+                        case 'build_normal', 1, False:
+                            pass
+                        case 'build_setup', to_build_id, is_neutral if (to_build_id, is_neutral) in [(1,False), (5,False), (6,True)]:
+                            pass
+                            # TODO 初始建造
+                            # self.map_board_state.map_grid[i][j] = [terrain, player_id, post_building_id, pre_side_building_num, is_neutral]
+                            # if not is_neutral:
+                            #     self.players[player_id].buildings[post_building_id] -= 1
+                        case 'build_neutral', 1|2|3|4|5|6|7, True:
+                            pass
+                        case 'build_special', 2, False:
+                            pass
+                        case _:
+                            raise ValueError(f'在无建筑物的地形上进行非法操作')
                         
         
         all_adjust_list = {
