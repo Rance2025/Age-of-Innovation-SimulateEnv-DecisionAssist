@@ -28,6 +28,7 @@ class ActionSystem:
             'improve_shovel_level',             # 升级铲子等级
             'insert_meeple',                    # 插米宝提轨道
             'shovel_and_build',                 # 改造地形或/并建造
+            'upgrade_building',                 # 升级建筑
         ]
 
         # 立即行动名称列表
@@ -178,6 +179,7 @@ class ActionSystem:
             self.player.main_action_is_done = True
             # 设置玩家宫殿板块
             self.player.palace_tile_id = args
+            # TODO 获取与激活要区分
             # 获取所选宫殿效果板块
             self.all_available_object_dict['palace_tile'][args].get(self.player_id)
 
@@ -542,7 +544,7 @@ class ActionSystem:
 
             self.game_state.adjust(self.player_id, [('tracks', args)])
         
-        def check_select_position_action(mode, available_terrain_ids_set) -> list:
+        def check_select_position_action(mode, args = tuple()) -> list:
 
             # 所有可用行动id: 84-164
             available_action_ids_list = []
@@ -566,15 +568,58 @@ class ActionSystem:
                     for action_id in range(84,165):
                         i,j = self.all_detailed_actions[action_id]['args']
                         match self.game_state.map_board_state.map_grid[i][j]:
-                            case [terrain, -1, 0, _, _] if terrain in available_terrain_ids_set:
+                            case [terrain, -1, 0, _, _] if terrain in args:
                                 available_action_ids_list.append(action_id)
                 case 'reachable':
                     # 从玩家可抵地块集合中遍历
                     for i,j in self.player.reachable_map_ids:
                         match self.game_state.map_board_state.map_grid[i][j]:
-                            case [terrain, -1, 0, _, _] if terrain in available_terrain_ids_set:
+                            case [terrain, -1, 0, _, _] if terrain in args:
                                 action_id = 83 + pos_to_action_id[i][j]
                                 available_action_ids_list.append(action_id)
+                case 'controlled':
+                    # 从玩家控制地块集合中遍历
+                    to_upgrade_building_id, neighbor_or_not = args
+                    # 判断是否是建侧楼的特殊情况
+                    if to_upgrade_building_id != 8:
+                        # 遍历控制列表
+                        for i,j in self.player.controlled_map_ids:
+                            match self.game_state.map_board_state.map_grid[i][j]:
+                                # 当被遍历到的控制地块上的当前建筑对象为需升级建筑时
+                                case [_, _, to_upgrade_building_id, _, _]:
+                                    # 如果需升级建筑为车间
+                                    if to_upgrade_building_id == 1:
+                                        # 判断可否支持无邻居建造
+                                        if neighbor_or_not == 'alone_or_neighbor':
+                                            # 如果支持，则无条件遍历所有控制地块，将其上为车间的行动id加入可用列表
+                                            action_id = 83 + pos_to_action_id[i][j]
+                                            available_action_ids_list.append(action_id)
+                                        
+                                        elif neighbor_or_not == 'neighbor':
+                                            # 如果不支持，则还需遍历当前控制地块的相邻地块
+                                            direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
+                                            for dx, dy in direction:
+                                                new_i, new_j = i+dx, j+dy
+                                                if 0 <= new_i <= 8 and 0 <= new_j <= 12:
+                                                    # 获取相邻地块的控制者id
+                                                    controlled_id = self.game_state.map_board_state.map_grid[new_i][new_j][1]
+                                                    # 如果控制者为其他派系玩家
+                                                    if controlled_id != -1 and controlled_id != self.player_id:
+                                                        # 则将当前控制地块的行动id加入可用列表,并跳出后续相邻地块的遍历
+                                                        action_id = 83 + pos_to_action_id[i][j]
+                                                        available_action_ids_list.append(action_id)
+                                                        break
+                                    # 如果不是车间
+                                    else:
+                                        action_id = 83 + pos_to_action_id[i][j]
+                                        available_action_ids_list.append(action_id)
+                    # 如果需要建造的为侧楼
+                    else:
+                        for i,j in self.player.controlled_map_ids:
+                            match self.game_state.map_board_state.map_grid[i][j]:
+                                case [_, _, _, 0, _]:
+                                    action_id = 83 + pos_to_action_id[i][j]
+                                    available_action_ids_list.append(action_id)
                 case _:
                     pass
             return available_action_ids_list
@@ -764,6 +809,69 @@ class ActionSystem:
             # 添加该能力板块id
             self.player.ability_tile_ids.append(ability_tile_id)
 
+        def check_upgrade_building_action() -> list:
+            if (
+                # 判断是否处于正式阶段
+                self.game_state.round != 0
+                # 判断主行动是否已被执行
+                and self.player.main_action_is_done == False
+            ):
+                # 所有可用行动id: 219-223
+                available_action_ids_list = []
+                
+                # 如果玩家规划板上车间数量小于9，则意味着版图上存在车间
+                if self.player.buildings[1] < 9: 
+                    # 检查无邻居条件下是否能支付花费
+                    if self.game_state.check(self.player_id, [('building', 2), ('ore', 2), ('money', 6)]):
+                        available_action_ids_list.append(220)
+                    # 若不能，则检查有邻居情况下是否能支付花费
+                    elif self.game_state.check(self.player_id, [('building', 2), ('ore', 2), ('money', 3)]):
+                        # 若能，则遍历控制坐标集合
+                        for i,j in self.player.controlled_map_ids:
+                            # 获取该控制地块上建筑id
+                            post_upgrade_building_id = self.game_state.map_board_state.map_grid[new_i][new_j][2]
+                            # 如果该建筑为车间
+                            if post_upgrade_building_id == 1:
+                                direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
+                                # 则遍历其6个相邻地块
+                                for dx, dy in direction:
+                                    new_i, new_j = i+dx, j+dy
+                                    if 0 <= new_i <= 8 and 0 <= new_j <= 12:
+                                        # 获取该相邻地块的控制者
+                                        controlled_id = self.game_state.map_board_state.map_grid[new_i][new_j][1]
+                                        # 如果控制者不为空且不为玩家自身（即相邻地块中存在被其他派系控制的）
+                                        if controlled_id != -1 and controlled_id != self.player_id:
+                                            available_action_ids_list.append(219)
+                                            break
+                                # 如果已确认至少有一个控制地块上建筑为车间的相邻地块上存在其他派系，则跳出遍历
+                                if 219 in available_action_ids_list:
+                                    break
+
+                if self.player.buildings[2] < 4:
+                    if self.game_state.check(self.player_id, [('building', 3), ('ore', 4), ('money', 6)]):
+                        available_action_ids_list.append(221)
+                    if self.game_state.check(self.player_id, [('building', 4), ('ore', 3), ('money', 5)]):
+                        available_action_ids_list.append(222)
+
+                if self.player.buildings[4] < 3:
+                    if self.game_state.check(self.player_id, [('building', 5), ('ore', 5), ('money', 8)]):
+                        available_action_ids_list.append(223)
+
+                return available_action_ids_list
+            else:
+                return []
+        
+        def upgrade_building_action(args):
+            
+            # 设置主行动已执行
+            self.player.main_action_is_done = True
+            # 获取选择坐标参数
+            pos_arg, *build_arg = args
+            # 选择升级位置
+            self.game_state.invoke_immediate_aciton(self.player_id, ('select_position', 'controlled', pos_arg))
+            # 执行升级行动
+            self.game_state.adjust(self.player_id, [('building', *build_arg)])
+
         check_action_dict: dict[str, Callable] = {
             'select_planning_card': check_select_planning_card_action,
             'select_faction': check_select_faction_action,
@@ -782,6 +890,7 @@ class ActionSystem:
             'gain_magics': check_gain_magics_action,
             'select_city_tile': check_select_city_tile_action,
             'select_ability_tile': check_select_ability_tile_action,
+            'upgrade_building': check_upgrade_building_action,
         }
         execute_action_dict: dict[str, Callable] = {
             'select_planning_card': select_planning_card_action,
@@ -801,6 +910,7 @@ class ActionSystem:
             'gain_magics': gain_magics_action,
             'select_city_tile': select_city_tile_action,
             'select_ability_tile': select_ability_tile_action,
+            'upgrade_building': upgrade_building_action,
         }
 
         def action_dict(mode: str, name: str) -> Callable:

@@ -849,19 +849,61 @@ class GameStateBase:
                 case [_, _, pre_building_id, pre_side_building_num, pre_is_neutral] if pre_building_id != 0:
                     match mode, pre_building_id, pre_is_neutral, pre_side_building_num, to_build_id, is_neutral:
                         case 'upgrade', pre_building_id, False, _, to_build_id, False if (pre_building_id, to_build_id) in [(1,2),(2,3),(2,4),(4,5)]:
-                            pass
+                            # 根据待建建筑id，支付升级费用
+                            match to_build_id:
+                                # 升级为工会时
+                                case 2:
+                                    # 判读该地块相邻是否有邻居
+                                    direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
+                                    for dx, dy in direction:
+                                        new_i, new_j = i+dx, j+dy
+                                        if 0 <= new_i <= 8 and 0 <= new_j <= 12:
+                                            controlled_id = self.map_board_state.map_grid[new_i][new_j][1]
+                                            if controlled_id != -1 and controlled_id != player_id:
+                                                # 支付有邻居的升级费用
+                                                self.adjust(player_id, [('money', 'use', 3), ('ore', 'use', 2)])
+                                                break
+                                    else:
+                                        # 支付无邻居的升级费用
+                                        self.adjust(player_id, [('money', 'use', 6), ('ore', 'use', 2)])
+                                # 升级为宫殿时
+                                case 3:
+                                    # 支付升级费用
+                                    self.adjust(player_id, [('money', 'use', 6), ('ore', 'use', 4)])
+                                    # 标记宫殿已经获得
+                                    self.players[player_id].is_got_palace = True
+                                # 升级为学院时
+                                case 4:
+                                    # 支付升级费用
+                                    self.adjust(player_id, [('money', 'use', 5), ('ore', 'use', 3)])
+                                    # 立即获取一个能力板块
+                                    self.invoke_immediate_aciton(player_id, ('select_ability_tile',))
+                                # 升级为大学时
+                                case 5:
+                                    # 支付升级费用
+                                    self.adjust(player_id, [('money', 'use', 8), ('ore', 'use', 5)])
+                                    # 立即获取一个能力板块
+                                    self.invoke_immediate_aciton(player_id, ('select_ability_tile',))
+
+                            # 调整玩家规划板上建筑数量
+                            self.players[player_id].buildings[pre_building_id] += 1
+                            self.players[player_id].buildings[to_build_id] -= 1
                         case 'build_annex', _, _, 0, 8, True:
                             pass
                         case 'degrade', 4, False, _, 2, False:
                             pass
                         case _:
                             raise ValueError(f'已存在建筑物的地形上进行非法操作')
+                    
+                    # 修改地块的建筑id和侧楼数量和建筑性质
+                    self.map_board_state.map_grid[i][j][2:] = to_build_id, pre_side_building_num, is_neutral
                         
                 # 该地形为该玩家原生地形且无建筑的情况
                 case _:
                     match mode, to_build_id, is_neutral:
                         case 'build_normal', 1, False:
-                            pass
+                            # 支付建造费用
+                            self.adjust(player_id, [('money', 'use', 2), ('ore', 'use', 1)])
                         case 'build_setup', to_build_id, is_neutral if (to_build_id, is_neutral) in [(1,False), (5,False), (6,True)]:
                             pass
                         case 'build_neutral', 1|2|3|4|5|6|7, True:
@@ -871,16 +913,16 @@ class GameStateBase:
                         case _:
                             raise ValueError(f'在无建筑物的地形上进行非法操作')
                         
-                    # 初始建造, 修改改地块控制玩家id和建筑id和建筑性质
-                    self.map_board_state.map_grid[i][j][1] = player_id
-                    self.map_board_state.map_grid[i][j][2] = to_build_id
+                    # 修改地块控制玩家id和建筑id和建筑性质
+                    self.map_board_state.map_grid[i][j][1:3] = player_id, to_build_id
                     self.map_board_state.map_grid[i][j][4] = is_neutral
-                    # 修改玩家的建筑数量
+                    # 调整玩家规划板上建筑数量
                     self.players[player_id].buildings[to_build_id] -= 1
                     # 更新控制地块与可抵地块
                     self.update_controlled_and_reachable_map_ids(player_id, (i,j))
-                    # 执行吸取魔力立即行动（如有）与城市建立（如有）
-                    self.execute_get_magics_and_city_establishment_if_needed(player_id, (i,j))
+
+            # 执行吸取魔力立即行动（如有）与城市建立（如有）
+            self.execute_get_magics_and_city_establishment_if_needed(player_id, (i,j))
                     
         all_adjust_list = {
             'money': adjust_money,

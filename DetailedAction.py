@@ -237,4 +237,9 @@ class DetailedAction:
             217: {'action': 'select_ability_tile', 'args': 11, 'description': '选择能力板块11'},
             218: {'action': 'select_ability_tile', 'args': 12, 'description': '选择能力板块12'},
 
+            219: {'action': 'upgrade_building', 'args': ((1,'neighbor'), 'upgrade', 2, False), 'description': '将车间升级成工会（需有邻居）'},
+            220: {'action': 'upgrade_building', 'args': ((1,'alone_or_neighbor'), 'upgrade', 2, False), 'description': '将车间升级成工会（可无邻居）'},
+            221: {'action': 'upgrade_building', 'args': ((2,None), 'upgrade', 3, False), 'description': '将工会升级成宫殿'},
+            222: {'action': 'upgrade_building', 'args': ((2,None), 'upgrade', 4, False), 'description': '将工会升级成学院'},
+            223: {'action': 'upgrade_building', 'args': ((4,None), 'upgrade', 5, False), 'description': '将学院升级成大学'},
         }

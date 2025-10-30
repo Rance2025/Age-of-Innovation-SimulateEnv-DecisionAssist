@@ -107,6 +107,7 @@ class GameEngine:
             print(f"当前轮玩家行动顺序：{','.join(map(lambda x:str(x+1),current_player_order))}")       
 
             print(f'\n--- 第{self.game_state.round}轮收入阶段 ---')
+            # TODO 打印可视化收入阶段
             for player_idx in self.current_round_init_player_order:
                 for income_effect in self.game_state.players[player_idx].income_effect_list:
                     income_effect(player_idx)
@@ -119,6 +120,7 @@ class GameEngine:
                 current_player_order = self.game_state.current_player_order.copy()
 
             print(f'\n--- 第{self.game_state.round}轮回合结束结算阶段 ---')
+            # TODO 打印可视化结算阶段
             for player_idx in self.current_round_init_player_order:
                 for round_end_effect in self.game_state.players[player_idx].round_end_effect_list:
                     round_end_effect(player_idx)
@@ -130,9 +132,8 @@ class GameEngine:
         # 初始设置阶段
         initial_setup_phase(self)
         
-        # TODO 正式轮次阶段
         print(f"\n=== 正式轮次阶段 ===")
-        for round_idx in range(1,7): # TODO 调试
+        for round_idx in range(1,7):
             
             # 设置游戏当前轮次
             self.game_state.round = round_idx  
@@ -140,7 +141,5 @@ class GameEngine:
             print(f"\n--- 第{round_idx}轮 ---")
             execute_formal_round(self)
 
-            
-        # TODO 终局结算阶段
         print("\n=== 终局结算阶段 ===\n")
-     
+        # TODO 终局结算
