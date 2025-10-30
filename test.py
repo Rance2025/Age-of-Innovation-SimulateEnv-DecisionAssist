@@ -7,3 +7,6 @@ if terrain != 5 or (controller == -1 | player_id):
     print(True)
 else:
     print(False)
+
+print(-1%7)
+print(list(range(169,169)))

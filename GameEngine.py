@@ -19,8 +19,8 @@ class GameEngine:
             def __init__(self) -> None:
                 super().__init__(out_ref.num_players)
                 return
-            def invoke_aciton(self, player_id: int, mode:str, args: tuple):
-                out_ref.action(player_id, mode, args)
+            def invoke_immediate_aciton(self, player_id: int, args: tuple):
+                out_ref.action(player_id, 'immediate', args)
 
         return GameState()
         
@@ -83,14 +83,14 @@ class GameEngine:
                 if self.game_state.players[idx].faction_id == 10:
                     faction_10_owner_id = idx
             match faction_8_owner_id, faction_10_owner_id:
-                case x,y if x != -1 and y != -1:
-                    build_order = [idx for idx in self.game_state.pass_order + self.game_state.current_player_order if idx != faction_8_owner_id] + [faction_10_owner_id, faction_8_owner_id]
-                case x,y if x != -1 and y == -1:
-                    build_order = [idx for idx in self.game_state.pass_order + self.game_state.current_player_order if idx != faction_8_owner_id] + [faction_8_owner_id]
-                case x,y if x == -1 and y != -1:
-                    build_order = self.game_state.pass_order + self.game_state.current_player_order + [faction_10_owner_id]
-                case x,y if x == -1 and y == -1:
+                case -1, -1:
                     build_order = self.game_state.pass_order + self.game_state.current_player_order
+                case _, -1:
+                    build_order = [idx for idx in self.game_state.pass_order + self.game_state.current_player_order if idx != faction_8_owner_id] + [faction_8_owner_id]
+                case -1, _:
+                    build_order = self.game_state.pass_order + self.game_state.current_player_order + [faction_10_owner_id]
+                case _, _:
+                    build_order = [idx for idx in self.game_state.pass_order + self.game_state.current_player_order if idx != faction_8_owner_id] + [faction_10_owner_id, faction_8_owner_id]
 
             for player_idx in build_order:
                 print()
@@ -114,6 +114,7 @@ class GameEngine:
             print(f'\n--- 第{self.game_state.round}轮行动阶段 ---')
             while current_player_order:
                 for player_idx in current_player_order:
+                    print()
                     self.action(player_idx, 'normal')
                 current_player_order = self.game_state.current_player_order.copy()
 
@@ -142,7 +143,4 @@ class GameEngine:
             
         # TODO 终局结算阶段
         print("\n=== 终局结算阶段 ===\n")
- 
-        
-
-    
+     

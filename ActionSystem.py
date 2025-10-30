@@ -1,5 +1,6 @@
 from GameState import GameStateBase
 from DetailedAction import DetailedAction
+from typing import Callable
 
 class ActionSystem:
     """行动系统"""
@@ -9,27 +10,34 @@ class ActionSystem:
         self.player = game_state.players[player_id]                                     # 当前玩家
         self.all_detailed_actions = DetailedAction().all_detailed_actions               # 所有具体行动         
         self.all_available_object_dict = self.game_state.all_available_object_dict      # 效果板块索引
+        self.action_dict = self.create_action_dict()                                    # 创建所有行动字典
+
+        # 创建各地形id需要几铲才能成为原生地的初始空字典，在选择规划卡后更新
+        self.terrain_id_need_shovel_times = {i: -1 for i in range(1,8)}
 
         # 行动名称列表
         self.action_list = [
-            'select_planning_card',
-            'select_faction',
-            'select_palace_tile',
-            'select_round_booster',
-            'setup_build',
-            'pass_this_round',
-            'quick_magics',
-            'pass',
-            'improve_navigation_level',
-            'improve_shovel_level',
-            'insert_meeple',
+            'select_planning_card',             # 选择规划卡
+            'select_faction',                   # 选择派系
+            'select_palace_tile',               # 选择宫殿板块
+            'select_round_booster',             # 选择初始回合助推板
+            'setup_build',                      # 初始建筑摆放
+            'pass_this_round',                  # 略过本回合
+            'quick_magics',                     # 快速魔力行动
+            'improve_navigation_level',         # 升级航海等级
+            'improve_shovel_level',             # 升级铲子等级
+            'insert_meeple',                    # 插米宝提轨道
+            'shovel_and_build',                 # 改造地形或/并建造
         ]
 
         # 立即行动名称列表
         self.immediate_action_list = [
-            'select_book',
-            'select_track',
-            'select_position',
+            'select_book',                      # 选择哪个学科的书
+            'select_track',                     # 选择哪个学科的轨道
+            'select_position',                  # 选择地图上哪个坐标
+            'gain_magics',                      # 选择是否吸取魔力
+            'select_city_tile',                 # 选择哪种城市板块
+            'select_ability_tile',              # 选择哪种能力板块
         ]
 
     def get_available_actions(self, mode, args) -> list:
@@ -54,7 +62,7 @@ class ActionSystem:
         action_name = self.all_detailed_actions[action_id]['action']
         action_arg = self.all_detailed_actions[action_id]['args']
 
-        # 执行行动（主要/快速/立即/初始）
+        # 执行行动（常规（主要/快速）/立即）
         self.action_dict('execute', action_name)(action_arg)
            
     def is_next_action_exist(self) -> bool:
@@ -75,7 +83,7 @@ class ActionSystem:
         # 重置是否已选择跳过标记
         self.player.ispass = False
 
-    def action_dict(self, mode: str, name: str):
+    def create_action_dict(self):
 
         def check_select_planning_card_action() -> list:
             """检查选择规划卡动作是否合法"""
@@ -108,6 +116,10 @@ class ActionSystem:
             self.player.planning_card_id = args
             # 获取所选规划卡效果板块
             self.all_available_object_dict['planning_card'][args].get(self.player_id)
+            # 计算各地形id需要几铲才能成为原生地
+            for i in range(4):
+                self.terrain_id_need_shovel_times[((self.player.planning_card_id-1)-i)%7+1] = i
+                self.terrain_id_need_shovel_times[((self.player.planning_card_id-1)+i)%7+1] = i  
 
         def check_select_faction_action() -> list:
 
@@ -304,51 +316,45 @@ class ActionSystem:
                 # 确保玩家没有跳过
                 and self.player.ispass == False
             ):
-                # 所有可用行动id: 57-64
+                # 所有可用行动id: 57-65
                 available_action_ids_list = []
                 for id in range(1,9):
                     # 检查该行动是否可执行
                     if self.game_state.check(self.player_id, check_quick_magics_actions_args_dict[id]):
                         action_id = id + 56
                         available_action_ids_list.append(action_id)
+
+                if (
+                    # 判断主行动是否已完成
+                    self.player.main_action_is_done == True 
+                ):
+                    # 如果已完成主行动，则允许跳过快速行动
+                    available_action_ids_list.append(65)
                 return available_action_ids_list
             else:
                 return []
         
         def quick_magics_action(args):
-        # 魔力行动执行参数字典
-            execute_quick_magics_actions_args_dict: dict[int,list[tuple]] = {
-                1: [('magics','use',5), ('book','get','any',1)],
-                2: [('magics','use',5), ('meeple','get',1)],
-                3: [('magics','use',3), ('ore','get', 1)], 
-                4: [('magics','use',1), ('money','get', 1)],                  
-                5: [('magics','boom',1)],
-                6: [('book','use','any',1), ('money','get',1)],
-                7: [('meeple','use',1), ('ore','get',1)],
-                8: [('ore','use',1), ('money','get',1)],
-            }
-            # 获取玩家选择的快速魔力行动的参数
-            action_args = execute_quick_magics_actions_args_dict[args]
-            # 执行调整该行动影响
-            self.game_state.adjust(self.player_id, action_args)
 
-        def check_pass_action() -> list:
-
-            if (
-                # 判断主行动是否已完成
-                self.player.main_action_is_done == True 
-                # 判断玩家是否未跳过
-                and self.player.ispass == False
-            ):
-                # 所有可用行动id: 65
-                return [65]
+            if args == 'pass':
+                # 设置玩家选择跳过
+                self.player.ispass = True
             else:
-                return []
-        
-        def pass_action(args):
-            
-            # 设置玩家选择跳过
-            self.player.ispass = True
+                # 魔力行动执行参数字典
+                execute_quick_magics_actions_args_dict: dict[int,list[tuple]] = {
+                    1: [('magics','use',5), ('book','get','any',1)],
+                    2: [('magics','use',5), ('meeple','get',1)],
+                    3: [('magics','use',3), ('ore','get', 1)], 
+                    4: [('magics','use',1), ('money','get', 1)],                  
+                    5: [('magics','boom',1)],
+                    6: [('book','use','any',1), ('money','get',1)],
+                    7: [('meeple','use',1), ('ore','get',1)],
+                    8: [('ore','use',1), ('money','get',1)],
+                }
+                # 获取玩家选择的快速魔力行动的参数
+                action_args = execute_quick_magics_actions_args_dict[args]
+                # 执行调整该行动影响
+                self.game_state.adjust(self.player_id, action_args)
 
         def check_improve_navigation_level_action() -> list:
 
@@ -405,6 +411,8 @@ class ActionSystem:
                         reward.append(('score', 'get', 'board', 4))
             # 获取本次提升奖励
             self.game_state.adjust(self.player_id, reward)
+            # 更新可抵达坐标
+            self.game_state.update_controlled_and_reachable_map_ids(self.player_id, 'all')
 
         def check_improve_shovel_level_action() -> list:
             
@@ -532,18 +540,40 @@ class ActionSystem:
         
         def select_track_action(args):
 
-            self.game_state.adjust(self.player_id, [('track', args)])
+            self.game_state.adjust(self.player_id, [('tracks', args)])
         
-        def check_select_position_action(mode) -> list:
+        def check_select_position_action(mode, available_terrain_ids_set) -> list:
 
             # 所有可用行动id: 84-164
             available_action_ids_list = []
+
+            # 坐标-行动id反查表
+            pos_to_action_id = [
+                [1,0,2,3,4,5,6,0,7,8,9,10,0],
+                [11,0,0,12,13,14,15,0,16,17,18,0,19],
+                [20,21,22,0,23,24,25,0,0,26,0,0,27],
+                [28,29,30,0,31,32,0,33,0,0,34,35,36],
+                [37,38,39,40,0,0,0,41,42,43,44,45,46],
+                [47,0,0,0,48,49,0,50,51,0,52,53,54],
+                [55,0,56,57,0,58,59,0,0,0,0,0,0],
+                [0,60,61,0,62,63,64,65,66,67,68,69,0],
+                [70,71,72,0,73,74,75,76,77,78,79,80,81]
+                ]
+            
             match mode:
                 case 'anywhere': 
+                    # 从全部地块中遍历
                     for action_id in range(84,165):
                         i,j = self.all_detailed_actions[action_id]['args']
                         match self.game_state.map_board_state.map_grid[i][j]:
-                            case [self.player.planning_card_id, -1, 0, _, _]:
+                            case [terrain, -1, 0, _, _] if terrain in available_terrain_ids_set:
+                                available_action_ids_list.append(action_id)
+                case 'reachable':
+                    # 从玩家可抵地块集合中遍历
+                    for i,j in self.player.reachable_map_ids:
+                        match self.game_state.map_board_state.map_grid[i][j]:
+                            case [terrain, -1, 0, _, _] if terrain in available_terrain_ids_set:
+                                action_id = 83 + pos_to_action_id[i][j]
                                 available_action_ids_list.append(action_id)
                 case _:
                     pass
@@ -584,10 +614,157 @@ class ActionSystem:
 
             # 设置主行动已执行
             self.player.main_action_is_done = True
+            # 立即选择位置
+            self.game_state.invoke_immediate_aciton(self.player_id, ('select_position', 'anywhere', set([self.player.planning_card_id])))
             # 建造
             self.game_state.adjust(self.player_id, [('building', *args)])
 
-        check_action_dict: dict = {
+        def check_shovel_and_build_action() -> list:
+
+            if (
+                # 判断是否处于正式阶段
+                self.game_state.round != 0
+                # 判断主行动是否已被执行
+                and self.player.main_action_is_done == False
+            ):
+                # 所有可用行动id: 168-174
+                available_action_ids_list = []
+                # 遍历查找最大支持铲i下再建造车间的花销，得到i
+                for i in range(4):
+                    if not self.game_state.check(self.player_id, [('money',2), ('ore',1+i*self.player.shovel_level),('building',1)]):
+                        max_shovel_times_for_build = i-1
+                        break
+                else:
+                    max_shovel_times_for_build = 3
+                # 遍历查找最大支持铲i下单不建造的花销，得到i
+                for i in range(1,4):
+                    if not self.game_state.check(self.player_id, [('ore', i*self.player.shovel_level)]):
+                        max_shovel_times_for_only_shovel = i-1
+                        break
+                else:
+                    max_shovel_times_for_only_shovel = 3
+
+                # 创建可抵达范围内地形需要几铲才能成为原生地的集合
+                reachable_terrain_need_shovel_times_typs = set()
+
+                # 遍历可抵达范围坐标
+                for i,j in self.player.reachable_map_ids.copy():
+                    match self.game_state.map_board_state.map_grid[i][j]:
+                        case [terrain, controller, _, _, _]:
+                            # 如果该地块已被控制，则从可抵达范围列表中移除
+                            if controller != -1:
+                                self.player.reachable_map_ids.remove((i,j))
+                            else:
+                                # 否则将其需要几铲才能成为原生地加入集合
+                                reachable_terrain_need_shovel_times_typs.add(self.terrain_id_need_shovel_times[terrain])
+                                # 如果0-3铲四种情况已经凑齐，则跳出循环
+                                if len(reachable_terrain_need_shovel_times_typs) == 4:
+                                    break
+
+                # 如果可抵地块中铲成原生地所需的最小次数 小于等于 最大可支持建造车间前铲的次数，则允许该行动：将一个地块铲成原生地（如需）并建造一个车间
+                if min(reachable_terrain_need_shovel_times_typs) <= max_shovel_times_for_build:
+                    available_action_ids_list.append(168+max_shovel_times_for_build)
+                # 可抵地块中铲成原生地所需的最大次数 与 最大可支持不建造仅铲的次数 的两者小值 是最大可铲次数
+                # 则允许行动：在一个可抵地块上铲 1~最大可铲次数 下但不建造（若最大可铲次数为0，则无可用行动：在一个可抵地块上铲x下但不建造）
+                available_action_ids_list.extend(list(range(172,172+min(max(reachable_terrain_need_shovel_times_typs),max_shovel_times_for_only_shovel))))
+
+                # 返回可用行动id列表
+                return available_action_ids_list
+            else:
+                return []
+
+        def shovel_and_build_action(args):
+            
+            # 设置主行动已执行
+            self.player.main_action_is_done = True
+
+            if len(args) > 1:
+                # 获取铲子和建筑参数
+                max_shovel_times, *build_args = args
+                # 创建空可铲地形id集合
+                available_terrain_ids = set()
+                # 遍历各地形id所需铲次数字典
+                for key, value in self.terrain_id_need_shovel_times.items():
+                    # 如果需铲次数 小于等于 可铲次数，则将该地形id加入可铲地形id集合
+                    if value <= max_shovel_times:
+                        available_terrain_ids.add(key)
+                # 立即选择位置
+                self.game_state.invoke_immediate_aciton(self.player_id, ('select_position', 'reachable', available_terrain_ids))
+                # 计算需执行铲次数为所选地块的地形id的需铲次数
+                i,j = self.player.choice_position
+                shovel_times = self.terrain_id_need_shovel_times[self.game_state.map_board_state.map_grid[i][j][0]]
+                # 执行铲子行动（如有）和建造行动
+                self.game_state.adjust(self.player_id, [('land', shovel_times), ('building', *build_args)])
+            else:
+                # 获取铲子和建筑参数
+                shovel_times, *build_args = args
+                # 创建空可铲地形id集合
+                available_terrain_ids = set()
+                # 遍历各地形id所需铲次数字典
+                for key, value in self.terrain_id_need_shovel_times.items():
+                    # 如果需铲次数 大于等于 可铲次数，则将该地形id加入可铲地形id集合
+                    if value >= shovel_times:
+                        available_terrain_ids.add(key)
+                # 立即选择位置
+                self.game_state.invoke_immediate_aciton(self.player_id, ('select_position', 'reachable', available_terrain_ids))
+                # 执行铲子行动
+                self.game_state.adjust(self.player_id, [('land', shovel_times)])
+
+        def check_gain_magics_action(actual_num) -> list:
+            
+            # 所有可用行动id: 175-199
+            available_action_ids_list = [174 + actual_num, 199] # 返回可实际吸取魔力点数 与 放弃吸取
+            
+            return available_action_ids_list
+
+        def gain_magics_action(args):
+            
+            if args == 'give_up':
+                pass
+            else:
+                self.game_state.adjust(self.player_id, [('magics', 'get', args)])
+
+        def check_select_city_tile_action() -> list:
+            
+            # 所有可用行动id: 200-206
+            available_action_ids_list = []
+            for city_tile_id in range(1,8):
+
+                if self.all_available_object_dict['city_tile'][city_tile_id].check_get(self.player_id):
+                    available_action_ids_list.append(199 + city_tile_id)
+
+            return available_action_ids_list
+        
+        def select_city_tile_action(args):
+            
+            # 获取该城片id
+            city_tile_id = args
+            # 获取该城片
+            self.all_available_object_dict['city_tile'][city_tile_id].get(self.player_id)
+
+        def check_select_ability_tile_action() -> list:
+            
+            # 所有可用行动id: 207-218
+            available_action_ids_list = []
+
+            for ability_tile_id in range(1,13):
+                
+                if self.all_available_object_dict['ability_tile'][ability_tile_id].check_get(self.player_id):
+                    action_id = 206 + ability_tile_id
+                    available_action_ids_list.append(action_id)
+
+            return available_action_ids_list
+
+        def select_ability_tile_action(args):
+
+            # 获取该能力板块id
+            ability_tile_id = args
+            # 获取该能力板块
+            self.all_available_object_dict['city_tile'][ability_tile_id].get(self.player_id)
+            # 添加该能力板块id
+            self.player.ability_tile_ids.append(ability_tile_id)
+
+        check_action_dict: dict[str, Callable] = {
             'select_planning_card': check_select_planning_card_action,
             'select_faction': check_select_faction_action,
             'select_palace_tile': check_select_palace_tile_action,
@@ -595,15 +772,18 @@ class ActionSystem:
             'setup_build': check_setup_build_action,
             'pass_this_round': check_pass_this_round_action,
             'quick_magics': check_quick_magics_action,
-            'pass': check_pass_action,
             'improve_navigation_level': check_improve_navigation_level_action,
             'improve_shovel_level': check_improve_shovel_level_action,
             'insert_meeple': check_insert_meeple_action,
             'select_book': check_select_book_action,
             'select_track': check_select_track_action,
             'select_position': check_select_position_action,
+            'shovel_and_build': check_shovel_and_build_action,
+            'gain_magics': check_gain_magics_action,
+            'select_city_tile': check_select_city_tile_action,
+            'select_ability_tile': check_select_ability_tile_action,
         }
-        execute_action_dict: dict = {
+        execute_action_dict: dict[str, Callable] = {
             'select_planning_card': select_planning_card_action,
             'select_faction': select_faction_action,
             'select_palace_tile': select_palace_tile_action,
@@ -611,21 +791,26 @@ class ActionSystem:
             'setup_build': setup_build_action,
             'pass_this_round': pass_this_round_action,
             'quick_magics': quick_magics_action,
-            'pass': pass_action,
             'improve_navigation_level': improve_navigation_level_action,
             'improve_shovel_level': improve_shovel_level_action,
             'insert_meeple': insert_meeple_action,
             'select_book': select_book_action,
             'select_track': select_track_action,
             'select_position': select_position_action,
+            'shovel_and_build': shovel_and_build_action,
+            'gain_magics': gain_magics_action,
+            'select_city_tile': select_city_tile_action,
+            'select_ability_tile': select_ability_tile_action,
         }
 
-        match mode:
-            case 'check':
-                return check_action_dict[name]
-            case 'execute':
-                return execute_action_dict[name]
-            case _:
-                raise ValueError('Invalid mode')
-            
+        def action_dict(mode: str, name: str) -> Callable:
+            match mode:
+                case 'check':
+                    return check_action_dict[name]
+                case 'execute':
+                    return execute_action_dict[name]
+                case _:
+                    raise ValueError('Invalid mode')
         
+        return action_dict  
+            

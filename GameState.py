@@ -133,6 +133,7 @@ class GameStateBase:
             # 航行和铲子等级
             self.navigation_level = 0
             self.shovel_level = 3
+            self.temp_navigation = False
             
             # 科技轨系统
             self.tracks:dict[str,int] = {
@@ -141,6 +142,7 @@ class GameStateBase:
                 'engineering': 0,  # 工程轨
                 'medical': 0,      # 医学轨
             }
+            
             # 魔力系统
             self.magics = {
                 1: 5,  # 一区魔力
@@ -148,9 +150,11 @@ class GameStateBase:
                 3: 0,  # 三区魔力
             }
 
-            self.controlled_map_ids = []       # 当前控制的领土ID列表
-            self.adjacent_map_ids = []         # 相邻坐标列表（排除控制领土）
-            self.reachable_map_ids = []        # 可抵达坐标列表（排除控制领土）
+            self.controlled_map_ids = set()    # 当前控制的领土ID列表
+            self.adjacent_map_ids = set()      # 相邻坐标列表（排除控制领土）
+            self.reachable_map_ids = set()     # 可抵达坐标列表（包含控制领土，不包含水域）
+            self.settlements_and_cities = {}   # 当前聚落与城市字典
+
             self.science_tile_ids = []         # 当前已获得科技板块ID列表
             self.ability_tile_ids = []         # 当前已获得能力板块ID列表
             self.all_effect_objects = []       # 所有效果板块列表
@@ -172,7 +176,6 @@ class GameStateBase:
             self.pass_effect_list: list[Callable[[int],None]] = []          # 略过动作效果列表
             self.round_end_effect_list: list[Callable[[int],None]] = []     # 轮次结束效果列表
             self.setup_effect_list: list[Callable[[int],None]] = []         # 初始设置效果列表
-            
 
         def __str__(self):
             """玩家状态的中文表示"""
@@ -202,7 +205,10 @@ class GameStateBase:
                 f"工会: {self.buildings[2]}",
                 f"宫殿: {self.buildings[3]}",
                 f"学校: {self.buildings[4]}",
-                f"大学: {self.buildings[5]}"
+                f"大学: {self.buildings[5]}",
+                f"塔楼: {self.buildings[6]}",
+                f"山脉: {self.buildings[7]}",
+                f"侧楼: {self.buildings[8]}"
             ])
             
             # 科技轨状态
@@ -399,11 +405,164 @@ class GameStateBase:
             self.current_player_order = self.init_player_order.copy()                         # 当前玩家顺位
             self.pass_order = list(reversed(self.current_player_order))                       # 本回合玩家结束顺序
             self.setup_choice_is_completed = False                                            # 初始选择是否完成
+            self.check = self.init_check()                                                    # 初始化检查函数
+            self.adjust = self.init_adjust()                                                  # 初始化调整函数
 
-    def invoke_aciton(self, player_id: int, mode: str, args: tuple):
+    def invoke_immediate_aciton(self, player_id: int, args: tuple):
         return
+    
+    def update_controlled_and_reachable_map_ids(self, player_id: int, pos):
+        """更新控制和可抵达的坐标列表"""
 
-    def check(self, player_id: int, list_to_be_checked: list) -> bool:
+        def update_reachable_map_ids(pos: tuple[int, int], navigation_distance: int = 1, visited: set = set()):
+            if visited:
+                visited = set()
+            
+            # 如果已经访问过这个位置，直接返回
+            if pos in visited:
+                return
+    
+            # 标记当前位置为已访问
+            visited.add(pos)
+
+            i,j = pos
+            direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
+
+            for dx,dy in direction:
+                new_i, new_j = i + dx, j + dy
+                if (
+                    # 在合法边界内
+                    0 <= new_i <= 8 and 0 <= new_j <= 12
+                    # 没有被其他玩家控制
+                    and self.map_board_state.map_grid[new_i][new_j][1] == -1
+                ):
+                    if (
+                        # 如果该地块不是水域
+                        self.map_board_state.map_grid[new_i][new_j][0] != 0
+                    ):
+                        # 添加该地块到可抵达集合中
+                        player.reachable_map_ids.add((new_i,new_j))
+                    elif (
+                        # 如果该玩家有航行能力
+                        current_navigation_level >= navigation_distance
+                    ):
+                        # 递归查找可抵达地块
+                        update_reachable_map_ids((new_i,new_j), navigation_distance+1, visited)
+
+        player = self.players[player_id]
+
+        if pos == 'all':
+
+            for pos in player.controlled_map_ids:
+                update_reachable_map_ids(pos)
+            
+        else:
+            player.controlled_map_ids.add(pos)
+
+            current_navigation_level = player.navigation_level + 1 if player.temp_navigation else 0
+            
+            update_reachable_map_ids(pos)
+
+    def execute_get_magics_and_city_establishment_if_needed(self, player_id: int, pos: tuple[int, int]):
+
+        settlements_and_cities = self.players[player_id].settlements_and_cities
+        settlements_and_cities[pos] = [pos, False]
+
+        def find(pos: tuple[int,int]):
+            # 路径压缩优化
+            stack = []
+            current = pos
+            # 找到根节点
+            while settlements_and_cities[current][0] != current:
+                stack.append(current)
+                current = settlements_and_cities[current][0]
+            root = current
+            root_is_city = settlements_and_cities[root][1]
+            
+            # 路径压缩：将所有节点直接指向根节点
+            for node in stack:
+                settlements_and_cities[node] = [root, root_is_city]
+            return root, root_is_city
+        
+            
+        def merge(pos_a: tuple[int,int], pos_b: tuple[int,int]):
+            root_a, is_city_a = find(pos_a)
+            root_b, is_city_b = find(pos_b)
+
+            if root_a == root_b:
+                return root_a, is_city_a  # 已经在同一聚落
+
+            # 新聚落的城市状态
+            new_is_city = is_city_a or is_city_b
+            # 更新a的父节点信息，以b为新父节点
+            settlements_and_cities[root_a] = [root_b, new_is_city]
+            # 更新父节点b的城市状态
+            settlements_and_cities[root_b] = [root_b, new_is_city]
+
+            return root_b, new_is_city
+
+        i,j = pos
+        direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
+        player_get_magics = {i:0 for i in range(self.num_players)}
+
+        current_root, current_is_city = find((i, j))
+
+        for dx,dy in direction:
+            new_i, new_j = i + dx, j + dy
+
+            if 0 <= new_i <= 8 and 0 <= new_j <= 12:
+
+                if self.map_board_state.map_grid[new_i][new_j][1] == player_id: # 相邻建筑为己方
+                    # 合并并更新当前聚落信息
+                    current_root, current_is_city = merge((new_i, new_j), (i, j))
+
+                elif self.map_board_state.map_grid[new_i][new_j][1] != -1:      # 相邻建筑为其他派系控制
+                    get_magics_player_id, building_id, num_side_building = self.map_board_state.map_grid[new_i][new_j][1:4]
+                    player_get_magics[get_magics_player_id] += self.map_board_state.building_magic[building_id] + num_side_building
+
+        if self.round != 0: # 初始建筑摆放不触发吸魔行动
+            for player_idx, get_magics_nums in player_get_magics.items():
+                actual_num = min(
+                    get_magics_nums,                                                                # 获取的魔力值
+                    2 * self.players[player_idx].magics[1] + self.players[player_idx].magics[2],    # 当前最大可转动魔力点数
+                    self.players[player_idx].boardscore - 1                                         # 最大可支付版面分数
+                )
+                if actual_num:
+                    self.invoke_immediate_aciton(player_idx, ('gain_magics', actual_num))
+
+        # 使用合并后最新的根节点和城市状态
+        if not current_is_city:  # 如果当前聚落还不是城市
+            curent_settlement_magics_total = 0  # 当前聚落魔力点之和
+            curent_settlement_building_nums = 0 # 当前聚落建筑数量
+
+            # 统计当前聚落的所有建筑
+            for building_pos in self.players[player_id].controlled_map_ids:
+                building_root, _ = find(building_pos)
+                if building_root == current_root:
+                    cur_i, cur_j = building_pos
+                    building_id, num_side_building = self.map_board_state.map_grid[cur_i][cur_j][2:4]
+                    curent_settlement_magics_total += self.map_board_state.building_magic[building_id] + num_side_building
+                    
+                    match building_id:
+                        case 5: # 大学算作两个建筑
+                            curent_settlement_building_nums += 2 + num_side_building
+                        case 7: # 纪念碑算作三个建筑
+                            curent_settlement_building_nums += 3 + num_side_building
+                        case _:
+                            curent_settlement_building_nums += 1 + num_side_building
+            
+            if (
+                # 判断当前聚落魔力点数和是否大于等于7
+                curent_settlement_magics_total >= 7
+                # 判断当前聚落建筑数量是否大于等于4
+                and curent_settlement_building_nums >= 4
+            ):
+                # 标记根节点为城市
+                settlements_and_cities[current_root] = [current_root, True]
+                self.players[player_id].citys_amount += 1
+                self.invoke_immediate_aciton(player_id, ('select_city_tile', (i,j)))
+        
+    def init_check(self):
 
         def check_money(player_id: int, num: int) -> bool:
             if self.players[player_id].resources['money'] >= num:
@@ -474,22 +633,10 @@ class GameStateBase:
             else:
                 return True
         
-        # TODO
-        def check_shovel(player_id: int, pos: tuple, num: int) -> bool:
-            pcid = self.players[player_id].planning_card_id
-            return True
-        
-        def check_build(player_id: int, mode: str, building_id: int) -> bool:
-            match mode:
-                case 'build':
-                    if self.players[player_id].buildings[building_id] >= 1:
-                        return True
-                case 'neighbor':
-                    pass
-            return True
-        
-        def check_reachable(player_id: int, pos: tuple) -> bool:
-            return True
+        def check_build(player_id: int, building_id: int) -> bool:
+            if self.players[player_id].buildings[building_id] >= 1:
+                return True
+            return False
         
         all_check_list = {
             'money': check_money,
@@ -499,20 +646,21 @@ class GameStateBase:
             'magics': check_magics,
             'score': check_score,
             'tracks': check_tracks,
-            'land': check_shovel,
             'building': check_build,
-            'reachable': check_reachable
         }
-        
-        for check_item, *check_args in list_to_be_checked:
-            if check_item not in all_check_list:
-                raise ValueError(f'非法状态检查对象：{check_item}')
-            else:
-                if all_check_list[check_item](player_id,*check_args) == False:
-                    return False
-        return True
 
-    def adjust(self, player_id: int, list_to_be_adjusted):
+        def check(player_id: int, list_to_be_checked: list) -> bool:
+            for check_item, *check_args in list_to_be_checked:
+                if check_item not in all_check_list:
+                    raise ValueError(f'非法状态检查对象：{check_item}')
+                else:
+                    if all_check_list[check_item](player_id,*check_args) == False:
+                        return False
+            return True
+        
+        return check
+
+    def init_adjust(self):
 
         def adjust_money(player_id: int, mode: str, num: int):
             mode_factor = 1 if mode == 'get' else -1
@@ -527,14 +675,14 @@ class GameStateBase:
                 case 'get', 'any':
                     act_num = min(sum(self.setup.current_global_books.values()), num)
                     for _ in range(act_num):
-                        self.invoke_aciton(player_id, 'immediate', ('select_book', 'get'))
+                        self.invoke_immediate_aciton(player_id, ('select_book', 'get'))
                 case 'get':
                     act_num = min(self.setup.current_global_books[f'{typ}_book'], num)
                     self.setup.current_global_books[f'{typ}_book'] -= act_num
                     self.players[player_id].resources[f'{typ}_book'] += act_num
                 case 'use', 'any':
                     for _ in range(num):
-                        self.invoke_aciton(player_id, 'immediate', ('select_book', 'use'))
+                        self.invoke_immediate_aciton(player_id, ('select_book', 'use'))
                 case 'use':
                     if num <= self.players[player_id].resources[f'{typ}_book']:
                         self.players[player_id].resources[f'{typ}_book'] -= num
@@ -667,24 +815,24 @@ class GameStateBase:
                     magic_rotation(player_id, 'get', 3)
             else:
                 for _ in range(num):
-                    self.invoke_aciton(player_id, 'immediate', ('select_track',))
-        
+                    self.invoke_immediate_aciton(player_id, ('select_track',))
 
-        # TODO 
-        def shovel(player_id: int, mode: str, pos: tuple, num: int):
-            pass
+        def shovel(player_id: int, shovel_times: int):
+
+            i,j = self.players[player_id].choice_position
+
+            native_terrain_id = self.players[player_id].planning_card_id
+            current_terrain_id = self.map_board_state.map_grid[i][j][0]
+
+            factor = 1 if current_terrain_id >= native_terrain_id else -1
+            if abs(current_terrain_id - native_terrain_id) > 3:
+                new_terrain_id = (current_terrain_id + factor * shovel_times - 1) % 7 + 1 
+            else:
+                new_terrain_id = current_terrain_id - factor * shovel_times
+
+            self.map_board_state.map_grid[i][j][0] = new_terrain_id
 
         def adjust_building(player_id: int, mode:str, to_build_id: int, is_neutral: bool):
-
-            match mode:
-                case 'build_setup'|'build_special':
-                    self.invoke_aciton(player_id, 'immediate', ('select_position', 'anywhere'))
-                case 'build_normal'|'build_neutral':
-                    self.invoke_aciton(player_id, 'immediate', ('select_position', 'reachable'))
-                case 'upgrade'|'build_annex'|'degrade':
-                    self.invoke_aciton(player_id, 'immediate', ('select_position', 'controlled'))
-                case _:
-                    raise ValueError(f'非法建造模式: {mode}')
                 
             i,j = self.players[player_id].choice_position
 
@@ -716,10 +864,6 @@ class GameStateBase:
                             pass
                         case 'build_setup', to_build_id, is_neutral if (to_build_id, is_neutral) in [(1,False), (5,False), (6,True)]:
                             pass
-                            # TODO 初始建造
-                            # self.map_board_state.map_grid[i][j] = [terrain, player_id, post_building_id, pre_side_building_num, is_neutral]
-                            # if not is_neutral:
-                            #     self.players[player_id].buildings[post_building_id] -= 1
                         case 'build_neutral', 1|2|3|4|5|6|7, True:
                             pass
                         case 'build_special', 2, False:
@@ -727,7 +871,17 @@ class GameStateBase:
                         case _:
                             raise ValueError(f'在无建筑物的地形上进行非法操作')
                         
-        
+                    # 初始建造, 修改改地块控制玩家id和建筑id和建筑性质
+                    self.map_board_state.map_grid[i][j][1] = player_id
+                    self.map_board_state.map_grid[i][j][2] = to_build_id
+                    self.map_board_state.map_grid[i][j][4] = is_neutral
+                    # 修改玩家的建筑数量
+                    self.players[player_id].buildings[to_build_id] -= 1
+                    # 更新控制地块与可抵地块
+                    self.update_controlled_and_reachable_map_ids(player_id, (i,j))
+                    # 执行吸取魔力立即行动（如有）与城市建立（如有）
+                    self.execute_get_magics_and_city_establishment_if_needed(player_id, (i,j))
+                    
         all_adjust_list = {
             'money': adjust_money,
             'ore': adjust_ore,
@@ -740,18 +894,21 @@ class GameStateBase:
             'building': adjust_building
         }
 
-        for adjust_item, *adjust_args in list_to_be_adjusted:
-            if adjust_item not in all_adjust_list:
-                raise ValueError(f'非法状态调整对象：{adjust_item}')
-            else:
-                all_adjust_list[adjust_item](player_id, *adjust_args)
- 
+        def adjust(player_id: int, list_to_be_adjusted):
+            for adjust_item, *adjust_args in list_to_be_adjusted:
+                if adjust_item not in all_adjust_list:
+                    raise ValueError(f'非法状态调整对象：{adjust_item}')
+                else:
+                    all_adjust_list[adjust_item](player_id, *adjust_args)
+
+        return adjust
+    
     def effect_object(self): # 效果板块
         
         from EffectObject import AllEffectObject   
              
         # 本局所有需实例化效果板块对象字典
-        self.all_available_object_dict: dict[str, dict[int, type]] = {}
+        self.all_available_object_dict: dict[str, dict[int, AllEffectObject.EffectObject]] = {}
         self.all_effect_objects = AllEffectObject(self)
 
         all_typ_dict = {
@@ -763,7 +920,9 @@ class GameStateBase:
             'science_tile': self.setup.science_tiles_order,
             'round_scoring': self.setup.round_scoring_order,
             'final_scoring': [self.setup.final_scoring],
-            'book_action': self.setup.selected_book_actions
+            'book_action': self.setup.selected_book_actions,
+            'city_tile': range(1,8),
+            'magics_action': range(1,7)
         }
 
         for typ_name, typ_available_id_list in all_typ_dict.items():

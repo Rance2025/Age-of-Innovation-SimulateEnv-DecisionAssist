@@ -64,23 +64,18 @@ class AllEffectObject:
             super().execute_income_effect(executed_player_id)
 
     class Faction(EffectObject):
-        max_owner = 1
         pass
 
     class PalaceTile(EffectObject):
-        max_owner = 1
         pass
 
     class RoundBooster(EffectObject):
-        max_owner = 1
         pass
 
     class AbilityTile(EffectObject):
-        max_owner = 4
         pass
 
     class ScienceTile(EffectObject):
-        max_owner = 1
         pass
 
     class RoundScoring(EffectObject):
@@ -91,10 +86,16 @@ class AllEffectObject:
             
     class BookAction(EffectObject):
         pass
+    
+    class CityTile(EffectObject):
+        # TODO 重写get 因为可重复获取
+        pass
+
+    class MagicsAction(EffectObject):
+        pass
 
     class PlainPlanningCard(PlanningCard):
-        
-        # 行动效果：减少升级铲子花费
+        '''行动效果：减少升级铲子花费'''
         # 写在check_improve_shovel_level_action过程中了
 
         pass
@@ -167,40 +168,129 @@ class AllEffectObject:
             super().execute_setup_effect(executed_player_id)
 
     class BlessedFaction(Faction):
-        pass
+
+        def execute_immediate_effect(self, executed_player_id):
+            '''立即效果: 各轨道推一格'''
+            self.immediate_effect.extend([
+                ('tracks','bank',1), 
+                ('tracks','law',1), 
+                ('tracks','engineering',1),
+                ('tracks','medical',1)
+            ])
+            super().execute_immediate_effect(executed_player_id)
+        # TODO 轮次计分板效果写到过程中
 
     class FelinesFaction(Faction):
-        pass
+
+        def execute_immediate_effect(self, executed_player_id):
+            '''立即效果: 银行、医学轨道推一格'''
+            self.immediate_effect.extend([
+                ('tracks','bank',1), 
+                ('tracks','medical',1)
+            ])
+            super().execute_immediate_effect(executed_player_id)
 
     class GoblinsFaction(Faction):
-        pass
+
+        def execute_immediate_effect(self, executed_player_id):
+            '''立即效果: 银行、工程轨道推一格 + 获取1矿'''
+            self.immediate_effect.extend([
+                ('tracks','bank',1), 
+                ('tracks','engineering',1),
+                ('ore','get',1)
+            ])
+            super().execute_immediate_effect(executed_player_id)
 
     class IllusionistsFaction(Faction):
-        pass
+
+        def execute_immediate_effect(self, executed_player_id):
+            '''立即效果: 医学轨道推两格'''
+            self.immediate_effect.extend([
+                ('tracks','medical',2)
+            ])
+            super().execute_immediate_effect(executed_player_id)
 
     class InventorsFaction(Faction):
-        pass
+
+        def execute_immediate_effect(self, executed_player_id):
+            '''立即效果: 获取任一能力板块'''
+            self.game_state.invoke_immediate_aciton(executed_player_id, ('select_ability_tile',))
+            super().execute_immediate_effect(executed_player_id)
+
 
     class LizardsFaction(Faction):
-        pass
+
+        def execute_immediate_effect(self, executed_player_id):
+            '''立即效果: 任意轨道推一格执行两次'''
+            self.immediate_effect.extend([
+                ('tracks','any',2)
+            ])
+            super().execute_immediate_effect(executed_player_id)
 
     class MolesFaction(Faction):
-        pass
+
+        def execute_immediate_effect(self, executed_player_id):
+            '''立即效果: 工程轨道推两格'''
+            self.immediate_effect.extend([
+                ('tracks','engineering',2)
+            ])
+            super().execute_immediate_effect(executed_player_id)
 
     class MonksFaction(Faction):
+
+        def execute_immediate_effect(self, executed_player_id):
+            '''立即效果: 法律轨道推一格'''
+            self.immediate_effect.extend([
+                ('tracks','law',1)
+            ])
+            super().execute_immediate_effect(executed_player_id)
+
+        '''初始设置阶段: 取消摆放两个工会，而是摆放一个大学作为初始建筑'''
+        # 写成check_setup_building_action中了
         pass
 
     class NavigatorsFaction(Faction):
-        pass
+
+        def execute_immediate_effect(self, executed_player_id):
+            '''立即效果: 法律轨道推三格'''
+            self.immediate_effect.extend([
+                ('tracks','law',3)
+            ])
+            super().execute_immediate_effect(executed_player_id)
 
     class OmarFaction(Faction):
-        pass
+
+        def execute_immediate_effect(self, executed_player_id):
+            '''立即效果: 银行、工程轨道推一格 + 获取一中立塔楼'''
+            self.immediate_effect.extend([
+                ('tracks','bank',1), 
+                ('tracks','engineering',1)
+            ])
+            self.game_state.players[executed_player_id].buildings[6] += 1
+            super().execute_immediate_effect(executed_player_id)
+            
+        '''初始设置阶段: 可多摆放一个中立塔楼作为初始建筑'''
+        # 写成check_setup_building_action中了
 
     class PhilosophersFaction(Faction):
-        pass
+
+        def execute_immediate_effect(self, executed_player_id):
+            '''立即效果: 银行轨道推两格'''
+            self.immediate_effect.extend([
+                ('tracks','bank',2)
+            ])
+            super().execute_immediate_effect(executed_player_id)
 
     class PsychicsFaction(Faction):
-        pass
+
+        def execute_immediate_effect(self, executed_player_id):
+            '''立即效果: 银行、医学轨道推一格 + 获取1矿'''
+            self.immediate_effect.extend([
+                ('tracks','bank',1), 
+                ('tracks','medical',1),
+                ('ore','get',1)
+            ])
+            super().execute_immediate_effect(executed_player_id)
 
     class PalaceTile1(PalaceTile):
         pass
@@ -436,12 +526,49 @@ class AllEffectObject:
     class BookAction6(BookAction):
         pass
     
+    class CityTileBook(CityTile):
+        pass
+
+    class CityTileTrack(CityTile):
+        pass
+    
+    class CityTileShovel(CityTile):
+        pass
+    
+    class CityTileMagics(CityTile):
+        pass
+    
+    class CityTileOre(CityTile):
+        pass
+    
+    class CityTileMeeple(CityTile):
+        pass
+    
+    class CityTileMoney(CityTile):
+        pass
+
+    class MagicsActionBridge(MagicsAction):
+        pass
+
+    class MagicsActionMeeple(MagicsAction):
+        pass
+
+    class MagicsActionOre(MagicsAction):
+        pass
+
+    class MagicsActionMoney(MagicsAction):
+        pass
+
+    class MagicsActionShovel1(MagicsAction):
+        pass
+
+    class MagicsActionShovel2(MagicsAction):
+        pass
+    
     def __init__(self, game_state: GameStateBase) -> None:
         self.game_state = game_state
         self.EffectObject(game_state)
-
-    def create_actual_object(self,typ: str, object_id: int):
-        all_object_dict = {
+        self.all_object_dict = {
             'planning_card': {
                 1: self.PlainPlanningCard,
                 2: self.SwampPlanningCard,
@@ -556,7 +683,25 @@ class AllEffectObject:
                 4: self.BookAction4,
                 5: self.BookAction5,
                 6: self.BookAction6,
-            }
+            },
+            'city_tile': {
+                1: self.CityTileBook,
+                2: self.CityTileTrack,
+                3: self.CityTileShovel,
+                4: self.CityTileMagics,
+                5: self.CityTileOre,
+                6: self.CityTileMeeple,
+                7: self.CityTileMoney,
+            },
+            'magics_action': {
+                1: self.MagicsActionBridge,
+                2: self.MagicsActionMeeple,
+                3: self.MagicsActionOre,
+                4: self.MagicsActionMoney,
+                5: self.MagicsActionShovel1,
+                6: self.MagicsActionShovel2,
+            },
         }
 
-        return all_object_dict[typ][object_id](self.game_state)
+    def create_actual_object(self,typ: str, object_id: int): 
+        return self.all_object_dict[typ][object_id](self.game_state)
