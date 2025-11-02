@@ -1,5 +1,6 @@
 from ActionSystem import ActionSystem
 from DetailedAction import DetailedAction
+import random
 
 class Agent:
 
@@ -16,7 +17,13 @@ class Agent:
         readable_action_ids = {id: DetailedAction().all_detailed_actions[id]['description'] for id in available_action_ids}
         print(readable_action_ids)
 
-        action_id = int(input('请输入要执行的行动编号：'))
-        self.action_system.execute_action(action_id)
-
+        action_id = input('请输入要执行的行动编号：')
+        if action_id:
+            action_id = int(action_id)
+            self.action_system.execute_action(mode, action_id)
+        else:
+            action_id = random.choice(available_action_ids)
+            print(action_id)
+            self.action_system.execute_action(mode, action_id)     
         return action_id
+        

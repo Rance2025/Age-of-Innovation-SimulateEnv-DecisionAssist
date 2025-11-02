@@ -72,7 +72,7 @@ class GameEngine:
             self.game_state.setup_choice_is_completed = True
             print("\n初始设置及轮抽完成!")
 
-            print("\n=== 初始建筑摆放阶段 ===")
+            print("\n--- 初始建筑摆放阶段 ---")
             build_order = []
             faction_8_owner_id = -1
             faction_10_owner_id = -1
@@ -95,7 +95,19 @@ class GameEngine:
             for player_idx in build_order:
                 print()
                 self.action(player_idx, 'normal')
-            
+            print("\n--- 初始建筑摆放完毕 ---")
+
+            print("\n--- 初始阶段效果结算 ---\n")
+            for player_idx in self.game_state.pass_order:
+                cur_player_setup_list = self.game_state.players[player_idx].setup_effect_list
+                if cur_player_setup_list:
+                    cur_player_setup_list.pop(0)(player_idx)
+            print("\n--- 初始阶段效果结算完毕 ---")
+
+            # 初始未选各回合助推板的获取立即效果加一块钱
+            for round_booster in self.game_state.all_available_object_dict['round_booster'].values():
+                round_booster.round_end()
+
             self.game_state.current_player_order = self.game_state.pass_order.copy()
 
         def execute_formal_round(self: GameEngine):

@@ -5,8 +5,9 @@ class AllEffectObject:
     class EffectObject:
         """效果对象抽象基类"""
 
+        max_owner = 1
+
         def __init__(self, game_state: GameStateBase) -> None:
-            self.max_owner = 1
             self.game_state = game_state
             self.owner_list = []
             self.immediate_effect = []
@@ -22,6 +23,7 @@ class AllEffectObject:
             if not self.game_state.check(player_id, self.cost_check()):
                 return False
             return True
+        
         # 获取代价检查
         def cost_check(self) -> list:
             return [] 
@@ -49,8 +51,16 @@ class AllEffectObject:
             self.game_state.players[got_player_id].income_effect_list.append(self.execute_income_effect)
             self.game_state.players[got_player_id].pass_effect_list.append(self.execute_pass_effect)
             self.game_state.players[got_player_id].round_end_effect_list.append(self.execute_round_end_effect)
-            self.game_state.players[got_player_id].setup_effect_list.append(self.execute_setup_effect)      
-                
+            self.game_state.players[got_player_id].setup_effect_list.append(self.execute_setup_effect)  
+
+        # 当激活时
+        def activate(self, executed_player_id):    
+            pass
+
+        # 当回合结束时
+        def round_end(self):
+            pass
+
     class PlanningCard(EffectObject):
         def execute_income_effect(self, executed_player_id):
             '''回合收入效果: 规划卡 (即个人板面) 建筑收入'''
@@ -67,13 +77,45 @@ class AllEffectObject:
         pass
 
     class PalaceTile(EffectObject):
-        pass
+        # 当获取时
+        def get(self, got_player_id):
+            self.owner_list.append(got_player_id)
+        
+        # 当激活时
+        def activate(self, executed_player_id):
+            self.execute_immediate_effect(executed_player_id)
+            self.game_state.players[executed_player_id].income_effect_list.append(self.execute_income_effect)
+            self.game_state.players[executed_player_id].pass_effect_list.append(self.execute_pass_effect)
+            self.game_state.players[executed_player_id].round_end_effect_list.append(self.execute_round_end_effect)
+            self.game_state.players[executed_player_id].setup_effect_list.append(self.execute_setup_effect) 
 
     class RoundBooster(EffectObject):
-        pass
+
+        # 当回合结束时
+        def round_end(self):
+            if not self.owner_list:
+                self.immediate_effect.extend([
+                    ('money', 'get', 1),
+                ])
+
+        # 当获取时
+        def get(self, got_player_id):
+            super().get(got_player_id)
+            # 情况回合结束产生的因未被获取的金钱加成
+            self.immediate_effect.clear()
 
     class AbilityTile(EffectObject):
-        pass
+        
+        max_owner = 4
+        typ = 0
+        num_book = 0
+
+        def execute_immediate_effect(self, executed_player_id):
+            self.immediate_effect.extend([
+                ('book', 'get', self.typ, self.num_book),
+                ('tracks', self.typ, 3 - self.num_book)
+            ])
+            super().execute_immediate_effect(executed_player_id)
 
     class ScienceTile(EffectObject):
         pass
@@ -85,19 +127,31 @@ class AllEffectObject:
         pass
             
     class BookAction(EffectObject):
-        pass
+        
+        # 当回合结束时
+        def round_end(self):
+            # 清空控制者列表
+            self.owner_list.clear()
     
     class CityTile(EffectObject):
-        # TODO 重写get 因为可重复获取
-        pass
+
+        max_owner = 3
+        # 同一玩家可重复获取
+        def check_get(self, player_id: int) -> bool:
+            if len(self.owner_list) >= self.max_owner:
+                return False
+            return True
 
     class MagicsAction(EffectObject):
-        pass
+        
+        # 当回合结束时
+        def round_end(self):
+            # 清空控制者列表
+            self.owner_list.clear()
 
     class PlainPlanningCard(PlanningCard):
         '''行动效果：减少升级铲子花费'''
         # 写在check_improve_shovel_level_action过程中了
-
         pass
 
     class SwampPlanningCard(PlanningCard):
@@ -138,8 +192,7 @@ class AllEffectObject:
                 ('money', 'get', min(1, 4-self.game_state.players[executed_player_id].buildings[2]))
             ])
             super().execute_income_effect(executed_player_id)
-            
-        
+                
     class WastelandPlanningCard(PlanningCard):
 
         def execute_setup_effect(self, executed_player_id):
@@ -162,8 +215,10 @@ class AllEffectObject:
 
         def execute_setup_effect(self, executed_player_id):
             '''初始设置阶段: 在初始建筑摆放完毕后立即一铲不可建房'''
+            # 立即选择位置
+            self.game_state.invoke_immediate_aciton(executed_player_id, ('select_position', 'reachable', ('shovel', 1)))
             self.setup_effect.extend([
-                ('land', 1, False)
+                ('land', 1)
             ])
             super().execute_setup_effect(executed_player_id)
 
@@ -189,6 +244,9 @@ class AllEffectObject:
                 ('tracks','medical',1)
             ])
             super().execute_immediate_effect(executed_player_id)
+            
+        '''行动效果: 当建城时, 任意轨道推一格执行3次 + 获取1书'''
+        # TODO 猫人行动效果
 
     class GoblinsFaction(Faction):
 
@@ -201,6 +259,9 @@ class AllEffectObject:
             ])
             super().execute_immediate_effect(executed_player_id)
 
+        '''行动效果: 每用一铲获得2块钱'''
+        # TODO 哥布林行动效果
+
     class IllusionistsFaction(Faction):
 
         def execute_immediate_effect(self, executed_player_id):
@@ -209,23 +270,29 @@ class AllEffectObject:
                 ('tracks','medical',2)
             ])
             super().execute_immediate_effect(executed_player_id)
+        
+        '''行动效果: 每次执行魔力行动时, 少花费一点魔力并获得板面分数 (1分, 5人局2分)'''
+        # TODO 幻术师行动效果
 
     class InventorsFaction(Faction):
 
-        def execute_immediate_effect(self, executed_player_id):
-            '''立即效果: 获取任一能力板块'''
+        # TODO 未知错误 未触发选择能力板块
+        def execute_setup_effect(self, executed_player_id):
+            '''初始设置阶段: 获取任一能力板块'''
             self.game_state.invoke_immediate_aciton(executed_player_id, ('select_ability_tile',))
-            super().execute_immediate_effect(executed_player_id)
-
+            super().execute_setup_effect(executed_player_id)
 
     class LizardsFaction(Faction):
 
-        def execute_immediate_effect(self, executed_player_id):
-            '''立即效果: 任意轨道推一格执行两次'''
-            self.immediate_effect.extend([
+        def execute_setup_effect(self, executed_player_id):
+            '''初始设置阶段: 任意轨道推一格执行两次'''
+            self.setup_effect.extend([
                 ('tracks','any',2)
             ])
-            super().execute_immediate_effect(executed_player_id)
+            super().execute_setup_effect(executed_player_id)
+
+        '''行动效果: 当建城时, 立即免费一铲 + 免费建造一个车间 (无需在刚刚铲的地块上)'''
+        # TODO 蜥蜴人行动效果
 
     class MolesFaction(Faction):
 
@@ -235,6 +302,10 @@ class AllEffectObject:
                 ('tracks','engineering',2)
             ])
             super().execute_immediate_effect(executed_player_id)
+        
+        '''行动效果: 当执行地形改造并/或建造车间时, 可支付1矿跨越一个地形执行 (终局计分视为可抵达,即使无剩余矿), 并获得4版面分数'''
+        '''附加可用行动: 支付1矿, 建造1座桥梁, 连接两侧建筑, 视为相邻'''
+        # TODO 鼹鼠行动效果和附加可用行动
 
     class MonksFaction(Faction):
 
@@ -247,7 +318,6 @@ class AllEffectObject:
 
         '''初始设置阶段: 取消摆放两个工会，而是摆放一个大学作为初始建筑'''
         # 写成check_setup_building_action中了
-        pass
 
     class NavigatorsFaction(Faction):
 
@@ -257,6 +327,9 @@ class AllEffectObject:
                 ('tracks','law',3)
             ])
             super().execute_immediate_effect(executed_player_id)
+
+        '''行动效果: 当工会建造在河边时, 获得2版面分数'''
+        # TODO 航海家行动效果
 
     class OmarFaction(Faction):
 
@@ -272,6 +345,14 @@ class AllEffectObject:
         '''初始设置阶段: 可多摆放一个中立塔楼作为初始建筑'''
         # 写成check_setup_building_action中了
 
+        def execute_income_effect(self, executed_player_id):
+            '''回合收入阶段: 获得2魔力 + 2块钱'''
+            self.income_effect.extend([
+                ('magics','get',2),
+                ('money','get',2)
+            ])
+            super().execute_income_effect(executed_player_id)
+
     class PhilosophersFaction(Faction):
 
         def execute_immediate_effect(self, executed_player_id):
@@ -280,6 +361,10 @@ class AllEffectObject:
                 ('tracks','bank',2)
             ])
             super().execute_immediate_effect(executed_player_id)
+
+        '''行动效果: 获取能力板块时, 多获得对应学科的书1本'''
+        '''附加可用行动: 获取1书'''
+        # TODO 哲学家行动效果和附加可用行动
 
     class PsychicsFaction(Faction):
 
@@ -291,6 +376,9 @@ class AllEffectObject:
                 ('ore','get',1)
             ])
             super().execute_immediate_effect(executed_player_id)
+        
+        '''附加可用行动: 转5点魔力, 并立即进行下一动'''
+        # TODO 通灵师附加可用行动
 
     class PalaceTile1(PalaceTile):
         pass
@@ -509,22 +597,79 @@ class AllEffectObject:
         pass
 
     class BookAction1(BookAction):
-        pass
+        
+        def cost_check(self) -> list:
+            return [('book', 'self', 'any', 1)]
+        
+        def execute_immediate_effect(self, executed_player_id):
+            self.immediate_effect.extend([
+                ('book', 'use', 'any', 1),
+                ('magics', 'get', 5),
+            ])
+            super().execute_immediate_effect(executed_player_id)
 
     class BookAction2(BookAction):
-        pass
+        
+        def cost_check(self) -> list:
+            return [('book', 'self', 'any', 1)]
+        
+        def execute_immediate_effect(self, executed_player_id):
+            self.immediate_effect.extend([
+                ('book', 'use', 'any', 1),
+                ('tracks', 'any', 2),
+            ])
+            super().execute_immediate_effect(executed_player_id)
 
     class BookAction3(BookAction):
-        pass
+        
+        def cost_check(self) -> list:
+            return [('book', 'self', 'any', 2)]
+        
+        def execute_immediate_effect(self, executed_player_id):
+            self.immediate_effect.extend([
+                ('book', 'use', 'any', 2),
+                ('money', 'get', 6),
+            ])
+            super().execute_immediate_effect(executed_player_id)
 
     class BookAction4(BookAction):
-        pass
+        
+        def cost_check(self) -> list:
+            return [('book', 'self', 'any', 2)]
+        
+        def execute_immediate_effect(self, executed_player_id):
+            self.immediate_effect.extend([
+                ('book', 'use', 'any', 2),
+            ])
+            super().execute_immediate_effect(executed_player_id)
+            if self.game_state.check(executed_player_id, [('building',1)]):
+                self.game_state.invoke_immediate_aciton(executed_player_id, ('select_position', 'controlled', (1, 'alone_or_neighbor')))
+                self.game_state.adjust(executed_player_id,[('building', 'upgrade_special', 2, False)])
+            
 
     class BookAction5(BookAction):
-        pass
+        
+        def cost_check(self) -> list:
+            return [('book', 'self', 'any', 2)]
+        
+        def execute_immediate_effect(self, executed_player_id):
+            self.immediate_effect.extend([
+                ('book', 'use', 'any', 2),
+                ('score', 'get', 'board', 2 * (4 - self.game_state.players[executed_player_id].buildings[2] + self.game_state.players[executed_player_id].buildings[10])),
+            ])
+            super().execute_immediate_effect(executed_player_id)
 
     class BookAction6(BookAction):
-        pass
+        
+        def cost_check(self) -> list:
+            return [('book', 'self', 'any', 3)]
+        
+        def execute_immediate_effect(self, executed_player_id):
+            self.immediate_effect.extend([
+                ('book', 'use', 'any', 3),
+                ('spade',3),
+            ])
+            super().execute_immediate_effect(executed_player_id)
     
     class CityTileBook(CityTile):
         pass
@@ -548,23 +693,81 @@ class AllEffectObject:
         pass
 
     class MagicsActionBridge(MagicsAction):
-        pass
+        
+        def cost_check(self) -> list:
+            return [('magics',3,3)]
+        
+        def execute_immediate_effect(self, executed_player_id):
+            self.immediate_effect.extend([
+                ('magics', 'use', 3),
+            ])
+            super().execute_immediate_effect(executed_player_id)
+            if self.game_state.check(executed_player_id, [('bridge',)]):
+                self.game_state.adjust(executed_player_id,[('bridge',)])
 
     class MagicsActionMeeple(MagicsAction):
-        pass
-
+        
+        def cost_check(self) -> list:
+            return [('magics',3,3)]
+        
+        def execute_immediate_effect(self, executed_player_id):
+            self.immediate_effect.extend([
+                ('magics','use',3),
+            ])
+            super().execute_immediate_effect(executed_player_id)
+            if self.game_state.check(executed_player_id, [('meeple','all',1)]):
+                self.game_state.adjust(executed_player_id,[('meeple','get',1)])
+        
     class MagicsActionOre(MagicsAction):
-        pass
+        
+        def cost_check(self) -> list:
+            return [('magics',3,4)]
+        
+        def execute_immediate_effect(self, executed_player_id):
+            self.immediate_effect.extend([
+                ('magics','use',4),
+                ('ore','get', 2)
+            ])
+            super().execute_immediate_effect(executed_player_id)
 
     class MagicsActionMoney(MagicsAction):
-        pass
+        
+        def cost_check(self) -> list:
+            return [('magics',3,4)]
+        
+        def execute_immediate_effect(self, executed_player_id):
+            self.immediate_effect.extend([
+                ('magics','use',4),
+                ('money','get',7)
+            ])
+            super().execute_immediate_effect(executed_player_id)
 
     class MagicsActionShovel1(MagicsAction):
-        pass
+        
+        def cost_check(self) -> list:
+            return [('magics',3,4)]
+        
+        def execute_immediate_effect(self, executed_player_id):
+            self.immediate_effect.extend([
+                ('magics','use',4),
+            ])
+            super().execute_immediate_effect(executed_player_id)
+            if self.game_state.check(executed_player_id, [('spade',)]):
+                self.game_state.adjust(executed_player_id,[('spade',1)])
 
     class MagicsActionShovel2(MagicsAction):
-        pass
-    
+        
+        def cost_check(self) -> list:
+            return [('magics',3,6)]
+
+        def execute_immediate_effect(self, executed_player_id):
+            self.immediate_effect.extend([
+                ('magics','use',6),
+            ])
+            super().execute_immediate_effect(executed_player_id)
+            if self.game_state.check(executed_player_id, [('spade',)]):
+                self.game_state.adjust(executed_player_id,[('spade',2)])
+
     def __init__(self, game_state: GameStateBase) -> None:
         self.game_state = game_state
         self.EffectObject(game_state)
@@ -703,5 +906,10 @@ class AllEffectObject:
             },
         }
 
+        # 初始化各能力板块的获取立即效果
+        for order_id, ability_tile_id in enumerate(self.game_state.setup.ability_tiles_order):
+            self.all_object_dict['ability_tile'][ability_tile_id].typ = ['bank', 'law', 'engineering', 'medical'][order_id // 3]
+            self.all_object_dict['ability_tile'][ability_tile_id].num_book = order_id % 3
+            
     def create_actual_object(self,typ: str, object_id: int): 
         return self.all_object_dict[typ][object_id](self.game_state)

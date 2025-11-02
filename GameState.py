@@ -114,8 +114,7 @@ class GameStateBase:
                 'medical_book': 0,      # 医学书
                 'meeples': 0,           # 米宝
                 'all_meeples': 7,       # 所有米宝
-                'bridge':0,             # 桥
-                'all_bridge': 3         # 所有桥
+                'all_bridges': 3         # 所有桥
             }
 
             # 建筑系统
@@ -125,9 +124,14 @@ class GameStateBase:
                 3: 1,  # 宫殿
                 4: 3,  # 学校
                 5: 1,  # 大学
-                6: 0,  # 塔楼
-                7: 0,  # 山脉（纪念碑）
+                6: 0,  # 中立塔楼
+                7: 0,  # 中立纪念碑
                 8: 0,  # 侧楼
+                9: 0,  # 中立车间
+                10: 0, # 中立工会
+                11: 0, # 中立宫殿
+                12: 0, # 中立学校
+                13: 0, # 中立大学
             }
 
             # 航行和铲子等级
@@ -154,6 +158,9 @@ class GameStateBase:
             self.adjacent_map_ids = set()      # 相邻坐标列表（排除控制领土）
             self.reachable_map_ids = set()     # 可抵达坐标列表（包含控制领土，不包含水域）
             self.settlements_and_cities = {}   # 当前聚落与城市字典
+
+            # 创建各地形id需要几铲才能成为原生地的初始空字典，在选择规划卡后更新
+            self.terrain_id_need_shovel_times = {i: -1 for i in range(1,8)}
 
             self.science_tile_ids = []         # 当前已获得科技板块ID列表
             self.ability_tile_ids = []         # 当前已获得能力板块ID列表
@@ -196,7 +203,8 @@ class GameStateBase:
                 f"工程书: {self.resources['engineering_book']}",
                 f"医学书: {self.resources['medical_book']}",
                 f"米宝: {self.resources['meeples']}",
-                f"桥梁: {self.resources['bridge']}"
+                f"剩余米宝: {self.resources['all_meeples']}",
+                f"剩余桥梁: {self.resources['all_bridges']}"
             ])
             
             # 建筑状态
@@ -292,6 +300,7 @@ class GameStateBase:
                 7: "山脉",
                 8: "侧楼"
             }
+
             self.building_magic = {
                 0: 0,
                 1: 1,   # 车间 -> 1魔力
@@ -329,6 +338,87 @@ class GameStateBase:
                     ] for j in range(13)
                 ] for i in range(9)
             ]
+
+            # 可建桥的地块坐标
+            self.enable_bridge_pos_dict = {
+                (0, 2) : ((1, 0), (2, 2)) ,
+                (0, 8) : ((1, 6),) ,
+                (0, 11) : ((1, 12),) ,
+                (1, 0) : ((0, 2),) ,
+                (1, 3) : ((2, 2),) ,
+                (1, 6) : ((0, 8),) ,
+                (1, 10) : ((2, 12), (3, 10)) ,
+                (1, 12) : ((0, 11),) ,
+                (2, 2) : ((0, 2), (1, 3)) ,
+                (2, 4) : ((3, 2),) ,
+                (2, 6) : ((3, 7),) ,
+                (2, 9) : ((3, 7), (4, 9), (3, 10)) ,
+                (2, 12) : ((1, 10),) ,
+                (3, 2) : ((2, 4),) ,
+                (3, 4) : ((4, 3), (5, 4)) ,
+                (3, 5) : ((4, 7), (5, 5)) ,
+                (3, 7) : ((2, 6), (2, 9)) ,
+                (3, 10) : ((1, 10), (2, 9)) ,
+                (4, 2) : ((6, 2),) ,
+                (4, 3) : ((3, 4), (5, 4), (6, 3)) ,
+                (4, 7) : ((3, 5), (5, 5)) ,
+                (4, 9) : ((2, 9),) ,
+                (5, 0) : ((6, 2),) ,
+                (5, 4) : ((3, 4), (4, 3), (6, 3)) ,
+                (5, 5) : ((3, 5), (4, 7)) ,
+                (5, 7) : ((6, 6), (7, 7)) ,
+                (5, 8) : ((7, 8),) ,
+                (5, 10) : ((7, 10),) ,
+                (5, 11) : ((7, 11),) ,
+                (6, 0) : ((7, 1), (8, 0)) ,
+                (6, 2) : ((4, 2), (5, 0)) ,
+                (6, 3) : ((4, 3), (5, 4), (7, 4)) ,
+                (6, 6) : ((5, 7),) ,
+                (7, 1) : ((6, 0),) ,
+                (7, 2) : ((8, 4),) ,
+                (7, 4) : ((6, 3),) ,
+                (7, 7) : ((5, 7),) ,
+                (7, 8) : ((5, 8),) ,
+                (7, 10) : ((5, 10),) ,
+                (7, 11) : ((5, 11),) ,
+                (8, 0) : ((6, 0),) ,
+                (8, 4) : ((7, 2),) ,
+            }
+
+            # 该桥位是否已被建造
+            self.bridges_is_conneted = {
+                ((0, 2), (1, 0)): -1,
+                ((0, 2), (2, 2)): -1,
+                ((0, 8), (1, 6)): -1,
+                ((0, 11), (1, 12)): -1,
+                ((1, 3), (2, 2)): -1,
+                ((1, 10), (2, 12)): -1,
+                ((1, 10), (3, 10)): -1,
+                ((2, 4), (3, 2)): -1,
+                ((2, 6), (3, 7)): -1,
+                ((2, 9), (3, 7)): -1,
+                ((2, 9), (4, 9)): -1,
+                ((2, 9), (3, 10)): -1,
+                ((3, 4), (4, 3)): -1,
+                ((3, 4), (5, 4)): -1,
+                ((3, 5), (4, 7)): -1,
+                ((3, 5), (5, 5)): -1,
+                ((4, 2), (6, 2)): -1,
+                ((4, 3), (5, 4)): -1,
+                ((4, 3), (6, 3)): -1,
+                ((4, 7), (5, 5)): -1,
+                ((5, 0), (6, 2)): -1,
+                ((5, 4), (6, 3)): -1,
+                ((5, 7), (6, 6)): -1,
+                ((5, 7), (7, 7)): -1,
+                ((5, 8), (7, 8)): -1,
+                ((5, 10), (7, 10)): -1,
+                ((5, 11), (7, 11)): -1,
+                ((6, 0), (7, 1)): -1,
+                ((6, 0), (8, 0)): -1,
+                ((6, 3), (7, 4)): -1,
+                ((7, 2), (8, 4)): -1,
+            }
     
     class DisplayBoardState:
         """展示板状态"""
@@ -411,8 +501,8 @@ class GameStateBase:
     def invoke_immediate_aciton(self, player_id: int, args: tuple):
         return
     
-    def update_controlled_and_reachable_map_ids(self, player_id: int, pos):
-        """更新控制和可抵达的坐标列表"""
+    def update_reachable_map_ids_set(self, player_id: int, update_pos: tuple = tuple()):
+        """更新可抵达的坐标列表"""
 
         def update_reachable_map_ids(pos: tuple[int, int], navigation_distance: int = 1, visited: set = set()):
             if visited:
@@ -450,18 +540,21 @@ class GameStateBase:
                         update_reachable_map_ids((new_i,new_j), navigation_distance+1, visited)
 
         player = self.players[player_id]
+        current_navigation_level = player.navigation_level + 1 if player.temp_navigation else 0
 
-        if pos == 'all':
+        # 移除原可抵达地块坐标集合中已被控制的
+        for pos in player.reachable_map_ids.copy():
+            i,j = pos
+            if self.map_board_state.map_grid[i][j][1] != -1:
+                player.reachable_map_ids.remove(pos)
 
+        # 如有指定更新的控制坐标，则以该坐标为原点进行查找
+        if update_pos:
+            update_reachable_map_ids(update_pos)
+        else:
+            # 如无，则遍历控制列表添加（如有新增）新的可抵达地块坐标进入集合
             for pos in player.controlled_map_ids:
                 update_reachable_map_ids(pos)
-            
-        else:
-            player.controlled_map_ids.add(pos)
-
-            current_navigation_level = player.navigation_level + 1 if player.temp_navigation else 0
-            
-            update_reachable_map_ids(pos)
 
     def execute_get_magics_and_city_establishment_if_needed(self, player_id: int, pos: tuple[int, int]):
 
@@ -582,13 +675,13 @@ class GameStateBase:
                 case 'self', 'any':
                     if sum([self.players[player_id].resources[f'{x}_book'] for x in ['bank','law','engineering','medical']]) >= num:
                         return True
-                case 'self':
+                case 'self', _:
                     if self.players[player_id].resources[f'{typ}_book'] >= num:
                         return True
                 case 'all', 'any':
                     if sum([self.setup.current_global_books[f'{x}_book'] for x in ['bank','law','engineering','medical']]) >= num:
                         return True
-                case 'all':
+                case 'all', _:
                     if self.setup.current_global_books[f'{typ}_book'] >= num:
                         return True
                 case _:
@@ -638,6 +731,39 @@ class GameStateBase:
                 return True
             return False
         
+        def check_bridge(player_id: int) -> bool:
+            if self.players[player_id].resources['all_bridges'] >= 1:
+                '''判断是否可建桥（有控制地块是可建桥地块，且其桥连接对侧地块未被其他玩家占领，且该桥位尚未被建造）'''
+                # 获取以控制的可建桥位
+                for pos in self.players[player_id].controlled_map_ids:
+                    if pos in self.map_board_state.enable_bridge_pos_dict.keys():
+                        for corresponding_pos in self.map_board_state.enable_bridge_pos_dict[pos]:
+                            p,q = pos
+                            i,j = corresponding_pos
+                            # 判断对侧地块是否被其他玩家控制
+                            if self.map_board_state.map_grid[i][j][1] in (-1, player_id):
+                                # 如无，则排序可建桥位两侧坐标（小者在前）
+                                if p > i or (p == i and q > j):
+                                    bridge_key = ((i,j),(p,q))
+                                else:
+                                    bridge_key = ((p,q),(i,j))
+
+                                if self.map_board_state.bridges_is_conneted[bridge_key] == -1:
+                                    return True
+                                    # 找到一个，确认该行动可被执行即跳出
+                return False
+            else:
+                return False
+            
+        def check_shovel(player_id: int) -> bool:
+            # 判断是否存在可铲地（至少一铲）
+            for i,j in self.players[player_id].reachable_map_ids:
+                terrain = self.map_board_state.map_grid[i][j][0]
+                # 如有则跳出是否可铲判断
+                if self.players[player_id].terrain_id_need_shovel_times[terrain] >= 1:
+                    return True
+            return False
+                 
         all_check_list = {
             'money': check_money,
             'ore': check_ore,
@@ -647,6 +773,8 @@ class GameStateBase:
             'score': check_score,
             'tracks': check_tracks,
             'building': check_build,
+            'bridge': check_bridge,
+            'spade': check_shovel,
         }
 
         def check(player_id: int, list_to_be_checked: list) -> bool:
@@ -676,14 +804,14 @@ class GameStateBase:
                     act_num = min(sum(self.setup.current_global_books.values()), num)
                     for _ in range(act_num):
                         self.invoke_immediate_aciton(player_id, ('select_book', 'get'))
-                case 'get':
+                case 'get', _:
                     act_num = min(self.setup.current_global_books[f'{typ}_book'], num)
                     self.setup.current_global_books[f'{typ}_book'] -= act_num
                     self.players[player_id].resources[f'{typ}_book'] += act_num
                 case 'use', 'any':
                     for _ in range(num):
                         self.invoke_immediate_aciton(player_id, ('select_book', 'use'))
-                case 'use':
+                case 'use', _:
                     if num <= self.players[player_id].resources[f'{typ}_book']:
                         self.players[player_id].resources[f'{typ}_book'] -= num
                         self.setup.current_global_books[f'{typ}_book'] += num
@@ -817,7 +945,7 @@ class GameStateBase:
                 for _ in range(num):
                     self.invoke_immediate_aciton(player_id, ('select_track',))
 
-        def shovel(player_id: int, shovel_times: int):
+        def adjust_terrain(player_id: int, shovel_times: int):
 
             i,j = self.players[player_id].choice_position
 
@@ -872,6 +1000,9 @@ class GameStateBase:
                                     self.adjust(player_id, [('money', 'use', 6), ('ore', 'use', 4)])
                                     # 标记宫殿已经获得
                                     self.players[player_id].is_got_palace = True
+                                    # 激活宫殿板块
+                                    cur_player_palace_tile_id = self.players[player_id].palace_tile_id
+                                    self.all_available_object_dict['palace_tile'][cur_player_palace_tile_id].activate(player_id)
                                 # 升级为学院时
                                 case 4:
                                     # 支付升级费用
@@ -892,6 +1023,10 @@ class GameStateBase:
                             pass
                         case 'degrade', 4, False, _, 2, False:
                             pass
+                        case 'upgrade_special', 1, False, _, 2, False:
+                            # 调整玩家规划板上建筑数量
+                            self.players[player_id].buildings[pre_building_id] += 1
+                            self.players[player_id].buildings[to_build_id] -= 1
                         case _:
                             raise ValueError(f'已存在建筑物的地形上进行非法操作')
                     
@@ -910,6 +1045,8 @@ class GameStateBase:
                             pass
                         case 'build_special', 2, False:
                             pass
+                        case 'build_special', 1, False: # 蜥蜴人板块行动效果
+                            pass
                         case _:
                             raise ValueError(f'在无建筑物的地形上进行非法操作')
                         
@@ -919,11 +1056,62 @@ class GameStateBase:
                     # 调整玩家规划板上建筑数量
                     self.players[player_id].buildings[to_build_id] -= 1
                     # 更新控制地块与可抵地块
-                    self.update_controlled_and_reachable_map_ids(player_id, (i,j))
+                    self.players[player_id].controlled_map_ids.add((i,j))
+                    self.update_reachable_map_ids_set(player_id, (i,j))
 
             # 执行吸取魔力立即行动（如有）与城市建立（如有）
             self.execute_get_magics_and_city_establishment_if_needed(player_id, (i,j))
-                    
+
+        def build_bridge(player_id: int):
+            self.players[player_id].resources['all_bridges'] -= 1
+            self.invoke_immediate_aciton(player_id, ('build_bridge',))
+            return 
+             
+        def shovel(player_id: int, shovel_times: int):
+            # 初始化第一铲地标记和位置
+            first_shovel = True
+            first_pos = tuple()
+            # 当仍然存在剩余铲数时
+            while shovel_times > 0:
+                # 判断是否存在可铲地（至少一铲）
+                for i,j in self.players[player_id].reachable_map_ids:
+                    terrain = self.map_board_state.map_grid[i][j][0]
+                    # 如有则跳出是否可铲判断
+                    if self.players[player_id].terrain_id_need_shovel_times[terrain] >= 1:
+                        break
+                else:
+                    # 未跳出，则代表无可铲地块，则跳出铲行动
+                    break
+                # 选择可铲位置
+                self.invoke_immediate_aciton(player_id, ('select_position', 'reachable', ('shovel', 1)))
+                # 记录一铲地坐标
+                if first_shovel:
+                    first_pos = self.players[player_id].choice_position
+                    first_shovel = False
+                # 获取当前铲坐标
+                pos = self.players[player_id].choice_position
+                i,j = pos
+                # 获取当前铲地块地形
+                terrain = self.map_board_state.map_grid[i][j][0]
+                # 判断铲当前地块的实际用铲量（需铲次数 和 剩余铲数 的两者小值）
+                act_current_shovel_times = min(self.players[player_id].terrain_id_need_shovel_times[terrain], shovel_times)
+                # 将该地块铲 实际用铲量 下
+                adjust_terrain(player_id, act_current_shovel_times)
+                # 更新剩余铲数
+                shovel_times -= act_current_shovel_times
+
+            # 剩余铲数归零 或 不可铲 后
+            i,j = first_pos
+            first_pos_terrain = self.map_board_state.map_grid[i][j][0]
+            first_pos_shovel_times = self.players[player_id].terrain_id_need_shovel_times[first_pos_terrain]
+            if self.check(player_id, [
+                ('money', 2), 
+                ('ore', 1 + first_pos_shovel_times * self.players[player_id].shovel_level),
+                ('building', 1)
+            ]):
+                self.players[player_id].choice_position = first_pos
+                self.invoke_immediate_aciton(player_id,('build_workshop',))
+
         all_adjust_list = {
             'money': adjust_money,
             'ore': adjust_ore,
@@ -932,8 +1120,10 @@ class GameStateBase:
             'score': adjust_score,
             'magics': magic_rotation,
             'tracks': climb_track,
-            'land': shovel,
-            'building': adjust_building
+            'land': adjust_terrain,
+            'building': adjust_building,
+            'bridge': build_bridge,
+            'spade': shovel
         }
 
         def adjust(player_id: int, list_to_be_adjusted):
