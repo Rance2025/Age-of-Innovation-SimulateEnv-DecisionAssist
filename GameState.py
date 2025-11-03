@@ -515,6 +515,23 @@ class GameStateBase:
             # 标记当前位置为已访问
             visited.add(pos)
 
+            # 判断该地块是否是可建桥位两侧中的一测
+            if pos in self.map_board_state.enable_bridge_pos_dict:
+                # 如是，则遍历其对侧地块
+                for corres_pos in self.map_board_state.enable_bridge_pos_dict[pos]:
+                    (i,j),(p,q) = pos, corres_pos
+                    # 判断对侧地块是否已被其他玩家占领
+                    if self.map_board_state.map_grid[p][q][1] in (-1, player_id):
+                        # 若未被其他玩家占领，则排序两侧地块坐标，生成桥键
+                        if i > p or (i == p and q > j):
+                            bridge_key = ((p,q),(i,j))
+                        else:
+                            bridge_key = ((i,j),(p,q))
+                        # 根据桥键查询该桥位是否已被该玩家连接
+                        if self.map_board_state.bridges_is_conneted[bridge_key] == player_id:
+                            # 如已被连接，则将对侧地块加入可抵地块集合中
+                            player.reachable_map_ids.add((p,q))
+
             i,j = pos
             direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
 
@@ -556,10 +573,39 @@ class GameStateBase:
             for pos in player.controlled_map_ids:
                 update_reachable_map_ids(pos)
 
-    def execute_get_magics_and_city_establishment_if_needed(self, player_id: int, pos: tuple[int, int]):
+    def absorb_magics_check(self, player_id: int, pos: tuple[int, int]):
+        
+        i,j = pos
+        direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
+        player_get_magics = {i:0 for i in range(self.num_players)}
+
+        # 遍历相邻地块
+        for dx,dy in direction:
+            new_i, new_j = i + dx, j + dy
+            if 0 <= new_i <= 8 and 0 <= new_j <= 12:
+                # 若相邻建筑为其他派系控制，则加入计算其他派系获取魔力点数
+                if self.map_board_state.map_grid[new_i][new_j][1] not in (-1, player_id): 
+                    get_magics_player_id, building_id, num_side_building = self.map_board_state.map_grid[new_i][new_j][1:4]
+                    # 计算该其他玩家该地块可吸取的魔力点数
+                    get_magics_num = self.map_board_state.building_magic[building_id] + num_side_building
+                    # 将该其他玩家该地块可吸取魔力点数加入该其他玩家本次可获取魔力点数之和中
+                    player_get_magics[get_magics_player_id] += get_magics_num
+
+        if self.round != 0: # 初始建筑摆放不触发吸魔行动
+            for player_idx, get_magics_nums in player_get_magics.items():
+                actual_num = min(
+                    get_magics_nums,                                                                # 获取的魔力值
+                    2 * self.players[player_idx].magics[1] + self.players[player_idx].magics[2],    # 当前最大可转动魔力点数
+                    self.players[player_idx].boardscore - 1                                         # 最大可支付版面分数
+                )
+                if actual_num:
+                    self.invoke_immediate_aciton(player_idx, ('gain_magics', actual_num))
+
+    def city_establishment_check(self, player_id: int, mode: str, pos: tuple[int, int], bridge_key: tuple[tuple[int,int],tuple[int,int]] = tuple()):
 
         settlements_and_cities = self.players[player_id].settlements_and_cities
-        settlements_and_cities[pos] = [pos, False]
+        if pos not in settlements_and_cities:
+            settlements_and_cities[pos] = [pos, False]
 
         def find(pos: tuple[int,int]):
             # 路径压缩优化
@@ -577,7 +623,6 @@ class GameStateBase:
                 settlements_and_cities[node] = [root, root_is_city]
             return root, root_is_city
         
-            
         def merge(pos_a: tuple[int,int], pos_b: tuple[int,int]):
             root_a, is_city_a = find(pos_a)
             root_b, is_city_b = find(pos_b)
@@ -594,34 +639,62 @@ class GameStateBase:
 
             return root_b, new_is_city
 
-        i,j = pos
-        direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
-        player_get_magics = {i:0 for i in range(self.num_players)}
+        current_root, current_is_city = find(pos)
 
-        current_root, current_is_city = find((i, j))
-
-        for dx,dy in direction:
-            new_i, new_j = i + dx, j + dy
-
-            if 0 <= new_i <= 8 and 0 <= new_j <= 12:
-
-                if self.map_board_state.map_grid[new_i][new_j][1] == player_id: # 相邻建筑为己方
-                    # 合并并更新当前聚落信息
-                    current_root, current_is_city = merge((new_i, new_j), (i, j))
-
-                elif self.map_board_state.map_grid[new_i][new_j][1] != -1:      # 相邻建筑为其他派系控制
-                    get_magics_player_id, building_id, num_side_building = self.map_board_state.map_grid[new_i][new_j][1:4]
-                    player_get_magics[get_magics_player_id] += self.map_board_state.building_magic[building_id] + num_side_building
-
-        if self.round != 0: # 初始建筑摆放不触发吸魔行动
-            for player_idx, get_magics_nums in player_get_magics.items():
-                actual_num = min(
-                    get_magics_nums,                                                                # 获取的魔力值
-                    2 * self.players[player_idx].magics[1] + self.players[player_idx].magics[2],    # 当前最大可转动魔力点数
-                    self.players[player_idx].boardscore - 1                                         # 最大可支付版面分数
-                )
-                if actual_num:
-                    self.invoke_immediate_aciton(player_idx, ('gain_magics', actual_num))
+        match mode:
+            # 新建一座桥的情况
+            case 'bridge':
+                for temp_pos in bridge_key:
+                    if temp_pos == pos:
+                        continue
+                    i,j = temp_pos
+                    # 若桥对侧地块已被己方控制
+                    if self.map_board_state.map_grid[i][j][1] == player_id:
+                        # 则合并两侧聚落
+                        current_root, current_is_city = merge(pos, temp_pos)
+                        break
+                else:
+                    # 即桥对侧不被己方控制，则直接跳出，无需进行后续建城检查，因该聚落魔力点数不会更新
+                    return 
+            # 更新一个建筑的情况
+            case 'build':
+                i,j = pos
+                need_following_check = False
+                # 判断桥对侧地块是否已连接（若存在）
+                if pos in self.map_board_state.enable_bridge_pos_dict:
+                    for corres_pos in self.map_board_state.enable_bridge_pos_dict[pos]:
+                        p,q = corres_pos
+                        # 若桥对侧地块被己方控制
+                        if self.map_board_state.map_grid[p][q][1] == player_id:
+                            # 获取桥键
+                            if i > p or (i == p and j > q):
+                                bridge_key = (corres_pos, pos)
+                            else:
+                                bridge_key = (pos, corres_pos)
+                            # 判断该桥是否已被己方建造
+                            if self.map_board_state.bridges_is_conneted[bridge_key] == player_id:
+                                # 若已建造，则将两侧建筑合并为同一聚落
+                                current_root, current_is_city = merge(corres_pos, pos)
+                                need_following_check = True
+                            
+                direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
+                # 遍历判断相邻地块
+                for dx,dy in direction:
+                    new_i, new_j = i + dx, j + dy
+                    if 0 <= new_i <= 8 and 0 <= new_j <= 12:
+                        # 若相邻建筑为己方
+                        if self.map_board_state.map_grid[new_i][new_j][1] == player_id:
+                            # 合并并更新当前聚落信息
+                            current_root, current_is_city = merge((new_i, new_j), (i, j))
+                            need_following_check = True
+                # 若建立该新建筑后，不存在任何相邻地块（含桥对侧地块，如有）上有己方建筑
+                # 则无需后续建城检查，直接跳出，因为该聚落魔力点数不会更新
+                if need_following_check == False:
+                    return 
+            case 'upgrade':
+                # 在升级一个建筑地块的情况下
+                # 相邻地块（含有效桥对侧地块）必已经同属一个聚落，则无需更新聚落，直接进行建城检查
+                pass
 
         # 使用合并后最新的根节点和城市状态
         if not current_is_city:  # 如果当前聚落还不是城市
@@ -629,12 +702,17 @@ class GameStateBase:
             curent_settlement_building_nums = 0 # 当前聚落建筑数量
 
             # 统计当前聚落的所有建筑
+            # 遍历所有控制地块，获取其上建筑所需聚落
             for building_pos in self.players[player_id].controlled_map_ids:
                 building_root, _ = find(building_pos)
+                # 若与当前聚落所属同一聚落
                 if building_root == current_root:
                     cur_i, cur_j = building_pos
+                    # 则获取该建筑对应魔力点
                     building_id, num_side_building = self.map_board_state.map_grid[cur_i][cur_j][2:4]
-                    curent_settlement_magics_total += self.map_board_state.building_magic[building_id] + num_side_building
+                    magics_num = self.map_board_state.building_magic[building_id] + num_side_building
+                    # 累加计算该聚落魔力点总数
+                    curent_settlement_magics_total += magics_num
                     
                     match building_id:
                         case 5: # 大学算作两个建筑
@@ -653,7 +731,7 @@ class GameStateBase:
                 # 标记根节点为城市
                 settlements_and_cities[current_root] = [current_root, True]
                 self.players[player_id].citys_amount += 1
-                self.invoke_immediate_aciton(player_id, ('select_city_tile', (i,j)))
+                self.invoke_immediate_aciton(player_id, ('select_city_tile',))
         
     def init_check(self):
 
@@ -1032,7 +1110,8 @@ class GameStateBase:
                     
                     # 修改地块的建筑id和侧楼数量和建筑性质
                     self.map_board_state.map_grid[i][j][2:] = to_build_id, pre_side_building_num, is_neutral
-                        
+                    # 定义检查模式为升级
+                    check_mode = 'upgrade'
                 # 该地形为该玩家原生地形且无建筑的情况
                 case _:
                     match mode, to_build_id, is_neutral:
@@ -1058,9 +1137,14 @@ class GameStateBase:
                     # 更新控制地块与可抵地块
                     self.players[player_id].controlled_map_ids.add((i,j))
                     self.update_reachable_map_ids_set(player_id, (i,j))
+                    # 定义检查模式为建造
+                    check_mode = 'build'
 
-            # 执行吸取魔力立即行动（如有）与城市建立（如有）
-            self.execute_get_magics_and_city_establishment_if_needed(player_id, (i,j))
+            if mode != 'build_annex':
+                # 执行吸取魔力立即行动（如有）
+                self.absorb_magics_check(player_id, (i,j))
+            # 更新聚落及检查城市建立
+            self.city_establishment_check(player_id,check_mode,(i,j))
 
         def build_bridge(player_id: int):
             self.players[player_id].resources['all_bridges'] -= 1
@@ -1163,3 +1247,4 @@ class GameStateBase:
                 id : self.all_effect_objects.create_actual_object(typ_name, id) 
                 for id in typ_available_id_list
             }
+        

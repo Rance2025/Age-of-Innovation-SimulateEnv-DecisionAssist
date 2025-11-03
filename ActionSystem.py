@@ -1010,6 +1010,12 @@ class ActionSystem:
             bridge_key = args
             # 标记该桥梁已被该玩家获取
             self.game_state.map_board_state.bridges_is_conneted[bridge_key] = self.player_id
+            for pos in bridge_key:
+                i,j = pos
+                if self.game_state.map_board_state.map_grid[i][j][1] == self.player_id:
+                    break
+            # 更新聚落
+            self.game_state.city_establishment_check(self.player_id, 'bridge', pos, bridge_key)
 
         check_immediate_action_dict: dict[str, Callable] = {
             'select_book': check_select_book_action,

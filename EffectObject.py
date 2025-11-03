@@ -646,7 +646,6 @@ class AllEffectObject:
                 self.game_state.invoke_immediate_aciton(executed_player_id, ('select_position', 'controlled', (1, 'alone_or_neighbor')))
                 self.game_state.adjust(executed_player_id,[('building', 'upgrade_special', 2, False)])
             
-
     class BookAction5(BookAction):
         
         def cost_check(self) -> list:
