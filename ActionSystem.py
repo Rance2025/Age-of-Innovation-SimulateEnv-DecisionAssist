@@ -29,6 +29,7 @@ class ActionSystem:
             'upgrade_building',                 # 升级建筑
             'magics_action',                    # 魔力行动
             'book_action',                      # 书行动
+            'select_science_tile',              # 选择高科板块
         ]
 
         # 立即行动名称列表
@@ -56,6 +57,11 @@ class ActionSystem:
                     action_function = self.action_dict('check', name)
                     available_action_ids_list.extend(action_function())
 
+                for action_function in self.player.additional_actions_dict.values():
+                    temp_available_action_ids_list = action_function('check', self.player_id)
+                    if temp_available_action_ids_list:
+                        available_action_ids_list.extend(temp_available_action_ids_list)
+
             case 'immediate':
                 name, *args = args
                 action_function = self.immediate_action_dict('check', name)
@@ -73,16 +79,23 @@ class ActionSystem:
 
         match mode:
             case 'normal':
-                action_function = self.action_dict('execute', action_name)
-
+                if action_name in self.action_list:
+                    action_function = self.action_dict('execute', action_name)
+                    # 执行行动（常规（主要/快速））
+                    action_function(action_arg)
+                elif action_name in self.player.additional_actions_dict:
+                    action_function = self.player.additional_actions_dict[action_name]
+                    # 执行行动（常规（附加））
+                    action_function('execute', self.player_id, action_arg)
+                else:
+                    raise ValueError('非法常规行动名称')
             case 'immediate':
                 action_function = self.immediate_action_dict('execute', action_name)
+                # 执行行动（立即）
+                action_function(action_arg)
 
             case _:
                 raise ValueError('非法执行行动模式')
-            
-        # 执行行动（常规（主要/快速）/立即）
-        action_function(action_arg)
            
     def is_next_action_exist(self) -> bool:
         
@@ -372,30 +385,11 @@ class ActionSystem:
                 self.player_id, 
                 [
                     ('meeple', 'use', 1),
-                    ('money', 'use', 4)
+                    ('money', 'use', 4),
+                    ('navigation',)
                 ]
             )  
-            # 执行提升航行等级动作
-            self.player.navigation_level += 1
-            # 查询本次提升奖励
-            reward = []
-            if self.player.planning_card_id == 3:
-                match self.player.navigation_level:
-                    case 2:
-                        reward.append(('score', 'get', 'board', 3))
-                    case 3:
-                        reward.append(('book', 'get', 'any', 2))
-            else:
-                match self.player.navigation_level:
-                    case 1:
-                        reward.append(('score', 'get', 'board', 2))
-                    case 2:
-                        reward.append(('book', 'get', 'any', 2))
-                    case 3:
-                        reward.append(('score', 'get', 'board', 4))
-            # 获取本次提升奖励
-            self.game_state.adjust(self.player_id, reward)
-
+            
         def check_improve_shovel_level_action() -> list:
             
             if (
@@ -430,21 +424,11 @@ class ActionSystem:
                 [
                     ('meeple', 'use', 1),
                     ('ore', 'use', 1),
-                    ('money', 'use', 5 if self.player.planning_card_id != 1 else 1)
+                    ('money', 'use', 5 if self.player.planning_card_id != 1 else 1),
+                    ('shovel',)
                 ]
             )
-            # 执行提升铲子等级动作
-            self.player.shovel_level -= 1
-            # 查询本次提升奖励
-            reward = []
-            match self.player.shovel_level:
-                case 2:
-                    reward.append(('book', 'get', 'any', 2))
-                case 1:
-                    reward.append(('score', 'get', 'board', 6))
-            # 获取本次提升奖励
-            self.game_state.adjust(self.player_id, reward)
-
+            
         def check_insert_meeple_action() -> list:
 
             if (
@@ -708,6 +692,33 @@ class ActionSystem:
             # 执行获取书行动板块
             self.all_available_object_dict['book_action'][book_action_id].get(self.player_id)
 
+        def check_select_science_tile_action() -> list:
+
+            if (
+                # 判断是否处于正式阶段
+                self.game_state.round != 0
+                # 判断主行动是否已被执行
+                and self.player.main_action_is_done == False
+            ):
+                # 所有可用行动id: 269-286
+                available_action_ids_list = []
+                for available_science_tile_id in sorted(self.game_state.setup.science_tiles_order):
+                    if self.all_available_object_dict['science_tile'][available_science_tile_id].check_get(self.player_id):
+                        action_id = 268 + available_science_tile_id
+                        available_action_ids_list.append(action_id)
+                return available_action_ids_list
+            else:
+                return []
+                  
+        def select_science_tile_action(args):
+            
+            # 设置主行动已执行
+            self.player.main_action_is_done = True
+            # 获取书行动id
+            science_tile_id = args
+            # 执行获取书行动板块
+            self.all_available_object_dict['science_tile'][science_tile_id].get(self.player_id)
+        
         check_action_dict: dict[str, Callable] = {
             'select_planning_card': check_select_planning_card_action,
             'select_faction': check_select_faction_action,
@@ -723,6 +734,7 @@ class ActionSystem:
             'upgrade_building': check_upgrade_building_action,
             'magics_action': check_magics_action,
             'book_action': check_book_action,
+            'select_science_tile': check_select_science_tile_action,
         }
         
         execute_action_dict: dict[str, Callable] = {
@@ -740,6 +752,7 @@ class ActionSystem:
             'upgrade_building': upgrade_building_action,
             'magics_action': magics_action,
             'book_action': book_action,
+            'select_science_tile': select_science_tile_action,
         }
 
         def action_dict(mode: str, name: str) -> Callable:
@@ -1009,13 +1022,18 @@ class ActionSystem:
             # 获取桥梁索引
             bridge_key = args
             # 标记该桥梁已被该玩家获取
+            pos = tuple()
             self.game_state.map_board_state.bridges_is_conneted[bridge_key] = self.player_id
-            for pos in bridge_key:
-                i,j = pos
+            for temp_pos in bridge_key:
+                i,j = temp_pos
                 if self.game_state.map_board_state.map_grid[i][j][1] == self.player_id:
+                    pos = temp_pos
                     break
-            # 更新聚落
-            self.game_state.city_establishment_check(self.player_id, 'bridge', pos, bridge_key)
+            if pos:
+                # 更新聚落
+                self.game_state.city_establishment_check(self.player_id, 'bridge', pos, bridge_key)
+            else:
+                raise ValueError(f'未获取到桥梁已连接建筑一侧地块坐标')
 
         check_immediate_action_dict: dict[str, Callable] = {
             'select_book': check_select_book_action,

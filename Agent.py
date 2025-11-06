@@ -22,7 +22,10 @@ class Agent:
             action_id = int(action_id)
             self.action_system.execute_action(mode, action_id)
         else:
-            action_id = random.choice(available_action_ids)
+            if 65 in available_action_ids:
+                action_id = 65
+            else:
+                action_id = random.choice(available_action_ids)
             print(action_id)
             self.action_system.execute_action(mode, action_id)     
         return action_id

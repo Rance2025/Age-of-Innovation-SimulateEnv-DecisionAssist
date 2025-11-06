@@ -167,7 +167,7 @@ class GameStateBase:
             self.all_effect_objects = []       # 所有效果板块列表
             
             self.is_got_palace = False     # 是否已解锁宫殿板块
-            self.citys_amount = 0          # 当前城市数量
+            self.citys_amount = 0          # 当前城市数量（城片数量）
             self.tracks_over_7_amount = 0  # 当前科技轨超过7数量
                     
             self.boardscore = 20    # 当前板面分数
@@ -183,6 +183,7 @@ class GameStateBase:
             self.pass_effect_list: list[Callable[[int],None]] = []          # 略过动作效果列表
             self.round_end_effect_list: list[Callable[[int],None]] = []     # 轮次结束效果列表
             self.setup_effect_list: list[Callable[[int],None]] = []         # 初始设置效果列表
+            self.additional_actions_dict: dict[str,Callable] = {}           # 额外行动列表
 
         def __str__(self):
             """玩家状态的中文表示"""
@@ -239,6 +240,7 @@ class GameStateBase:
                 f"控制领土: {self.controlled_map_ids}",
                 f"相邻坐标: {self.adjacent_map_ids}",
                 f"可抵达坐标: {self.reachable_map_ids}"
+                f"聚落与城市: {self.settlements_and_cities}"
             ])
             
             # 分数状态
@@ -439,29 +441,6 @@ class GameStateBase:
                 10: (0,0,2,0),
                 11: (0,0,0,2)
             }
-            
-            # 科技展示板剩余数量
-            self.tech_ability_board_remaining_amount = {i:1 for i in range(2 * num_players + 2)}
-            
-            # 能力展示板奖励
-            self.ability_board_rewards = {
-                #以打乱能力板块顺序号：奖励 (银行书, 法律书, 工程书, 医学书, 银行等级, 法律等级, 工程等级, 医学等级)
-                0: (0,0,0,0,3,0,0,0),
-                1: (1,0,0,0,2,0,0,0),
-                2: (2,0,0,0,1,0,0,0),
-                3: (0,0,0,0,0,3,0,0),
-                4: (0,1,0,0,0,2,0,0),
-                5: (0,2,0,0,0,1,0,0),
-                6: (0,0,0,0,0,0,3,0),
-                7: (0,0,1,0,0,0,2,0),
-                8: (0,0,2,0,0,0,1,0),
-                9: (0,0,0,0,0,0,0,3),
-                10: (0,0,0,1,0,0,0,2),
-                11: (0,0,0,2,0,0,0,1),
-            }
-            
-            # 能力展示板剩余数量
-            self.ability_board_remaining_amount = {i:4 for i in range(12)}
             
             # 科学展示板图（科技轨道）
             self.science_tracks = {
@@ -730,7 +709,7 @@ class GameStateBase:
             ):
                 # 标记根节点为城市
                 settlements_and_cities[current_root] = [current_root, True]
-                self.players[player_id].citys_amount += 1
+                # 触发立即行动，选取城片
                 self.invoke_immediate_aciton(player_id, ('select_city_tile',))
         
     def init_check(self):
@@ -1093,23 +1072,21 @@ class GameStateBase:
                                     self.adjust(player_id, [('money', 'use', 8), ('ore', 'use', 5)])
                                     # 立即获取一个能力板块
                                     self.invoke_immediate_aciton(player_id, ('select_ability_tile',))
-
-                            # 调整玩家规划板上建筑数量
-                            self.players[player_id].buildings[pre_building_id] += 1
-                            self.players[player_id].buildings[to_build_id] -= 1
                         case 'build_annex', _, _, 0, 8, True:
                             pass
                         case 'degrade', 4, False, _, 2, False:
                             pass
                         case 'upgrade_special', 1, False, _, 2, False:
-                            # 调整玩家规划板上建筑数量
-                            self.players[player_id].buildings[pre_building_id] += 1
-                            self.players[player_id].buildings[to_build_id] -= 1
+                            pass
                         case _:
                             raise ValueError(f'已存在建筑物的地形上进行非法操作')
                     
                     # 修改地块的建筑id和侧楼数量和建筑性质
                     self.map_board_state.map_grid[i][j][2:] = to_build_id, pre_side_building_num, is_neutral
+                    # 调整玩家规划板上建筑数量
+                    if to_build_id != 8:
+                        self.players[player_id].buildings[pre_building_id] += 1
+                    self.players[player_id].buildings[to_build_id] -= 1    
                     # 定义检查模式为升级
                     check_mode = 'upgrade'
                 # 该地形为该玩家原生地形且无建筑的情况
@@ -1121,7 +1098,16 @@ class GameStateBase:
                         case 'build_setup', to_build_id, is_neutral if (to_build_id, is_neutral) in [(1,False), (5,False), (6,True)]:
                             pass
                         case 'build_neutral', 1|2|3|4|5|6|7, True:
-                            pass
+                            adj_to_build_id_dict = {
+                                1:9,
+                                2:10,
+                                3:11,
+                                4:12,
+                                5:13,
+                                6:6,
+                                7:7,
+                            }
+                            self.players[player_id].buildings[adj_to_build_id_dict[to_build_id]] -= 1
                         case 'build_special', 2, False:
                             pass
                         case 'build_special', 1, False: # 蜥蜴人板块行动效果
@@ -1133,7 +1119,8 @@ class GameStateBase:
                     self.map_board_state.map_grid[i][j][1:3] = player_id, to_build_id
                     self.map_board_state.map_grid[i][j][4] = is_neutral
                     # 调整玩家规划板上建筑数量
-                    self.players[player_id].buildings[to_build_id] -= 1
+                    if mode != 'build_neutral':
+                        self.players[player_id].buildings[to_build_id] -= 1
                     # 更新控制地块与可抵地块
                     self.players[player_id].controlled_map_ids.add((i,j))
                     self.update_reachable_map_ids_set(player_id, (i,j))
@@ -1147,9 +1134,9 @@ class GameStateBase:
             self.city_establishment_check(player_id,check_mode,(i,j))
 
         def build_bridge(player_id: int):
-            self.players[player_id].resources['all_bridges'] -= 1
-            self.invoke_immediate_aciton(player_id, ('build_bridge',))
-            return 
+            if self.check(player_id, [('bridge',)]):
+                self.players[player_id].resources['all_bridges'] -= 1
+                self.invoke_immediate_aciton(player_id, ('build_bridge',))
              
         def shovel(player_id: int, shovel_times: int):
             # 初始化第一铲地标记和位置
@@ -1185,16 +1172,56 @@ class GameStateBase:
                 shovel_times -= act_current_shovel_times
 
             # 剩余铲数归零 或 不可铲 后
-            i,j = first_pos
-            first_pos_terrain = self.map_board_state.map_grid[i][j][0]
-            first_pos_shovel_times = self.players[player_id].terrain_id_need_shovel_times[first_pos_terrain]
-            if self.check(player_id, [
-                ('money', 2), 
-                ('ore', 1 + first_pos_shovel_times * self.players[player_id].shovel_level),
-                ('building', 1)
-            ]):
-                self.players[player_id].choice_position = first_pos
-                self.invoke_immediate_aciton(player_id,('build_workshop',))
+            if first_pos:
+                i,j = first_pos
+                first_pos_terrain = self.map_board_state.map_grid[i][j][0]
+                first_pos_shovel_times = self.players[player_id].terrain_id_need_shovel_times[first_pos_terrain]
+                if self.check(player_id, [
+                    ('money', 2), 
+                    ('ore', 1 + first_pos_shovel_times * self.players[player_id].shovel_level),
+                    ('building', 1)
+                ]):
+                    self.players[player_id].choice_position = first_pos
+                    self.invoke_immediate_aciton(player_id,('build_workshop',))
+
+        def improve_navigation(player_id):
+            # 判断是否可升级
+            if self.players[player_id].navigation_level < 3:
+                # 执行提升航行等级动作
+                self.players[player_id].navigation_level += 1
+                # 查询本次提升奖励
+                reward = []
+                if self.players[player_id].planning_card_id == 3:
+                    match self.players[player_id].navigation_level:
+                        case 2:
+                            reward.append(('score', 'get', 'board', 3))
+                        case 3:
+                            reward.append(('book', 'get', 'any', 2))
+                else:
+                    match self.players[player_id].navigation_level:
+                        case 1:
+                            reward.append(('score', 'get', 'board', 2))
+                        case 2:
+                            reward.append(('book', 'get', 'any', 2))
+                        case 3:
+                            reward.append(('score', 'get', 'board', 4))
+                # 获取本次提升奖励
+                self.adjust(player_id, reward)
+
+        def improve_shovel(player_id: int):
+            # 判断是否可升级
+            if self.players[player_id].shovel_level > 1:
+                # 执行提升铲子等级动作
+                self.players[player_id].shovel_level -= 1
+                # 查询本次提升奖励
+                reward = []
+                match self.players[player_id].shovel_level:
+                    case 2:
+                        reward.append(('book', 'get', 'any', 2))
+                    case 1:
+                        reward.append(('score', 'get', 'board', 6))
+                # 获取本次提升奖励
+                self.adjust(player_id, reward)
 
         all_adjust_list = {
             'money': adjust_money,
@@ -1207,7 +1234,9 @@ class GameStateBase:
             'land': adjust_terrain,
             'building': adjust_building,
             'bridge': build_bridge,
-            'spade': shovel
+            'spade': shovel,
+            'navigation': improve_navigation,
+            'shovel': improve_shovel,
         }
 
         def adjust(player_id: int, list_to_be_adjusted):
