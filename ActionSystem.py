@@ -210,7 +210,6 @@ class ActionSystem:
             self.player.main_action_is_done = True
             # 设置玩家宫殿板块
             self.player.palace_tile_id = args
-            # TODO 获取与激活要区分
             # 获取所选宫殿效果板块
             self.all_available_object_dict['palace_tile'][args].get(self.player_id)
 
@@ -273,24 +272,11 @@ class ActionSystem:
             self.player.main_action_is_done = True
             # 获取玩家将交还的回合助推板id
             returned_booster_id = self.player.booster_ids[-1]
-
             if args != 'final':
-                # 设置玩家新一轮回合助推板
-                self.player.booster_ids.append(args)
                 # 获取所选回合助推效果板块
                 self.all_available_object_dict['round_booster'][args].get(self.player_id)
-
-            # 从将交还的回合助推板的持有者列表中移除玩家id，即标记为未被持有
-            self.all_available_object_dict['round_booster'][returned_booster_id].owner_list.remove(self.player_id)
-
-            # 执行该玩家所有略过动作效果
-            for effect_function in self.player.pass_effect_list:
-                effect_function(self.player_id)
-
-            # 将该玩家id从当前回合玩家行动顺序中移除
-            self.game_state.current_player_order.remove(self.player_id)
-            # 将该玩家id加入当前回合跳过顺序列表
-            self.game_state.pass_order.append(self.player_id)
+            # 将本回合的回合助推板交还
+            self.all_available_object_dict['round_booster'][returned_booster_id].back(self.player_id)
             # 设置玩家已跳过
             self.player.ispass = True
 
@@ -388,7 +374,7 @@ class ActionSystem:
                     ('money', 'use', 4),
                     ('navigation',)
                 ]
-            )  
+            )
             
         def check_improve_shovel_level_action() -> list:
             
@@ -489,8 +475,6 @@ class ActionSystem:
 
             # 设置主行动已执行
             self.player.main_action_is_done = True
-            # 立即选择位置
-            self.game_state.invoke_immediate_aciton(self.player_id, ('select_position', 'anywhere', set([self.player.planning_card_id])))
             # 建造
             self.game_state.adjust(self.player_id, [('building', *args)])
 
@@ -521,26 +505,31 @@ class ActionSystem:
                 else:
                     max_shovel_times_for_only_shovel = 3
 
-                # 创建可抵达范围内地形需要几铲才能成为原生地的集合
-                reachable_terrain_need_shovel_times_typs = set()
+                # 创建可抵达范围内需要x铲才能成为原生地的地形是否存在的字典
+                reachable_terrain_need_shovel_times_typs = {i: False for i in range(4)}
 
                 # 遍历可抵达范围坐标
                 for i,j in self.player.reachable_map_ids:
                     # 获取当前地块地形
                     terrain = self.game_state.map_board_state.map_grid[i][j][0]
-                    # 将其需要几铲才能成为原生地加入集合
-                    reachable_terrain_need_shovel_times_typs.add(self.player.terrain_id_need_shovel_times[terrain])
-                    # 如果0-3铲四种情况已经凑齐，则跳出循环
-                    if len(reachable_terrain_need_shovel_times_typs) == 4:
-                        break
+                    # 将需要x铲才能成为原生地的地形标记为存在
+                    reachable_terrain_need_shovel_times_typs[self.player.terrain_id_need_shovel_times[terrain]] = True
 
                 # 如果可抵地块中铲成原生地所需的最小次数 小于等于 最大可支持建造车间前铲的次数，则允许该行动：将一个地块铲成原生地（如需）并建造一个车间
-                if min(reachable_terrain_need_shovel_times_typs) <= max_shovel_times_for_build:
-                    available_action_ids_list.append(168+max_shovel_times_for_build)
+                for temp_max_shovel_times_for_build in range(max_shovel_times_for_build,-1,-1):
+                    if reachable_terrain_need_shovel_times_typs[temp_max_shovel_times_for_build] == True:
+                        available_action_ids_list.append(168+temp_max_shovel_times_for_build)
+                        break
+
                 # 可抵地块中铲成原生地所需的最大次数 与 最大可支持不建造仅铲的次数 的两者小值 是最大可铲次数
                 # 则允许行动：在一个可抵地块上铲 1~最大可铲次数 下但不建造（若最大可铲次数为0，则无可用行动：在一个可抵地块上铲x下但不建造）
-                available_action_ids_list.extend(list(range(172,172+min(max(reachable_terrain_need_shovel_times_typs),max_shovel_times_for_only_shovel))))
-
+                for temp_shovel_times_for_only_shovel in range(1, max_shovel_times_for_only_shovel+1):
+                    if any(
+                        reachable_terrain_need_shovel_times_typs[t] == True
+                        for t in range(temp_shovel_times_for_only_shovel, 4)
+                    ):
+                        action_id = 171 + temp_shovel_times_for_only_shovel
+                        available_action_ids_list.append(action_id)
                 # 返回可用行动id列表
                 return available_action_ids_list
             else:
@@ -554,13 +543,8 @@ class ActionSystem:
             if len(args) > 1:
                 # 获取铲子和建筑参数
                 max_shovel_times, *build_args = args
-                # 立即选择位置
-                self.game_state.invoke_immediate_aciton(self.player_id, ('select_position', 'reachable', ('build', max_shovel_times)))
-                # 计算需执行铲次数为所选地块的地形id的需铲次数
-                i,j = self.player.choice_position
-                shovel_times = self.player.terrain_id_need_shovel_times[self.game_state.map_board_state.map_grid[i][j][0]]
                 # 执行铲子行动（如有）和建造行动
-                self.game_state.adjust(self.player_id, [('land', shovel_times), ('building', *build_args)])
+                self.game_state.adjust(self.player_id, [('building', *build_args)])
             else:
                 # 获取铲子和建筑参数
                 shovel_times, *build_args = args
@@ -792,7 +776,8 @@ class ActionSystem:
         
         def select_book_action(args):
 
-            self.game_state.adjust(self.player_id, [('book', *args, 1)])
+            mode, typ = args
+            self.game_state.adjust(self.player_id, [('book', mode, typ, 1)])
 
         def check_select_track_action() -> list:
             
@@ -848,32 +833,22 @@ class ActionSystem:
                                 available_action_ids_list.append(action_id)
                 case 'reachable':
                     shovel_mode, shovel_times = args
-                    # 创建空可铲地形id集合
-                    available_terrain_ids = set()
                     match shovel_mode:
                         case 'build':
-                            # 遍历各地形id所需铲次数字典
-                            for key, value in self.player.terrain_id_need_shovel_times.items():
-                                # 如果需铲次数 小于等于 可铲次数，则将该地形id加入可铲（待铲（如需）待建）地形id集合
-                                if value <= shovel_times:
-                                    available_terrain_ids.add(key)
                             # 从玩家可抵地块集合中遍历
                             for i,j in self.player.reachable_map_ids:
                                 match self.game_state.map_board_state.map_grid[i][j]:
-                                    case [terrain, -1, 0, _, _] if terrain in available_terrain_ids:
+                                    # 匹配该地块，若该地块地形需铲次数 小于等于 最大可铲次数
+                                    case [terrain, -1, 0, _, _] if self.player.terrain_id_need_shovel_times[terrain] <= shovel_times:
                                         action_id = 83 + pos_to_action_id[i][j]
                                         available_action_ids_list.append(action_id)
 
                         case 'shovel':
-                            # 遍历各地形id所需铲次数字典
-                            for key, value in self.player.terrain_id_need_shovel_times.items():
-                                # 如果需铲次数 大于等于 可铲次数，则将该地形id加入可铲（待铲不建）地形id集合
-                                if value >= shovel_times:
-                                    available_terrain_ids.add(key)
                             # 从玩家可抵地块集合中遍历
                             for i,j in self.player.reachable_map_ids:
                                 match self.game_state.map_board_state.map_grid[i][j]:
-                                    case [terrain, -1, 0, _, _] if terrain in available_terrain_ids:
+                                    case [terrain, -1, 0, _, _] if self.player.terrain_id_need_shovel_times[terrain] >= shovel_times:
+                                        # 匹配该地块，若该地块地形需铲次数 大于等于 铲次数
                                         action_id = 83 + pos_to_action_id[i][j]
                                         available_action_ids_list.append(action_id)
                 case 'controlled':
@@ -998,7 +973,7 @@ class ActionSystem:
                 self.game_state.adjust(self.player_id, [
                     ('land', shovel_times), 
                     ('ore', 'get', shovel_times * self.player.shovel_level), 
-                    ('building', 'build_normal', 1, False)
+                    ('building', 'build_after_shovel', 1, False)
                 ])
 
         def check_build_bridge_aciton() -> list:

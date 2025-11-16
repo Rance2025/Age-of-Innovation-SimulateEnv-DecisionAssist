@@ -1,0 +1,728 @@
+<!DOCTYPE html><html lang="zh-CN"><head>
+<base href="https://sfwd3jc5iind2.ok.kimi.link">
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>对局信息面板 - 暗黑极简版</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+    <style>
+        :root {
+            /* 暗黑极简配色方案 */
+            --bg-primary: #0a0a0a;        /* 纯黑背景 */
+            --bg-secondary: #1a1a1a;      /* 次级背景 */
+            --bg-tertiary: #252525;       /* 卡片背景 */
+            --bg-elevated: #2a2a2a;       /*  elevated 背景 */
+            --text-primary: #ffffff;      /* 主文字 */
+            --text-secondary: #b0b0b0;    /* 辅助文字 */
+            --text-muted: #707070;        /* 暗色文字 */
+            --accent-blue: #007AFF;       /* 蓝色主题 */
+            --accent-blue-hover: #0056cc; /* 蓝色悬停 */
+            --accent-glow: rgba(0, 122, 255, 0.3); /* 蓝色光晕 */
+            --border: #333333;            /* 边框颜色 */
+            --border-light: #404040;      /* 浅色边框 */
+            --spacing: 16px;              /* 基础间距 */
+            --border-radius: 12px;        /* 圆角 */
+            --panel-padding: 16px;        /* 面板内边距 */
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .container {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--bg-primary);
+            padding: var(--spacing);
+            gap: var(--spacing);
+        }
+
+        /* 主布局网格 */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 40% 35% 25%;
+            gap: var(--spacing);
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* 左侧玩家面板区域 */
+        .players-section {
+            background-color: var(--bg-secondary);
+            border-radius: var(--border-radius);
+            border: 1px solid var(--border);
+            padding: var(--panel-padding);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: var(--spacing);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title i {
+            color: var(--accent-blue);
+        }
+
+        /* 玩家网格布局 */
+        .players-grid {
+            display: grid;
+            gap: var(--spacing);
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .players-grid.three-players {
+            grid-template-rows: repeat(3, 1fr);
+        }
+
+        .players-grid.four-players {
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+        }
+
+        .players-grid.five-players {
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr 1fr;
+        }
+
+        /* 玩家面板 */
+        .player-panel {
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+        }
+
+        .player-panel:hover {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 2px var(--accent-glow);
+        }
+
+        .player-header {
+            background-color: var(--bg-elevated);
+            padding: 12px var(--panel-padding);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .player-name {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+        }
+
+        .player-status {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--accent-blue);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .player-content {
+            display: grid;
+            grid-template-columns: 45% 55%;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .player-stats {
+            padding: var(--panel-padding);
+            border-right: 1px solid var(--border);
+            overflow-y: auto;
+        }
+
+        .player-log {
+            padding: var(--panel-padding);
+            overflow-y: auto;
+            background-color: var(--bg-secondary);
+        }
+
+        .stat-item {
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .stat-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .log-entry {
+            background-color: var(--bg-tertiary);
+            border-radius: 6px;
+            padding: 8px 10px;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            border-left: 3px solid var(--accent-blue);
+        }
+
+        /* 中间空白区域 */
+        .middle-section {
+            background-color: var(--bg-secondary);
+            border-radius: var(--border-radius);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        /* 右侧信息区域 */
+        .info-section {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing);
+        }
+
+        /* 顶部状态栏 */
+        .status-bar {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--border-radius);
+            padding: var(--panel-padding);
+            min-height: 60px;
+        }
+
+        .status-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--accent-blue);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-content {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+
+        /* 中间输出区域 */
+        .output-panel {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--border-radius);
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .output-header {
+            background-color: var(--bg-elevated);
+            padding: 12px var(--panel-padding);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .output-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .clear-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.8rem;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .clear-btn:hover {
+            background-color: var(--bg-tertiary);
+            color: var(--text-secondary);
+        }
+
+        .output-content {
+            flex: 1;
+            padding: var(--panel-padding);
+            overflow-y: auto;
+            background-color: var(--bg-primary);
+        }
+
+        /* 底部输入区域 */
+        .input-panel {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--border-radius);
+            padding: var(--panel-padding);
+            min-height: 80px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .command-input {
+            flex: 1;
+            background-color: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .command-input:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 2px var(--accent-glow);
+        }
+
+        .send-btn {
+            background-color: var(--accent-blue);
+            border: none;
+            border-radius: 8px;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .send-btn:hover {
+            background-color: var(--accent-blue-hover);
+            transform: translateY(-1px);
+        }
+
+        /* 消息样式 */
+        .message {
+            margin-bottom: 12px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+
+        .message-system {
+            background-color: var(--bg-tertiary);
+            border-left: 3px solid var(--accent-blue);
+            color: var(--text-secondary);
+        }
+
+        .message-user {
+            background-color: var(--accent-blue);
+            color: white;
+            text-align: right;
+            margin-left: 20%;
+        }
+
+        .message-error {
+            background-color: #2a1f1f;
+            border-left: 3px solid #ff4444;
+            color: #ffaaaa;
+        }
+
+        /* 滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* 响应式调整 */
+        @media (max-height: 768px) {
+            :root {
+                --spacing: 12px;
+                --panel-padding: 12px;
+            }
+            
+            .player-header,
+            .output-header {
+                padding: 10px var(--panel-padding);
+            }
+            
+            .stat-item {
+                margin-bottom: 8px;
+                padding-bottom: 6px;
+            }
+            
+            .log-entry {
+                margin-bottom: 6px;
+                padding: 6px 8px;
+            }
+        }
+    </style>
+<script src="https://statics.moonshot.cn/sdk/preview-widgets.min.js" defer=""></script></head>
+<body>
+    <div class="container">
+        <div class="main-grid">
+            <!-- 左侧玩家面板区域 (40%) -->
+            <div class="players-section">
+                <div class="section-title">
+                    <i class="fas fa-users"></i>
+                    玩家监控
+                </div>
+                <div id="players-grid" class="players-grid">
+                    <!-- 玩家面板将通过JavaScript动态生成 -->
+                </div>
+            </div>
+
+            <!-- 中间空白区域 (35%) -->
+            <div class="middle-section">
+                <div class="placeholder-content">
+                    <i class="fas fa-cube" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.3;"></i>
+                    <div>功能扩展区域</div>
+                    <div style="font-size: 0.8rem; margin-top: 0.5rem;">待开发</div>
+                </div>
+            </div>
+
+            <!-- 右侧信息区域 (25%) -->
+            <div class="info-section">
+                <!-- 顶部状态栏 -->
+                <div class="status-bar">
+                    <div class="status-title">
+                        <i class="fas fa-info-circle"></i>
+                        对局状态
+                    </div>
+                    <div class="status-content" id="game-status">
+                        系统初始化完成，等待玩家加入...
+                    </div>
+                </div>
+
+                <!-- 中间输出区域 -->
+                <div class="output-panel">
+                    <div class="output-header">
+                        <div class="output-title">
+                            <i class="fas fa-terminal"></i>
+                            系统日志
+                        </div>
+                        <button class="clear-btn" onclick="clearOutput()">
+                            <i class="fas fa-trash"></i> 清空
+                        </button>
+                    </div>
+                    <div class="output-content" id="system-output">
+                        <div class="message message-system">
+                            系统启动成功，对局监控面板已激活
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 底部输入区域 -->
+                <div class="input-panel">
+                    <div class="input-group">
+                        <input type="text" id="command-input" class="command-input" placeholder="输入指令..." autofocus=""/>
+                        <button class="send-btn" onclick="sendCommand()">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 配置参数
+        const CONFIG = {
+            playerCount: 4, // 可配置为 3-5
+            maxLogEntries: 50
+        };
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initializePlayers();
+            initializeEventListeners();
+            simulateInitialData();
+        });
+
+        // 初始化玩家面板
+        function initializePlayers() {
+            const grid = document.getElementById('players-grid');
+            
+            // 设置网格布局类
+            if (CONFIG.playerCount === 3) {
+                grid.classList.add('three-players');
+            } else if (CONFIG.playerCount === 4) {
+                grid.classList.add('four-players');
+            } else if (CONFIG.playerCount === 5) {
+                grid.classList.add('five-players');
+            }
+
+            // 生成玩家面板
+            for (let i = 1; i <= CONFIG.playerCount; i++) {
+                const playerPanel = createPlayerPanel(i);
+                grid.appendChild(playerPanel);
+            }
+        }
+
+        // 创建玩家面板
+        function createPlayerPanel(playerId) {
+            const panel = document.createElement('div');
+            panel.className = 'player-panel';
+            panel.innerHTML = `
+                <div class="player-header">
+                    <div class="player-name">玩家 ${playerId}</div>
+                    <div class="player-status"></div>
+                </div>
+                <div class="player-content">
+                    <div class="player-stats">
+                        <div class="stat-item">
+                            <div class="stat-label">部队规模</div>
+                            <div class="stat-value" id="player-${playerId}-troops">0</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">资源储备</div>
+                            <div class="stat-value" id="player-${playerId}-resources">100</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">当前状态</div>
+                            <div class="stat-value" id="player-${playerId}-status">待命</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">胜率</div>
+                            <div class="stat-value" id="player-${playerId}-winrate">0%</div>
+                        </div>
+                    </div>
+                    <div class="player-log" id="player-${playerId}-log">
+                        <div class="log-entry">玩家 ${playerId} 已加入游戏</div>
+                    </div>
+                </div>
+            `;
+            return panel;
+        }
+
+        // 初始化事件监听器
+        function initializeEventListeners() {
+            const commandInput = document.getElementById('command-input');
+            
+            commandInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendCommand();
+                }
+            });
+        }
+
+        // 发送命令
+        function sendCommand() {
+            const input = document.getElementById('command-input');
+            const command = input.value.trim();
+            
+            if (!command) return;
+
+            // 显示用户命令
+            addOutputMessage(command, 'user');
+            
+            // 处理命令
+            processCommand(command);
+            
+            // 清空输入
+            input.value = '';
+        }
+
+        // 处理命令
+        function processCommand(command) {
+            const parts = command.toLowerCase().split(' ');
+            
+            switch (parts[0]) {
+                case 'help':
+                    showHelp();
+                    break;
+                case 'status':
+                    updateGameStatus(parts.slice(1).join(' '));
+                    break;
+                case 'player':
+                    if (parts[1] && parts[2]) {
+                        updatePlayerData(parseInt(parts[1]), parts[2], parts[3] || '');
+                    }
+                    break;
+                case 'clear':
+                    clearOutput();
+                    break;
+                default:
+                    addOutputMessage(`未知命令: ${command}`, 'error');
+            }
+        }
+
+        // 显示帮助
+        function showHelp() {
+            const helpMessages = [
+                '可用命令:',
+                '  help - 显示帮助信息',
+                '  status <消息> - 更新对局状态',
+                '  player <ID> <数据> <值> - 更新玩家数据',
+                '  clear - 清空输出',
+                '',
+                '示例:',
+                '  status 游戏开始',
+                '  player 1 troops 150'
+            ];
+            
+            helpMessages.forEach(msg => {
+                addOutputMessage(msg, 'system');
+            });
+        }
+
+        // 更新游戏状态
+        function updateGameStatus(status) {
+            const statusElement = document.getElementById('game-status');
+            statusElement.textContent = status || '状态更新';
+            addOutputMessage(`对局状态更新: ${status}`, 'system');
+        }
+
+        // 更新玩家数据
+        function updatePlayerData(playerId, dataType, value) {
+            if (playerId < 1 || playerId > CONFIG.playerCount) {
+                addOutputMessage(`无效的玩家ID: ${playerId}`, 'error');
+                return;
+            }
+
+            const element = document.getElementById(`player-${playerId}-${dataType}`);
+            if (element) {
+                element.textContent = value;
+                
+                // 添加到玩家日志
+                const logElement = document.getElementById(`player-${playerId}-log`);
+                const logEntry = document.createElement('div');
+                logEntry.className = 'log-entry';
+                logEntry.textContent = `${dataType} 更新为 ${value}`;
+                logElement.appendChild(logEntry);
+                
+                // 限制日志条目数
+                while (logElement.children.length > CONFIG.maxLogEntries) {
+                    logElement.removeChild(logElement.firstChild);
+                }
+                
+                logElement.scrollTop = logElement.scrollHeight;
+                
+                addOutputMessage(`玩家 ${playerId} ${dataType} 更新为 ${value}`, 'system');
+            } else {
+                addOutputMessage(`无效的数据类型: ${dataType}`, 'error');
+            }
+        }
+
+        // 添加输出消息
+        function addOutputMessage(message, type = 'system') {
+            const output = document.getElementById('system-output');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message message-${type}`;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            messageDiv.innerHTML = `<span style="opacity: 0.6;">[${timestamp}]</span> ${message}`;
+            
+            output.appendChild(messageDiv);
+            
+            // 限制消息数量
+            while (output.children.length > CONFIG.maxLogEntries) {
+                output.removeChild(output.firstChild);
+            }
+            
+            output.scrollTop = output.scrollHeight;
+        }
+
+        // 清空输出
+        function clearOutput() {
+            const output = document.getElementById('system-output');
+            output.innerHTML = '<div class="message message-system">日志已清空</div>';
+        }
+
+        // 模拟初始数据
+        function simulateInitialData() {
+            setTimeout(() => {
+                updateGameStatus('所有玩家已就绪，对局即将开始');
+                
+                // 模拟玩家数据更新
+                for (let i = 1; i <= CONFIG.playerCount; i++) {
+                    setTimeout(() => {
+                        updatePlayerData(i, 'troops', Math.floor(Math.random() * 200) + 50);
+                        updatePlayerData(i, 'resources', Math.floor(Math.random() * 500) + 100);
+                        updatePlayerData(i, 'winrate', Math.floor(Math.random() * 100) + '%');
+                    }, i * 200);
+                }
+                
+                addOutputMessage('系统初始化完成，开始监控对局数据', 'system');
+            }, 1000);
+        }
+
+        // 定期更新模拟数据
+        setInterval(() => {
+            if (Math.random() > 0.7) {
+                const playerId = Math.floor(Math.random() * CONFIG.playerCount) + 1;
+                const dataTypes = ['troops', 'resources'];
+                const dataType = dataTypes[Math.floor(Math.random() * dataTypes.length)];
+                const currentValue = parseInt(document.getElementById(`player-${playerId}-${dataType}`).textContent);
+                const change = Math.floor(Math.random() * 20) - 10;
+                const newValue = Math.max(0, currentValue + change);
+                
+                updatePlayerData(playerId, dataType, newValue);
+            }
+        }, 3000);
+    </script>
+
+</body></html>

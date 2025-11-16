@@ -1,12 +1,13 @@
 import random
 import time
 from typing import Callable
+from web_io import GamePanel
 
 class GameStateBase:
     """游戏状态类"""
     class GameSetup: # TODO 轮次计分的限制性规定判定
         """游戏初始设置类"""
-        def __init__(self, num_players: int):
+        def __init__(self, num_players: int, mode: tuple):
             self.num_players = num_players
             self.seedid = 7
             
@@ -40,11 +41,19 @@ class GameStateBase:
                 'medical_book': 12,                # 医学书总量上限
             }
             
-            # 执行初始设置
-            self.perform_initial_setup()
-        
-        def perform_initial_setup(self):
-            """执行所有初始设置步骤"""
+            # 执行随机初始设置
+            match mode[0]:
+                case 'random':
+                    self.perform_random_initial_setup()
+                case 'target':
+                    self.perform_target_initial_setup(mode[1])
+                case 'input':
+                    self.perform_input_initial_setup()
+                case _:
+                    raise ValueError('Invalid mode')
+                 
+        def perform_random_initial_setup(self):
+            """执行随机初始设置步骤"""
             self.seedid = int(time.strftime("%S%H%M", time.localtime()))
             random.seed(self.seedid)
             # print(f'seed:{self.seedid}')
@@ -79,6 +88,191 @@ class GameStateBase:
             # 9. 选取3个书本行动
             self.selected_book_actions = sorted(random.sample(self.all_book_actions, 3))            
       
+        def perform_target_initial_setup(self, args):
+            """执行指定初始设置步骤"""
+            def validate_setup_args(args, num_players):
+                """
+                验证通过args元组传入的设置参数是否合法
+                
+                Args:
+                    args: 包含9个元素的元组，对应9个设置步骤
+                    num_players: 玩家数量
+                
+                Returns:
+                    bool: 参数是否合法
+                    str: 错误信息（如果合法则为空字符串）
+                """
+                
+                # 检查args是否为9个元素的元组
+                if not isinstance(args, tuple) or len(args) != 9:
+                    return False, "参数必须是一个包含9个元素的元组"
+                
+                try:
+                    # 1. 检查被排除的规划卡
+                    excluded_planning_card = args[0]
+                    if not isinstance(excluded_planning_card, int) or excluded_planning_card < 1 or excluded_planning_card > 7:
+                        return False, "被排除的规划卡必须是1-7之间的整数"
+                    
+                    # 2. 检查派系板块
+                    selected_factions = args[1]
+                    if (not isinstance(selected_factions, (list, tuple)) or 
+                        len(set(selected_factions)) != num_players + 1 or 
+                        min(selected_factions) < 1 or max(selected_factions) > 12):
+                        return False, f"派系板块必须是包含{num_players+1}个不重复的1-12之间整数的列表"
+                    
+                    # 3. 检查宫殿板块
+                    selected_palace_tiles = args[2]
+                    if (not isinstance(selected_palace_tiles, (list, tuple)) or 
+                        len(set(selected_palace_tiles)) != num_players + 1 or 
+                        min(selected_palace_tiles) < 1 or max(selected_palace_tiles) > 16):
+                        return False, f"宫殿板块必须是包含{num_players+1}个不重复的1-16之间整数的列表"
+                    
+                    # 4. 检查回合助推板
+                    selected_round_boosters = args[3]
+                    if (not isinstance(selected_round_boosters, (list, tuple)) or 
+                        len(set(selected_round_boosters)) != num_players + 3 or 
+                        min(selected_round_boosters) < 1 or max(selected_round_boosters) > 10):
+                        return False, f"回合助推板必须是包含{num_players+3}个不重复的1-10之间整数的列表"
+                    
+                    # 5. 检查轮次计分板块
+                    round_scoring_order = args[4]
+                    if (not isinstance(round_scoring_order, (list, tuple)) or 
+                        len(set(round_scoring_order)) != 6 or 
+                        min(round_scoring_order) < 1 or max(round_scoring_order) > 12):
+                        return False, "轮次计分板块必须是包含6个不重复的1-12之间整数的列表"
+                    
+                    # 6. 检查最终计分板块
+                    final_scoring = args[5]
+                    if not isinstance(final_scoring, int) or final_scoring < 1 or final_scoring > 4:
+                        return False, "最终计分板块必须是1-4之间的整数"
+                    
+                    # 7. 检查能力板块顺序
+                    ability_tiles_order = args[6]
+                    if (not isinstance(ability_tiles_order, (list, tuple)) or 
+                        len(set(ability_tiles_order)) != 12 or 
+                        min(ability_tiles_order) < 1 or max(ability_tiles_order) > 12):
+                        return False, "能力板块顺序必须是包含12个不重复的1-12之间整数的列表"
+                    
+                    # 8. 检查科学板块
+                    science_count = 2 + num_players * 2
+                    science_tiles_order = args[7]
+                    if (not isinstance(science_tiles_order, (list, tuple)) or 
+                        len(set(science_tiles_order)) != science_count or 
+                        min(science_tiles_order) < 1 or max(science_tiles_order) > 18):
+                        return False, f"科学板块必须是包含{science_count}个不重复的1-18之间整数的列表"
+                    
+                    # 9. 检查书本行动板块
+                    selected_book_actions = args[8]
+                    if (not isinstance(selected_book_actions, (list, tuple)) or 
+                        len(set(selected_book_actions)) != 3 or 
+                        min(selected_book_actions) < 1 or max(selected_book_actions) > 6):
+                        return False, "书本行动板块必须是包含3个不重复的1-6之间整数的列表"
+                    
+                    return True, ""
+                    
+                except (IndexError, TypeError, ValueError) as e:
+                    return False, f"参数格式错误: {str(e)}"
+            
+            res = validate_setup_args(args, self.num_players)
+            if not res[0]:
+                print(res[1])
+                return
+            
+            # 1. 选择被排除的那张规划卡
+            self.selected_planning_cards = self.all_planning_cards.copy()
+            self.selected_planning_cards.remove(args[0])
+
+            # 2. 选择人数+1的派系板块
+            self.selected_factions = args[1]
+            
+            # 3. 选取人数+1个宫殿板块作为可选项
+            self.selected_palace_tiles = args[2]
+            
+            # 4. 选取人数+3个回合助推板作为可选项
+            self.selected_round_boosters = args[3]
+            
+            # 5. 选取6个轮次计分板块并随机排序
+            self.round_scoring_order = args[4]
+
+            # 6. 随机选取1个最终计分板块
+            self.final_scoring = args[5]
+
+            # 7. 对共12块能力板块随机排序
+            self.ability_tiles_order = args[6]
+            
+            # 8. 选取2+人数*2的科学板块并随机排序
+            self.science_tiles_order = args[7]
+            
+            # 9. 选取3个书本行动
+            self.selected_book_actions = args[8]
+
+        def perform_input_initial_setup(self):
+            """执行所有初始设置步骤"""
+
+            # 1. 选择被排除的那张规划卡
+            excluded_planning_card = int(io.get_input("请输入要排除的规划卡编号(1-7):"))
+            if excluded_planning_card not in self.all_planning_cards:
+                raise ValueError("无效的规划卡编号")
+            self.selected_planning_cards = self.all_planning_cards.copy()
+            self.selected_planning_cards.remove(excluded_planning_card)
+
+            # 2. 选择人数+1的派系板块
+            faction_input = io.get_input(f"请输入{self.num_players+1}个派系板块编号(1-12)，用空格分割:")
+            inp = list(map(int, faction_input.split()))
+            if len(set(inp)) != self.num_players + 1 or min(inp) < 1 or max(inp) > 12:
+                raise ValueError('无效的派系板块')
+            self.selected_factions = sorted(inp)
+
+            # 3. 选取人数+1个宫殿板块作为可选项
+            palace_input = io.get_input(f"请输入{self.num_players+1}个宫殿板块编号(1-16)，用空格分割:")
+            inp = list(map(int, palace_input.split()))
+            if len(set(inp)) != self.num_players + 1 or min(inp) < 1 or max(inp) > 16:
+                raise ValueError('无效的宫殿板块')
+            self.selected_palace_tiles = sorted(inp)
+
+            # 4. 选取人数+3个回合助推板作为可选项
+            booster_input = io.get_input(f"请输入{self.num_players+3}个回合助推板编号(1-10)，用空格分割:")
+            inp = list(map(int, booster_input.split()))
+            if len(set(inp)) != self.num_players + 3 or min(inp) < 1 or max(inp) > 10:
+                raise ValueError('无效的回合助推板')
+            self.selected_round_boosters = sorted(inp)
+
+            # 5. 选取6个轮次计分板块并随机排序
+            scoring_input = io.get_input("请按顺序输入6个轮次计分板块编号(1-12)，用空格分割:")
+            inp = list(map(int, scoring_input.split()))
+            if len(set(inp)) != 6 or min(inp) < 1 or max(inp) > 12:
+                raise ValueError('无效的轮次计分板块')
+            self.round_scoring_order = inp
+
+            # 6. 随机选取1个最终计分板块
+            final_input = io.get_input("请输入1个最终计分板块编号(1-4):")
+            inp = int(final_input)
+            if inp not in self.all_final_scoring:
+                raise ValueError('无效的最终计分板块')
+            self.final_scoring = inp
+
+            # 7. 对共12块能力板块随机排序
+            ability_input = io.get_input("请按顺序输入12个能力板块编号(1-12)，用空格分割:")
+            inp = list(map(int, ability_input.split()))
+            if len(set(inp)) != 12 or min(inp) < 1 or max(inp) > 12:
+                raise ValueError('无效的能力板块')
+            self.ability_tiles_order = inp
+
+            # 8. 选取2+人数*2的科学板块并随机排序
+            science_count = 2 + self.num_players * 2
+            science_input = io.get_input(f"请按顺序输入{science_count}个科学板块编号(1-18)，用空格分割:")
+            inp = list(map(int, science_input.split()))
+            if len(set(inp)) != science_count or min(inp) < 1 or max(inp) > 18:
+                raise ValueError('无效的科学板块')
+            self.science_tiles_order = inp
+
+            # 9. 选取3个书本行动
+            book_input = io.get_input("请输入3个书本行动板块编号(1-6)，用空格分割:")
+            inp = list(map(int, book_input.split()))
+            if len(set(inp)) != 3 or min(inp) < 1 or max(inp) > 6:
+                raise ValueError('无效的书本行动板块')
+            self.selected_book_actions = sorted(inp)  
+
         def __str__(self):
             """返回设置结果的字符串表示"""
             return (
@@ -103,6 +297,8 @@ class GameStateBase:
             self.faction_id = 0           # 选择的派系ID
             self.palace_tile_id = 0       # 选择的宫殿板块ID
             self.booster_ids = []         # 使用过的助推板ID
+            self.ability_tile_ids = []    # 获取的能力板块ID
+            self.science_tile_ids = []    # 获取的科学板块ID
             
             # 资源系统
             self.resources = {
@@ -253,7 +449,7 @@ class GameStateBase:
             
             # 其他状态
             other_str = ", ".join([
-                f"城市数量: {self.citys_amount}",
+                f"城市（城片）数量: {self.citys_amount}",
                 f"科技轨超过7级: {self.tracks_over_7_amount}条",
                 f"宫殿解锁: {'是' if self.is_got_palace else '否'}"
             ])
@@ -280,13 +476,13 @@ class GameStateBase:
             # 地形类型定义
             self.terrain_types = {
                 0: "水域",
-                1: "平原",
-                2: "沼泽",
-                3: "湖泊",
-                4: "森林",
-                5: "山脉",
-                6: "荒地",
-                7: "沙漠",
+                1: "平原（棕）",
+                2: "沼泽（黑）",
+                3: "湖泊（蓝）",
+                4: "森林（绿）",
+                5: "山脉（灰）",
+                6: "荒地（红）",
+                7: "沙漠（黄）",
             }
             
             # 建筑类型定义
@@ -462,20 +658,33 @@ class GameStateBase:
                 }
             }     
 
-    def __init__(self, num_players: int = 3):
+    def __init__(self, game_args: dict, web_io: GamePanel, num_players: int = 3):
         if num_players:
-            self.num_players = num_players                                                    # 玩家数量
-            self.setup = __class__.GameSetup(num_players)                                     # 游戏初始状态设置
-            self.players = [__class__.PlayerState(i) for i in range(num_players)]             # 玩家状态
-            self.map_board_state = __class__.MapBoardState()                                  # 地图状态
-            self.display_board_state = __class__.DisplayBoardState(num_players)               # 展示板状态
-            self.round = 0                                                                    # 当前回合 (0表示设置阶段)
-            self.init_player_order = random.sample(list(range(num_players)),num_players)      # 初始玩家顺位
-            self.current_player_order = self.init_player_order.copy()                         # 当前玩家顺位
-            self.pass_order = list(reversed(self.current_player_order))                       # 本回合玩家结束顺序
-            self.setup_choice_is_completed = False                                            # 初始选择是否完成
-            self.check = self.init_check()                                                    # 初始化检查函数
-            self.adjust = self.init_adjust()                                                  # 初始化调整函数
+            self.num_players = num_players                                                                          # 玩家数量
+            self.setup = __class__.GameSetup(num_players, (game_args['setup_mode'],game_args['setup_tile_args']))                                                     # 游戏初始状态设置
+            self.players:list[__class__.PlayerState] = [__class__.PlayerState(i) for i in range(num_players)]       # 玩家状态
+            self.map_board_state = __class__.MapBoardState()                                                        # 地图状态
+            self.display_board_state = __class__.DisplayBoardState(num_players)                                     # 展示板状态
+            self.round = 0                                                                                          # 当前回合 (0表示设置阶段)
+            match game_args['setup_mode']:                                                                         # 初始玩家顺位
+                case 'random':
+                    self.init_player_order = random.sample(list(range(num_players)),num_players)
+                case 'input':
+                    self.init_player_order = [int(i)-1 for i in web_io.get_input(f"请输入初始玩家顺位（1-{num_players}）: ").split()]
+                    assert (
+                        len(self.init_player_order) == num_players 
+                        and min(self.init_player_order) > 0 
+                        and max(self.init_player_order) <= num_players
+                    )
+                case 'target':
+                    self.init_player_order = game_args['setup_player_order_args']
+            self.current_player_order = self.init_player_order.copy()                                               # 当前玩家顺位
+            self.pass_order = list(reversed(self.current_player_order))                                             # 本回合玩家结束顺序
+            self.setup_choice_is_completed = False                                                                  # 初始选择是否完成
+            self.check = self.init_check()                                                                          # 初始化检查函数
+            self.adjust = self.init_adjust()                                                                        # 初始化调整函数
+            global io
+            io = web_io                                                                                             # 网页IO接口
 
     def invoke_immediate_aciton(self, player_id: int, args: tuple):
         return
@@ -575,7 +784,7 @@ class GameStateBase:
                 actual_num = min(
                     get_magics_nums,                                                                # 获取的魔力值
                     2 * self.players[player_idx].magics[1] + self.players[player_idx].magics[2],    # 当前最大可转动魔力点数
-                    self.players[player_idx].boardscore - 1                                         # 最大可支付版面分数
+                    self.players[player_idx].boardscore + 1                                         # 最大可支付版面分数
                 )
                 if actual_num:
                     self.invoke_immediate_aciton(player_idx, ('gain_magics', actual_num))
@@ -709,8 +918,11 @@ class GameStateBase:
             ):
                 # 标记根节点为城市
                 settlements_and_cities[current_root] = [current_root, True]
-                # 触发立即行动，选取城片
-                self.invoke_immediate_aciton(player_id, ('select_city_tile',))
+                # 触发立即行动，选取城片（保证一定存在可选城片）
+                for city_tile_id in range(1,8):
+                    if self.all_available_object_dict['city_tile'][city_tile_id].check_get(player_id):                 
+                        self.invoke_immediate_aciton(player_id, ('select_city_tile',))
+                        break
         
     def init_check(self):
 
@@ -859,14 +1071,16 @@ class GameStateBase:
             match mode, typ:
                 case 'get', 'any':
                     act_num = min(sum(self.setup.current_global_books.values()), num)
-                    for _ in range(act_num):
+                    for time in range(act_num):
+                        # print(f'请选择您想获取的第{time + 1}本书的类型')
                         self.invoke_immediate_aciton(player_id, ('select_book', 'get'))
                 case 'get', _:
                     act_num = min(self.setup.current_global_books[f'{typ}_book'], num)
                     self.setup.current_global_books[f'{typ}_book'] -= act_num
                     self.players[player_id].resources[f'{typ}_book'] += act_num
                 case 'use', 'any':
-                    for _ in range(num):
+                    for time in range(num):
+                        print(f'请选择您想使用的第{time + 1}本书的类型')
                         self.invoke_immediate_aciton(player_id, ('select_book', 'use'))
                 case 'use', _:
                     if num <= self.players[player_id].resources[f'{typ}_book']:
@@ -944,7 +1158,7 @@ class GameStateBase:
                         self.players[player_id].magics[3] += num
                     else:
                         raise ValueError(f'不可爆魔，因二区无{2 * num}点魔力')
-                case 'else':
+                case 'science_tile_18':
                     self.players[player_id].magics[3] += num
                     # 科技板块效果-宫殿
 
@@ -980,26 +1194,45 @@ class GameStateBase:
                     magic_rotation(player_id, 'get', 2)
                 if before_climb < 7 <= after_climb:
                     magic_rotation(player_id, 'get', 2)
-                if before_climb < 7 <= after_climb:
-                    effect = ()
+                if before_climb < 9 <= after_climb:
+
                     match typ:
                         case 'bank':
-                            effect = ('money', 'get', 3)
+                            def display_board_bank_tracks_9(player_idx):
+                                self.adjust(player_idx, [('money', 'get', 3)])
+                                print(f'银行轨道等级9 -> 3块钱')
+                            self.players[player_id].income_effect_list.append(display_board_bank_tracks_9)
                         case 'law':
-                            effect = ('magics', 'get', 6)
-                        case 'engineer':
-                            effect = ('ore', 'get', 1)
+                            def display_board_law_tracks_9(player_idx):
+                                self.adjust(player_idx, [('magics', 'get', 6)])
+                                print(f'法律轨道等级9 -> 6转魔')
+                            self.players[player_id].income_effect_list.append(display_board_law_tracks_9)
+                        case 'engineering':
+                            def display_board_engineering_tracks_9(player_idx):
+                                self.adjust(player_idx, [('ore', 'get', 1)])
+                                print(f'工程轨道等级9 -> 1矿')
+                            self.players[player_id].income_effect_list.append(display_board_engineering_tracks_9)
                         case 'medical':
-                            effect = ('score', 'get', 'board', 3)
+                            def display_board_medical_tracks_9(player_idx):
+                                self.adjust(player_idx, [('score', 'get', 'board', 3)])
+                                print(f'医疗轨道等级9 -> 3分')
+                            self.players[player_id].income_effect_list.append(display_board_medical_tracks_9)
+                        case _:
+                            raise ValueError(f'不存在{typ}轨道效果')
 
-                    def display_board_tracks_9(player_idx):
-                        self.adjust(player_idx, [effect])
-
-                    self.players[player_id].income_effect_list.append(display_board_tracks_9)
                 if before_climb < 12 <= after_climb:
                     magic_rotation(player_id, 'get', 3)
             else:
+                # 循环调起选择轨道立即行动n次，每次推进1轨
                 for _ in range(num):
+                    # 遍历检查是否有可推进轨道
+                    for temp_typ in ['bank', 'law', 'engineering', 'medical']:
+                        if self.check(player_id, [('tracks', temp_typ)]):
+                            # 如有，则跳出循环，调起立即行动
+                            break
+                    else:
+                        # 如无，则跳出循环，取消后续立即行动调起
+                        break
                     self.invoke_immediate_aciton(player_id, ('select_track',))
 
         def adjust_terrain(player_id: int, shovel_times: int):
@@ -1008,6 +1241,9 @@ class GameStateBase:
 
             native_terrain_id = self.players[player_id].planning_card_id
             current_terrain_id = self.map_board_state.map_grid[i][j][0]
+
+            if shovel_times > self.players[player_id].terrain_id_need_shovel_times[current_terrain_id]:
+                raise ValueError(f'地形铲次数超过可铲次数')
 
             factor = 1 if current_terrain_id >= native_terrain_id else -1
             if abs(current_terrain_id - native_terrain_id) > 3:
@@ -1018,108 +1254,109 @@ class GameStateBase:
             self.map_board_state.map_grid[i][j][0] = new_terrain_id
 
         def adjust_building(player_id: int, mode:str, to_build_id: int, is_neutral: bool):
-                
-            i,j = self.players[player_id].choice_position
+            
+            match mode:
+                case (
+                    'build_normal'|'build_neutral'|
+                    'build_setup'|'build_after_shovel'|
+                    'build_special_palace_tile_n'|
+                    'build_special_faction_tile_n'
+                ):
+                    if mode == 'build_setup':
+                        # 立即选择位置
+                        self.invoke_immediate_aciton(
+                            player_id, 
+                            ('select_position', 'anywhere', set([self.players[player_id].planning_card_id]))
+                        )
+                        # 获取选择的位置
+                        i,j = self.players[player_id].choice_position
 
-            match self.map_board_state.map_grid[i][j]:
-                # 该地形被其他玩家控制的情况
-                case [_,controller, _, _, _] if controller != -1 and controller != player_id:  
-                    raise ValueError(f'{chr(ord('A')+i)}{j+1}处已被其他玩家控制')
-                
-                # 该地形非该玩家原生地形的情况
-                case [terrain, _, _, _, _] if terrain != self.players[player_id].planning_card_id:
-                    raise ValueError(f'{chr(ord('A')+i)}{j+1}处目前不是你的原生地形')
+                    elif mode == 'build_after_shovel':
+                        # 获取之前第一铲地位置
+                        i,j = self.players[player_id].choice_position
+                        # 支付建造工会费用
+                        self.adjust(player_id, [('money', 'use', 2), ('ore', 'use', 1)])
 
-                # 该地形已存在该玩家建筑的情况
-                case [_, _, pre_building_id, pre_side_building_num, pre_is_neutral] if pre_building_id != 0:
-                    match mode, pre_building_id, pre_is_neutral, pre_side_building_num, to_build_id, is_neutral:
-                        case 'upgrade', pre_building_id, False, _, to_build_id, False if (pre_building_id, to_build_id) in [(1,2),(2,3),(2,4),(4,5)]:
-                            # 根据待建建筑id，支付升级费用
-                            match to_build_id:
-                                # 升级为工会时
-                                case 2:
-                                    # 判读该地块相邻是否有邻居
-                                    direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
-                                    for dx, dy in direction:
-                                        new_i, new_j = i+dx, j+dy
-                                        if 0 <= new_i <= 8 and 0 <= new_j <= 12:
-                                            controlled_id = self.map_board_state.map_grid[new_i][new_j][1]
-                                            if controlled_id != -1 and controlled_id != player_id:
-                                                # 支付有邻居的升级费用
-                                                self.adjust(player_id, [('money', 'use', 3), ('ore', 'use', 2)])
-                                                break
-                                    else:
-                                        # 支付无邻居的升级费用
-                                        self.adjust(player_id, [('money', 'use', 6), ('ore', 'use', 2)])
-                                # 升级为宫殿时
-                                case 3:
-                                    # 支付升级费用
-                                    self.adjust(player_id, [('money', 'use', 6), ('ore', 'use', 4)])
-                                    # 标记宫殿已经获得
-                                    self.players[player_id].is_got_palace = True
-                                    # 激活宫殿板块
-                                    cur_player_palace_tile_id = self.players[player_id].palace_tile_id
-                                    self.all_available_object_dict['palace_tile'][cur_player_palace_tile_id].activate(player_id)
-                                # 升级为学院时
-                                case 4:
-                                    # 支付升级费用
-                                    self.adjust(player_id, [('money', 'use', 5), ('ore', 'use', 3)])
-                                    # 立即获取一个能力板块
-                                    self.invoke_immediate_aciton(player_id, ('select_ability_tile',))
-                                # 升级为大学时
-                                case 5:
-                                    # 支付升级费用
-                                    self.adjust(player_id, [('money', 'use', 8), ('ore', 'use', 5)])
-                                    # 立即获取一个能力板块
-                                    self.invoke_immediate_aciton(player_id, ('select_ability_tile',))
-                        case 'build_annex', _, _, 0, 8, True:
-                            pass
-                        case 'degrade', 4, False, _, 2, False:
-                            pass
-                        case 'upgrade_special', 1, False, _, 2, False:
-                            pass
-                        case _:
-                            raise ValueError(f'已存在建筑物的地形上进行非法操作')
-                    
-                    # 修改地块的建筑id和侧楼数量和建筑性质
-                    self.map_board_state.map_grid[i][j][2:] = to_build_id, pre_side_building_num, is_neutral
-                    # 调整玩家规划板上建筑数量
-                    if to_build_id != 8:
-                        self.players[player_id].buildings[pre_building_id] += 1
-                    self.players[player_id].buildings[to_build_id] -= 1    
-                    # 定义检查模式为升级
-                    check_mode = 'upgrade'
-                # 该地形为该玩家原生地形且无建筑的情况
-                case _:
-                    match mode, to_build_id, is_neutral:
-                        case 'build_normal', 1, False:
-                            # 支付建造费用
-                            self.adjust(player_id, [('money', 'use', 2), ('ore', 'use', 1)])
-                        case 'build_setup', to_build_id, is_neutral if (to_build_id, is_neutral) in [(1,False), (5,False), (6,True)]:
-                            pass
-                        case 'build_neutral', 1|2|3|4|5|6|7, True:
-                            adj_to_build_id_dict = {
-                                1:9,
-                                2:10,
-                                3:11,
-                                4:12,
-                                5:13,
-                                6:6,
-                                7:7,
-                            }
-                            self.players[player_id].buildings[adj_to_build_id_dict[to_build_id]] -= 1
-                        case 'build_special', 2, False:
-                            pass
-                        case 'build_special', 1, False: # 蜥蜴人板块行动效果
-                            pass
-                        case _:
-                            raise ValueError(f'在无建筑物的地形上进行非法操作')
-                        
+                    elif mode == 'build_special_palace_tile_n':
+                        pass
+
+                    elif mode == 'build_special_faction_tile_n':
+                        pass
+
+                    else:
+                        # 最大可铲次数 = 玩家拥有矿数 // 铲子等级
+                        max_shovel_times = (
+                            self.players[player_id].resources['ore']
+                            // self.players[player_id].shovel_level
+                        )
+                        # 判断是否存在可建地
+                        for p,q in self.players[player_id].reachable_map_ids:
+                            terrain, controller = self.map_board_state.map_grid[p][q][:2]
+                            # 如有则选择可建地并跳出判断
+                            if (
+                                self.players[player_id].terrain_id_need_shovel_times[terrain] <= max_shovel_times
+                                and controller == -1    
+                            ):
+                                self.invoke_immediate_aciton(
+                                    player_id, 
+                                    ('select_position', 'reachable', ('build', max_shovel_times))
+                                )
+                                i,j = self.players[player_id].choice_position
+                                cur_terrain = self.map_board_state.map_grid[i][j][0]
+                                need_shovel_times = self.players[player_id].terrain_id_need_shovel_times[cur_terrain]
+                                # 支付铲地费用
+                                self.adjust(
+                                    player_id, 
+                                    [
+                                        ('ore', 'use', need_shovel_times * self.players[player_id].shovel_level),
+                                        ('land', need_shovel_times),
+                                    ],
+                                )
+                                if mode == 'build_normal':
+                                    # 支付建造工会费用
+                                    self.adjust(player_id, [('money', 'use', 2), ('ore', 'use', 1)])
+                                break
+                        else:
+                            if mode == 'build_normal':
+                                raise ValueError(f'无可建地')
+                            elif mode == 'build_neutral':
+                                print(f'中立建造无可建地')
+
+                    # 检查该地块是否符合条件
+                    match self.map_board_state.map_grid[i][j]:
+                        # 该地形被其他玩家控制的情况
+                        case [_,controller, _, _, _] if controller != -1 and controller != player_id:  
+                            raise ValueError(f'{chr(ord('A')+i)}{j+1}处已被其他玩家控制')
+                        # 该地形非该玩家原生地形的情况
+                        case [terrain, _, _, _, _] if terrain != self.players[player_id].planning_card_id:
+                            raise ValueError(f'{chr(ord('A')+i)}{j+1}处目前不是你的原生地形')
+                        # 该地形已存在该玩家建筑的情况
+                        case [_, _, pre_building_id, pre_side_building_num, pre_is_neutral] if pre_building_id != 0:    
+                            raise ValueError(f'{chr(ord('A')+i)}{j+1}处已存在建筑')          
                     # 修改地块控制玩家id和建筑id和建筑性质
                     self.map_board_state.map_grid[i][j][1:3] = player_id, to_build_id
                     self.map_board_state.map_grid[i][j][4] = is_neutral
                     # 调整玩家规划板上建筑数量
-                    if mode != 'build_neutral':
+                    if mode == 'build_setup':
+                        if to_build_id == 6:
+                            self.players[player_id].buildings[to_build_id] += 1
+                        else:
+                            self.players[player_id].buildings[to_build_id] -= 1
+                    elif mode == 'build_neutral':
+                        cor_dict = {
+                            1: 9,
+                            2: 10,
+                            3: 11,
+                            4: 12,
+                            5: 13,
+                            6: 6,
+                            7: 7,
+                        }
+                        if to_build_id == 3:
+                            self.players[player_id].is_got_palace = True
+                        cor_to_build_id = cor_dict[to_build_id]
+                        self.players[player_id].buildings[cor_to_build_id] += 1
+                    else:
                         self.players[player_id].buildings[to_build_id] -= 1
                     # 更新控制地块与可抵地块
                     self.players[player_id].controlled_map_ids.add((i,j))
@@ -1127,13 +1364,92 @@ class GameStateBase:
                     # 定义检查模式为建造
                     check_mode = 'build'
 
-            if mode != 'build_annex':
+                case 'upgrade'|'build_annex'|'degrade'|'upgrade_special':
+                    i,j = self.players[player_id].choice_position
+                    match self.map_board_state.map_grid[i][j]:
+                        # 该地形被其他玩家控制的情况或未被控制的情况
+                        case [_,controller, _, _, _] if controller != -1 and controller != player_id:  
+                            raise ValueError(f'{chr(ord('A')+i)}{j+1}处已被其他玩家控制或未被控制')
+                        # 该地形非该玩家原生地形的情况
+                        case [terrain, _, _, _, _] if terrain != self.players[player_id].planning_card_id:
+                            raise ValueError(f'{chr(ord('A')+i)}{j+1}处目前不是你的原生地形')
+                        # 该地形已存在该玩家建筑的情况
+                        case [_, _, pre_building_id, pre_side_building_num, pre_is_neutral] if pre_building_id != 0:
+                            match mode, pre_building_id, pre_is_neutral, pre_side_building_num, to_build_id, is_neutral:
+                                case 'upgrade', pre_building_id, False, _, to_build_id, False if (pre_building_id, to_build_id) in [(1,2),(2,3),(2,4),(4,5)]:
+                                    # 根据待建建筑id，支付升级费用
+                                    match to_build_id:
+                                        # 升级为工会时
+                                        case 2:
+                                            # 判读该地块相邻是否有邻居
+                                            direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
+                                            for dx, dy in direction:
+                                                new_i, new_j = i+dx, j+dy
+                                                if 0 <= new_i <= 8 and 0 <= new_j <= 12:
+                                                    controlled_id = self.map_board_state.map_grid[new_i][new_j][1]
+                                                    if controlled_id != -1 and controlled_id != player_id:
+                                                        # 支付有邻居的升级费用
+                                                        self.adjust(player_id, [('money', 'use', 3), ('ore', 'use', 2)])
+                                                        break
+                                            else:
+                                                # 支付无邻居的升级费用
+                                                self.adjust(player_id, [('money', 'use', 6), ('ore', 'use', 2)])
+                                        # 升级为宫殿时
+                                        case 3:
+                                            # 支付升级费用
+                                            self.adjust(player_id, [('money', 'use', 6), ('ore', 'use', 4)])
+                                            # 标记宫殿已经获得
+                                            self.players[player_id].is_got_palace = True
+                                            # 激活宫殿板块
+                                            cur_player_palace_tile_id = self.players[player_id].palace_tile_id
+                                            self.all_available_object_dict['palace_tile'][cur_player_palace_tile_id].activate(player_id)
+                                        # 升级为学院时
+                                        case 4:
+                                            # 支付升级费用 并 立即获取一个能力板块
+                                            self.adjust(player_id, [
+                                                ('money', 'use', 5),
+                                                ('ore', 'use', 3),
+                                                ('ability_tile',)
+                                            ])
+                                        # 升级为大学时
+                                        case 5:
+                                            # 支付升级费用 并 立即获取一个能力板块
+                                            self.adjust(player_id, [
+                                                ('money', 'use', 8), 
+                                                ('ore', 'use', 5),
+                                                ('ability_tile',)
+                                            ])
+                                case 'build_annex', _, _, 0, 8, True:
+                                    pass
+                                case 'degrade', 4, False, _, 2, False:
+                                    pass
+                                case 'upgrade_special', 1, False, _, 2, False:
+                                    pass
+                                case _:
+                                    raise ValueError(f'已存在建筑物的地形上进行非法操作')
+                            
+                            # 修改地块的建筑id和侧楼数量和建筑性质 与 玩家规划板上建筑数量
+                            if to_build_id != 8:
+                                self.map_board_state.map_grid[i][j][2:] = to_build_id, pre_side_building_num, is_neutral
+                                self.players[player_id].buildings[pre_building_id] += 1
+                            else:
+                                self.map_board_state.map_grid[i][j][2:] = pre_building_id, 1, pre_is_neutral
+                            self.players[player_id].buildings[to_build_id] -= 1
+                            # 定义检查模式为升级
+                            check_mode = 'upgrade'
+                        case _:
+                            raise ValueError(f'未进入建筑升级模式')
+                case _:
+                    raise ValueError(f'不存在{mode}建筑效果')
+                
+            if not (mode == 'build_annex' or mode == 'build_setup'):
                 # 执行吸取魔力立即行动（如有）
                 self.absorb_magics_check(player_id, (i,j))
             # 更新聚落及检查城市建立
             self.city_establishment_check(player_id,check_mode,(i,j))
 
         def build_bridge(player_id: int):
+            # 调起建桥立即行动（保证一定可建）
             if self.check(player_id, [('bridge',)]):
                 self.players[player_id].resources['all_bridges'] -= 1
                 self.invoke_immediate_aciton(player_id, ('build_bridge',))
@@ -1153,7 +1469,7 @@ class GameStateBase:
                 else:
                     # 未跳出，则代表无可铲地块，则跳出铲行动
                     break
-                # 选择可铲位置
+                # 选择可铲位置（保证一定存在可铲地）
                 self.invoke_immediate_aciton(player_id, ('select_position', 'reachable', ('shovel', 1)))
                 # 记录一铲地坐标
                 if first_shovel:
@@ -1176,6 +1492,7 @@ class GameStateBase:
                 i,j = first_pos
                 first_pos_terrain = self.map_board_state.map_grid[i][j][0]
                 first_pos_shovel_times = self.players[player_id].terrain_id_need_shovel_times[first_pos_terrain]
+                # 调起铲后建造立即行动（保证一定存在可建资源）
                 if self.check(player_id, [
                     ('money', 2), 
                     ('ore', 1 + first_pos_shovel_times * self.players[player_id].shovel_level),
@@ -1222,6 +1539,12 @@ class GameStateBase:
                         reward.append(('score', 'get', 'board', 6))
                 # 获取本次提升奖励
                 self.adjust(player_id, reward)
+        
+        def get_ability_tile(player_id: int):
+            for ability_tile_id in range(1,13):
+                if self.all_available_object_dict['ability_tile'][ability_tile_id].check_get(player_id):
+                    self.invoke_immediate_aciton(player_id, ('select_ability_tile',))
+                    break
 
         all_adjust_list = {
             'money': adjust_money,
@@ -1237,6 +1560,7 @@ class GameStateBase:
             'spade': shovel,
             'navigation': improve_navigation,
             'shovel': improve_shovel,
+            'ability_tile': get_ability_tile
         }
 
         def adjust(player_id: int, list_to_be_adjusted):
