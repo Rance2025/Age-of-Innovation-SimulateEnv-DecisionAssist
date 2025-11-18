@@ -4,7 +4,7 @@ import random
 import time
 import copy
 
-class Agent:
+class AgentBase:
 
     def __init__(self, game_state, player_id: int, game_args):
         self.player_id = player_id
@@ -14,53 +14,36 @@ class Agent:
         self.web_io = game_args['web_io']
         self.all_detailed_actions = DetailedAction().all_detailed_actions
         self.game_args = game_args
-        self.need_estimate = True
-        self.need_estimate_id = -1
+        self.need_estimate = False
 
     def action_turn(self, typ: str, args: tuple = tuple()):
-        match self.game_args['action_mode']:
-            case 'input':
-                match typ:
-                    case 'normal':
-                        if self.need_estimate:
-                            self.need_estimate = False
-                            # self.simulate(typ, args, mode = 'normal')
-                            
-                        # 当前玩家执行一个行动
-                        self.action_step(mode='input',typ='normal', args=tuple())
-
-                        # 如果当前玩家当前轮中仍可继续行动
-                        if self.action_system.is_next_action_exist():
-                            # 则递归让该玩家继续行动
-                            self.action_turn('normal')
-                        else:
-                            # 否则重置当前行动状态为每轮初始状态
-                            self.action_system.reset_action_state()
-
-                    case 'immediate':
-                        if self.need_estimate:
-                            self.need_estimate = False
-                            # self.simulate(typ, args, mode = 'immediate')
-                            
-                        self.action_step(mode='input',typ='immediate', args=args)
-                    case _ :
-                        raise ValueError(f"非法动作模式: {typ}")
+        match typ:
+            case 'normal':
+                if self.need_estimate and self.game_args['need_estimate']:
+                    self.need_estimate = False
+                    self.estimate()
                     
-            case 'simulate':
-                if self.game_args['action_history']:
-                    action_player_id, action_typ, action_id = self.game_args['action_history'].pop(0)
-                    assert action_player_id == self.player_id
-                    assert action_typ == typ
-                    self.action_step(mode='target',typ=action_typ, args=action_id)
+                # 当前玩家执行一个行动
+                self.action_step(mode='input',typ='normal', args=tuple())
+
+                # 如果当前玩家当前轮中仍可继续行动
+                if self.action_system.is_next_action_exist():
+                    # 则递归让该玩家继续行动
+                    self.action_turn('normal')
                 else:
-                    self.action_step(mode='random',typ=typ, args=args)
+                    # 否则重置当前行动状态为每轮初始状态
+                    self.action_system.reset_action_state()
 
-                if typ == 'normal':
-                    if self.action_system.is_next_action_exist():
-                        return self.action_turn('normal')
-                    else:
-                        self.action_system.reset_action_state()
-
+            case 'immediate':
+                if self.need_estimate and self.game_args['need_estimate']:
+                    self.need_estimate = False
+                    self.estimate()
+                    
+                self.action_step(mode='input',typ='immediate', args=args)
+            
+            case _ :
+                raise ValueError(f"非法动作模式: {typ}")
+                    
     def action_step(self, mode, typ, args):
         match mode:
             case 'input':
@@ -106,73 +89,37 @@ class Agent:
 
             case _:
                 raise Exception('Invalid mode')
+    
+    def reproduce(self, action_history_appendix: list = []) -> dict:
+        return {}
+    
+    def simulate(self, action_history_appendix: list = []):
+        pass
+
+    def estimate(self):
+        all_available_action_path = []
+        def tracebacking(action_path: list = []): 
+            reproduce_dict = self.reproduce(action_path)
+            reproduce_game = reproduce_dict['reproduce_game']
+            reproduce_action_system = reproduce_game.agents[self.player_id].action_system
+            is_next_action_exist = reproduce_action_system.is_next_action_exist()
+
+            if not is_next_action_exist:
+                all_available_action_path.append(action_path.copy())
+                return
             
-    def simulate(self):
-        from GameEngine import GameEngine
-        class silence_io:
-            def get_input(self, prompt):
-                pass
-            def output(self, channel, message):
-                pass
-            def update_player_states(self, states):
-                pass
-            def update_global_status(self, message):
-                pass
+            action_player_id ,action_typ, action_args = self.reproduce(action_path)['next_action']
+            available_action_ids = reproduce_game.agents[action_player_id].action_system.get_available_actions(mode=action_typ,args=action_args)
 
-        game_args = {
-            'num_players': self.game_args['num_players'],
-            'setup_mode': 'target',
-            'setup_tile_args' : self.game_args['setup_tile_args'],
-            'setup_player_order_args': self.game_args['setup_player_order_args'],
-            'action_mode': 'simulate',
-            'action_history': self.game_args['action_history'].copy(),
-            'web_io': silence_io,
-            'invoke_immediate_action_mode': 'step'
-        }
-        simulate_game = GameEngine(game_args)
-        for step in simulate_game.step():
-            if self.game_args['action_history']:
-                action_player_id, action_typ, action_id = self.game_args['action_history'].pop(0)
-                step.agents[action_player_id
-            
-    # def simulate(self, typ, args, mode):
-    #     from GameEngine import GameEngine
-    #     
-    #     def single_simulate(self, game_args):
-    #         single_game_args = copy.deepcopy(game_args)
-    #         simulate_game = GameEngine(single_game_args)
-    #         res = simulate_game.run_game()
-    #         return res
-        
-    #     simulate_game = GameEngine(game_args)
-    #     simulate_action_system = simulate_game.agents[self.player_id].action_system
-    #     match mode:
-    #         case 'normal':    
-    #             ans = []
-    #             tmp = []
+            for try_action_id in available_action_ids:
+                action = (action_player_id, action_typ, try_action_id)
+                action_path.append(action)
+                tracebacking(action_path)
+                action_path.pop()
 
-    #             def tracebacking():
-    #                 if not simulate_action_system.is_next_action_exist():
-    #                     ans.append(tmp.copy())
-                    
-    #                 for action_id in simulate_action_system.get_available_actions(typ, args):
-    #                     self.action_system.reset_action_state()
+        tracebacking()
 
-    #         case 'immediate':
-    #             for action_id in simulate_action_system.get_available_actions(typ, args):
-    #                 action_res = []
-    #                 for i in range(100):
-    #                     simulate_game_args = {
-    #                         'num_players': self.game_args['num_players'],
-    #                         'setup_mode': 'target',
-    #                         'setup_tile_args' : self.game_args['setup_tile_args'],
-    #                         'setup_player_order_args': self.game_args['setup_player_order_args'],
-    #                         'action_mode': 'simulate',
-    #                         'action_history': self.game_args['action_history'].copy() + [(self.player_id, typ, action_id)],
-    #                         'web_io': silence_io
-    #                     }
-    #                     simulate_game = GameEngine(simulate_game_args)
-    #                     res = simulate_game.run_game()
-    #                     action_res.append(res)
-    #                 )
-                    
+        for action_path in all_available_action_path:
+            pass
+
+        print(all_available_action_path)

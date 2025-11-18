@@ -377,7 +377,6 @@ class GameStateBase:
 
             self.income_effect_list: list[Callable[[int],None]] = []        # 收入阶段效果列表 
             self.pass_effect_list: list[Callable[[int],None]] = []          # 略过动作效果列表
-            self.round_end_effect_list: list[Callable[[int],None]] = []     # 轮次结束效果列表
             self.setup_effect_list: list[Callable[[int],None]] = []         # 初始设置效果列表
             self.additional_actions_dict: dict[str,Callable] = {}           # 额外行动列表
 
@@ -891,6 +890,7 @@ class GameStateBase:
 
             # 统计当前聚落的所有建筑
             # 遍历所有控制地块，获取其上建筑所需聚落
+            city_min_needed_building_nums = 4
             for building_pos in self.players[player_id].controlled_map_ids:
                 building_root, _ = find(building_pos)
                 # 若与当前聚落所属同一聚落
@@ -901,21 +901,24 @@ class GameStateBase:
                     magics_num = self.map_board_state.building_magic[building_id] + num_side_building
                     # 累加计算该聚落魔力点总数
                     curent_settlement_magics_total += magics_num
-                    
+                    # 累加计算该聚落建筑总数
+                    curent_settlement_building_nums += 1 + num_side_building
+                    # 计算建城最低所需建筑数
                     match building_id:
-                        case 5: # 大学算作两个建筑
-                            curent_settlement_building_nums += 2 + num_side_building
-                        case 7: # 纪念碑算作三个建筑
-                            curent_settlement_building_nums += 3 + num_side_building
-                        case _:
-                            curent_settlement_building_nums += 1 + num_side_building
+                        case 5: # 聚落中有大学允许最低3个建筑建城
+                            if city_min_needed_building_nums > 3:
+                                city_min_needed_building_nums = 3 
+                        case 7: # 聚落中有纪念碑允许最低2个建筑建城
+                            if city_min_needed_building_nums > 2:
+                                city_min_needed_building_nums = 2 
             
+            # TODO 独特建城条件判断
             if (
                 # 判断当前聚落魔力点数和是否大于等于7
                 curent_settlement_magics_total >= 7
-                # 判断当前聚落建筑数量是否大于等于4
-                and curent_settlement_building_nums >= 4
-            ):
+                # 判断当前聚落建筑数量是否大于等于最低建城所需建筑数
+                and curent_settlement_building_nums >= city_min_needed_building_nums
+            ): 
                 # 标记根节点为城市
                 settlements_and_cities[current_root] = [current_root, True]
                 # 触发立即行动，选取城片（保证一定存在可选城片）
@@ -1118,6 +1121,8 @@ class GameStateBase:
                         climb_num = 1
                         self.players[player_id].resources['all_meeples'] +=  1
                     climb_track(player_id, typ, climb_num)
+                    # 插入米宝行动效果触发
+                    self.action_effect(player_id=player_id, insert_meeple=True)
 
         def adjust_score(player_id: int, mode: str, which: str, num: int):
             mode_factor = 1 if mode == 'get' else -1
@@ -1187,6 +1192,7 @@ class GameStateBase:
                     self.players[player_id].tracks[typ] = act_arrive_value
                 
                 after_climb = self.players[player_id].tracks[typ]
+                actual_num = after_climb - before_climb
 
                 if before_climb < 3 <= after_climb:
                     magic_rotation(player_id, 'get', 1)
@@ -1195,7 +1201,6 @@ class GameStateBase:
                 if before_climb < 7 <= after_climb:
                     magic_rotation(player_id, 'get', 2)
                 if before_climb < 9 <= after_climb:
-
                     match typ:
                         case 'bank':
                             def display_board_bank_tracks_9(player_idx):
@@ -1219,21 +1224,25 @@ class GameStateBase:
                             self.players[player_id].income_effect_list.append(display_board_medical_tracks_9)
                         case _:
                             raise ValueError(f'不存在{typ}轨道效果')
-
                 if before_climb < 12 <= after_climb:
                     magic_rotation(player_id, 'get', 3)
             else:
+                actual_num = 0
                 # 循环调起选择轨道立即行动n次，每次推进1轨
                 for _ in range(num):
                     # 遍历检查是否有可推进轨道
                     for temp_typ in ['bank', 'law', 'engineering', 'medical']:
                         if self.check(player_id, [('tracks', temp_typ)]):
                             # 如有，则跳出循环，调起立即行动
+                            actual_num += 1
                             break
                     else:
                         # 如无，则跳出循环，取消后续立即行动调起
                         break
                     self.invoke_immediate_aciton(player_id, ('select_track',))
+
+            # 爬轨行动效果
+            self.action_effect(player_id=player_id, climb_track_nums=actual_num)
 
         def adjust_terrain(player_id: int, shovel_times: int):
 
@@ -1252,6 +1261,8 @@ class GameStateBase:
                 new_terrain_id = current_terrain_id - factor * shovel_times
 
             self.map_board_state.map_grid[i][j][0] = new_terrain_id
+            # 铲子行动效果
+            self.action_effect(player_id=player_id, shovel_times=shovel_times)
 
         def adjust_building(player_id: int, mode:str, to_build_id: int, is_neutral: bool):
             
@@ -1283,7 +1294,7 @@ class GameStateBase:
                     elif mode == 'build_special_faction_tile_n':
                         pass
 
-                    else:
+                    else: # build_normal | build_neutral
                         # 最大可铲次数 = 玩家拥有矿数 // 铲子等级
                         max_shovel_times = (
                             self.players[player_id].resources['ore']
@@ -1423,7 +1434,7 @@ class GameStateBase:
                                     pass
                                 case 'degrade', 4, False, _, 2, False:
                                     pass
-                                case 'upgrade_special', 1, False, _, 2, False:
+                                case 'upgrade_special', 1, False, _, 2, False: # 宫殿板块4和书行动4 免费升级将1车间升级成工会
                                     pass
                                 case _:
                                     raise ValueError(f'已存在建筑物的地形上进行非法操作')
@@ -1439,9 +1450,35 @@ class GameStateBase:
                             check_mode = 'upgrade'
                         case _:
                             raise ValueError(f'未进入建筑升级模式')
+                
                 case _:
                     raise ValueError(f'不存在{mode}建筑效果')
-                
+            
+            # 初始阶段的建造不触发行动效果
+            if mode != 'build_setup':
+                is_edge = False
+                is_riverside = False
+                if to_build_id == 1:
+                    i,j = self.players[player_id].choice_position
+                    # 判断是否处于地图边缘
+                    if i == 0 or i == 8 or j == 0 or j == 12:
+                        is_edge =True
+                    # 判断是否处于河边
+                    direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
+                    for dx,dy in direction:
+                        new_i, new_j = i + dx, j + dy
+                        if (
+                            # 在合法边界内
+                            0 <= new_i <= 8 and 0 <= new_j <= 12
+                            # 是水域地形
+                            and self.map_board_state.map_grid[new_i][new_j][0] == 0
+                        ):
+                            is_riverside = True
+                            break
+                # 建筑行动效果触发
+                self.action_effect(player_id=player_id, building_id=to_build_id, is_edge=is_edge, is_riverside=is_riverside)
+
+            # 初始建造和建造侧楼不会触发吸取魔力立即行动
             if not (mode == 'build_annex' or mode == 'build_setup'):
                 # 执行吸取魔力立即行动（如有）
                 self.absorb_magics_check(player_id, (i,j))
@@ -1454,7 +1491,7 @@ class GameStateBase:
                 self.players[player_id].resources['all_bridges'] -= 1
                 self.invoke_immediate_aciton(player_id, ('build_bridge',))
              
-        def shovel(player_id: int, shovel_times: int):
+        def shovel(player_id: int, shovel_times: int, can_build_after_shovel: bool = True):
             # 初始化第一铲地标记和位置
             first_shovel = True
             first_pos = tuple()
@@ -1488,7 +1525,8 @@ class GameStateBase:
                 shovel_times -= act_current_shovel_times
 
             # 剩余铲数归零 或 不可铲 后
-            if first_pos:
+            # 如果存在一铲地（即至少铲了一下之后），并且该次铲子允许铲后建造
+            if first_pos and can_build_after_shovel:
                 i,j = first_pos
                 first_pos_terrain = self.map_board_state.map_grid[i][j][0]
                 first_pos_shovel_times = self.players[player_id].terrain_id_need_shovel_times[first_pos_terrain]
@@ -1524,6 +1562,8 @@ class GameStateBase:
                             reward.append(('score', 'get', 'board', 4))
                 # 获取本次提升奖励
                 self.adjust(player_id, reward)
+                # 升级航行行动效果触发
+                self.action_effect(player_id=player_id, improve_navigation_or_shovel=True)
 
         def improve_shovel(player_id: int):
             # 判断是否可升级
@@ -1539,6 +1579,8 @@ class GameStateBase:
                         reward.append(('score', 'get', 'board', 6))
                 # 获取本次提升奖励
                 self.adjust(player_id, reward)
+                # 升级铲子行动效果触发
+                self.action_effect(player_id=player_id, improve_navigation_or_shovel=True)
         
         def get_ability_tile(player_id: int):
             for ability_tile_id in range(1,13):
@@ -1601,3 +1643,93 @@ class GameStateBase:
                 for id in typ_available_id_list
             }
         
+    def action_effect(  # 行动效果触发
+        self, player_id: int, 
+        building_id = 0, is_edge = False, is_riverside = False,
+        shovel_times = 0,
+        insert_meeple = False,
+        climb_track_nums = 0,
+        get_city_tile = False,
+        improve_navigation_or_shovel = False,
+        get_science_tile = False,
+        get_ability_tile_typ = '',
+    ):  
+        
+        reward = []
+
+        # 轮次计分板行动效果（所有玩家共用）
+        match (
+            self.setup.round_scoring_order[self.round - 1],
+            building_id, shovel_times, climb_track_nums,
+            get_city_tile,improve_navigation_or_shovel,
+            get_science_tile,
+        ):
+            case 1, 1, *_:
+                reward.append(('score', 'get', 'board', 2))
+            case 2, 1, *_:
+                reward.append(('score', 'get', 'board', 2))
+            case 3, 2, *_:
+                reward.append(('score', 'get', 'board', 3))
+            case 4, 2, *_:
+                reward.append(('score', 'get', 'board', 3))
+            case 5, 4, *_:
+                reward.append(('score', 'get', 'board', 4))
+            case 6, 3|5, *_:
+                reward.append(('score', 'get', 'board', 5))
+            case 7, 3|5, *_:
+                reward.append(('score', 'get', 'board', 5))
+            case 8, _, times, *_:
+                reward.append(('score', 'get', 'board', 2 * times))
+            case 9, _, _, times, *_:
+                reward.append(('score', 'get', 'board', times))
+            case 10, _, _, _, True, *_:
+                reward.append(('score', 'get', 'board', 5))
+            case 11, _, _, _, _, True, *_:
+                reward.append(('score', 'get', 'board', 3))
+            case 12, _, _, _, _, _, True:
+                reward.append(('score', 'get', 'board', 5))
+        
+        # 最终轮次计分板块行动效果
+        if self.round == 6:
+            match self.setup.final_scoring, building_id, is_edge:
+                case 1, 1, _:
+                    reward.append(('score', 'get', 'board', 2))
+                case 2, 4, _:
+                    reward.append(('score', 'get', 'board', 4))
+                case 3, 1, True:
+                    reward.append(('score', 'get', 'board', 3))
+                case 4, 2, _:
+                    reward.append(('score', 'get', 'board', 3))
+        
+        # 能力板块行动效果
+        if insert_meeple and 8 in self.players[player_id].ability_tile_ids:
+            reward.append(('score', 'get', 'board', 2))
+        if building_id == 1 and is_edge and 10 in self.players[player_id].ability_tile_ids:
+            reward.append(('score', 'get', 'board', 3))
+
+        # 回合助推板行动效果
+        if building_id == 1 and is_edge and self.players[player_id].booster_ids[-1] == 1:
+            reward.append(('score', 'get', 'board', 2))
+        elif insert_meeple and self.players[player_id].booster_ids[-1] == 4:
+            reward.append(('score', 'get', 'board', 2))
+        elif building_id == 2 and self.players[player_id].booster_ids[-1] == 7:
+            reward.append(('score', 'get', 'board', 3))
+
+        # 宫殿板块行动效果
+        if self.players[player_id].buildings[3] == 0: # 等价于宫殿板块已激活
+            if building_id == 1 and self.players[player_id].palace_tile_id == 12:
+                reward.append(('score', 'get', 'board', 2))
+            elif building_id == 2 and self.players[player_id].palace_tile_id == 13:
+                reward.append(('score', 'get', 'board', 3))
+        
+        # 派系板块行动效果
+        if get_city_tile and self.players[player_id].faction_id == 2:
+            reward.extend([('tracks', 'any', 3), ('book', 'get', 'any', 1)])
+        elif shovel_times and self.players[player_id].faction_id == 3:
+            reward.append(('money', 'get', 2* shovel_times))
+        elif get_city_tile and self.players[player_id].faction_id == 6:
+            pass # TODO 鼹鼠派系行动效果
+        elif building_id == 1 and is_edge and self.players[player_id].faction_id == 9:
+            reward.append(('score', 'get', 'board', 2))
+        elif get_ability_tile_typ and self.players[player_id].faction_id == 11:
+            reward.append(('book', 'get', get_ability_tile_typ, 1))

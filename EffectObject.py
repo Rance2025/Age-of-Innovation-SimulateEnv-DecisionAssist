@@ -71,10 +71,10 @@ class AllEffectObject:
             self.owner_list = []
             self.immediate_effect = []
             self.income_effect = []
-            self.round_end_effect = []
             self.pass_effect = []
             self.setup_effect = []
             self.additional_action_is_done = [False] * game_state.num_players
+            self.round_end_effect_args: tuple[str, int, str, int] = tuple()
         
         # 检查是否可获取
         def check_get(self, player_id: int) -> bool:
@@ -100,14 +100,6 @@ class AllEffectObject:
             self.game_state.adjust(executed_player_id, self.income_effect)
             # 清空本版块收入效果列表（以防多玩家获取同一板块时，后获得者重复执行效果）
             self.income_effect.clear()
-        # 回合结束方法
-        def execute_round_end_effect(self, executed_player_id:int):
-            # 重置每回合一次附加行动已执行标记
-            self.additional_action_is_done = [False] * self.game_state.num_players
-            # 执行回合结束效果
-            self.game_state.adjust(executed_player_id, self.round_end_effect)
-            # 清空本版块回合结束效果列表（以防多玩家获取同一板块时，后获得者重复执行效果）
-            self.round_end_effect.clear()
         # 略过回合方法
         def execute_pass_effect(self, executed_player_id:int):
             # 执行略过回合效果
@@ -136,10 +128,8 @@ class AllEffectObject:
             self.game_state.players[got_player_id].income_effect_list.append(self.execute_income_effect)
             # 添加略过效果
             self.game_state.players[got_player_id].pass_effect_list.append(self.execute_pass_effect)
-            # 添加回合结束效果
-            self.game_state.players[got_player_id].round_end_effect_list.append(self.execute_round_end_effect)
             # 添加初始设置效果
-            self.game_state.players[got_player_id].setup_effect_list.append(self.execute_setup_effect) 
+            self.game_state.players[got_player_id].setup_effect_list.append(self.execute_setup_effect)
             # 添加额外行动 
             self.game_state.players[got_player_id].additional_actions_dict[self.additional_action_name] = self.additional_action
 
@@ -148,7 +138,8 @@ class AllEffectObject:
             pass
         # 当回合结束时
         def round_end(self):
-            pass
+            # 重置每回合一次附加行动已执行标记
+            self.additional_action_is_done = [False] * self.game_state.num_players
         # 当交还时
         def back(self, executed_player_id):
             pass
@@ -195,16 +186,12 @@ class AllEffectObject:
         
         # 当激活时
         def activate(self, executed_player_id):
-            # 支付该板块费用
-            self.game_state.adjust(executed_player_id, self.cost(executed_player_id)[1])
             # 执行立即效果
             self.execute_immediate_effect(executed_player_id)
             # 添加收入效果
             self.game_state.players[executed_player_id].income_effect_list.append(self.execute_income_effect)
             # 添加略过效果
             self.game_state.players[executed_player_id].pass_effect_list.append(self.execute_pass_effect)
-            # 添加回合结束效果
-            self.game_state.players[executed_player_id].round_end_effect_list.append(self.execute_round_end_effect)
             # 添加初始设置效果
             self.game_state.players[executed_player_id].setup_effect_list.append(self.execute_setup_effect) 
             # 添加额外行动 
@@ -254,14 +241,14 @@ class AllEffectObject:
             method_names = [
                 'execute_pass_effect',
                 'execute_income_effect', 
-                'execute_round_end_effect'
+                'execute_setup_effect',
             ]
             
             # 从所有效果列表中移除
             effect_lists = [
                 player.pass_effect_list,
                 player.income_effect_list,
-                player.round_end_effect_list
+                player.setup_effect_list,
             ]
             
             for method_name, effect_list in zip(method_names, effect_lists):
@@ -297,7 +284,10 @@ class AllEffectObject:
                 f'{typ}_book_nums': num_book,
                 f'{typ}_track_nums': 3 - num_book,
             })
+            # 获取能力板块行动效果
+            self.game_state.action_effect(player_id=got_player_id, get_ability_tile_typ=typ)
             super().get(got_player_id)
+            
 
     class ScienceTile(EffectObject):
 
@@ -346,20 +336,61 @@ class AllEffectObject:
             super().get(got_player_id)
             # 添加该高科板块id至玩家列表
             self.game_state.players[got_player_id].science_tile_ids.append(self.id)
+            # 获取高科板块行动效果触发
+            self.game_state.action_effect(player_id=got_player_id, get_science_tile=True)
 
     class RoundScoring(EffectObject):
-        pass
+
+        id = 0
+
+        def round_end(self):
+            '''回合结束效果: 执行本回合的回合计分板块的科学奖励效果'''
+            round = self.game_state.round
+            if (
+                # 第6回合的回合计分板块的科学奖励部分被最终得分板块覆盖
+                round != 6
+                # 当前回合等于其在初始设置回合计分板块中的序号时该板块才生效
+                and self.id == self.game_state.setup.round_scoring_order[round - 1]
+                # round == self.game_state.setup.round_scoring_order.index(self.id) + 1
+            ):
+                # 按下一轮次顺序进行回合结束科学奖励结算
+                for player_idx in self.game_state.pass_order:
+                    # 获取该板块科学奖励参数
+                    reward_item, reward_num, track_typ, track_num = self.round_end_effect_args
+                    # 特判派系板块是神佑者的玩家，判定时轨道数量被视为+3
+                    if self.game_state.players[player_idx].faction_id == 1:
+                        additional_num = 3
+                    else:
+                        additional_num = 0
+                    # 计算奖励获取数
+                    get_num = (self.game_state.players[player_idx].tracks[track_typ] + additional_num) // track_num * reward_num
+                    # 生成奖励获取列表
+                    match reward_item:
+                        case 'book':
+                            round_end_effect = [(reward_item, 'get', 'any', get_num)]
+                        case 'spade':
+                            round_end_effect = [('spade', get_num, False)]
+                        case _:
+                            round_end_effect = [(reward_item, 'get', get_num)]
+                    # 获取奖励
+                    self.game_state.adjust(player_idx, round_end_effect)
+            return super().round_end()
+        
+        '''其左侧行动效果均已写入action_effect方法中'''
+        # 回合计分板块的行动效果
         
     class FinalScoring(EffectObject):
+        
+        '''其行动效果均已写入action_effect方法中'''
         pass
             
     class BookAction(EffectObject):
 
         # 当回合结束时
-        def execute_round_end_effect(self, executed_player_id):
+        def round_end(self):
             # 清空控制者列表
             self.owner_list.clear()
-            super().execute_round_end_effect(executed_player_id)
+            super().round_end()
 
     class CityTile(EffectObject):
 
@@ -370,6 +401,10 @@ class AllEffectObject:
                 return False
             return True
         
+        def get(self, got_player_id):
+            super().get(got_player_id)
+            self.game_state.action_effect(player_id=got_player_id, get_city_tile=True)
+        
         def execute_immediate_effect(self, executed_player_id):
             self.game_state.players[executed_player_id].citys_amount += 1
             super().execute_immediate_effect(executed_player_id)
@@ -377,10 +412,10 @@ class AllEffectObject:
     class MagicsAction(EffectObject):
         
         # 当回合结束时
-        def execute_round_end_effect(self, executed_player_id):
+        def round_end(self):
             # 清空控制者列表
             self.owner_list.clear()
-            super().execute_round_end_effect(executed_player_id)
+            super().round_end()
 
     class PlainPlanningCard(PlanningCard):
 
@@ -476,6 +511,8 @@ class AllEffectObject:
 
     class BlessedFaction(Faction):
 
+        id = 1
+
         def execute_immediate_effect(self, executed_player_id):
             '''立即效果: 各轨道推一格'''
             self.immediate_effect.extend([
@@ -485,7 +522,8 @@ class AllEffectObject:
                 ('tracks','medical',1)
             ])
             super().execute_immediate_effect(executed_player_id)
-        # TODO 轮次计分板效果写到过程中
+        '''行动效果: 结算轮次计分板块的科学奖励效果时，轨道被视为额外+3'''
+        # 轮次计分板效果已写到行动效果方法中
 
     class FelinesFaction(Faction):
 
@@ -498,7 +536,7 @@ class AllEffectObject:
             super().execute_immediate_effect(executed_player_id)
             
         '''行动效果: 当建城时, 任意轨道推一格执行3次 + 获取1书'''
-        # TODO 猫人行动效果
+        # 猫人行动效果已写入action_effect中
 
     class GoblinsFaction(Faction):
 
@@ -512,7 +550,7 @@ class AllEffectObject:
             super().execute_immediate_effect(executed_player_id)
 
         '''行动效果: 每用一铲获得2块钱'''
-        # TODO 哥布林行动效果
+        # 哥布林行动效果已写入action_effect中
 
     class IllusionistsFaction(Faction):
 
@@ -557,8 +595,10 @@ class AllEffectObject:
             super().execute_immediate_effect(executed_player_id)
         
         '''行动效果: 当执行地形改造并/或建造车间时, 可支付1矿跨越一个地形执行 (终局计分视为可抵达,即使无剩余矿), 并获得4版面分数'''
+        # TODO 鼹鼠行动效果
+        
         '''附加可用行动: 支付1矿, 建造1座桥梁, 连接两侧建筑, 视为相邻'''
-        # TODO 鼹鼠行动效果和附加可用行动
+        # TODO 附加可用行动
 
     class MonksFaction(Faction):
 
@@ -582,7 +622,7 @@ class AllEffectObject:
             super().execute_immediate_effect(executed_player_id)
 
         '''行动效果: 当工会建造在河边时, 获得2版面分数'''
-        # TODO 航海家行动效果
+        # 航海家行动效果已写入action_effect中
 
     class OmarFaction(Faction):
 
@@ -616,7 +656,7 @@ class AllEffectObject:
             super().execute_immediate_effect(executed_player_id)
 
         '''行动效果: 获取能力板块时, 多获得对应学科的书1本'''
-        # TODO 哲学家行动效果
+        # 哲学家行动效果已写入action_effect中
 
         additional_action_name = 'additional_action_philosophers_faction'
         
@@ -972,7 +1012,8 @@ class AllEffectObject:
             ])
             super().execute_income_effect(executed_player_id)
         
-        # TODO 涉及建造的行动效果
+        '''行动效果: 每建造1车间获得2分'''
+        # 建造行动效果已写入action_effect中
 
     class PalaceTile13(PalaceTile):
         
@@ -1006,7 +1047,8 @@ class AllEffectObject:
                         ('book', 'get', 'any', 1)
                     ])
                     
-        # TODO 涉及建造的行动效果
+        '''行动效果: 每建造1工会获得3分'''
+        # 建造行动效果已写入action_effect中
 
     class PalaceTile14(PalaceTile):
         
@@ -1059,7 +1101,7 @@ class AllEffectObject:
             ])
             super().execute_income_effect(executed_player_id)
         
-        # TODO 涉及建造行动效果
+        # TODO 特殊建造立即行动
 
     class RoundBooster1(RoundBooster):
 
@@ -1070,12 +1112,13 @@ class AllEffectObject:
             self.game_state.players[executed_player_id].temp_navigation = True
             super().execute_immediate_effect(executed_player_id)
         
-        # TODO 涉及建造行动效果
-        
         def execute_pass_effect(self, executed_player_id):
             '''略过效果: 取消临时1航行'''
             self.game_state.players[executed_player_id].temp_navigation = False
             super().execute_pass_effect(executed_player_id)
+
+        '''行动效果: 每建造1个位于河边的车间获得2分'''
+        # 建筑建造行动效果已写入action_effect方法中
 
     class RoundBooster2(RoundBooster):
 
@@ -1152,7 +1195,8 @@ class AllEffectObject:
             ])
             super().execute_income_effect(executed_player_id)
 
-        # TODO 爬轨行动效果
+        '''行动效果: 每插入1个米宝获得2分'''
+        # 插入米宝行动效果已写入action_effect方法中
 
     class RoundBooster5(RoundBooster):
 
@@ -1227,7 +1271,8 @@ class AllEffectObject:
             ])
             super().execute_income_effect(executed_player_id)
 
-        # TODO 涉及建筑建造行动效果
+        '''行动效果: 每建造1个工会获得3分'''
+        # 建筑建造行动效果已写入action_effect方法中
 
     class RoundBooster8(RoundBooster):
 
@@ -1429,7 +1474,8 @@ class AllEffectObject:
 
         id = 8
         
-        # TODO 行动效果
+        '''行动效果: 每插入1米宝获得2分'''
+        #  行动效果已写入action_effect方法中
         pass
 
     class AbilityTile9(AbilityTile):
@@ -1447,7 +1493,8 @@ class AllEffectObject:
 
         id = 10
         
-        # TODO 行动效果
+        '''行动效果: 每建造1处于边地的车间获得3分'''
+        #  行动效果已写入action_effect方法中
         pass
 
     class AbilityTile11(AbilityTile):
@@ -1861,40 +1908,112 @@ class AllEffectObject:
             super().execute_immediate_effect(executed_player_id)
 
     class RoundScoring1(RoundScoring):
-        pass
+
+        id = 1
+        
+        def round_end(self):
+            '''回合结束效果: 每有3法律轨，获得1米宝'''
+            self.round_end_effect_args = ('meeple', 1, 'law', 3)
+            return super().round_end()
 
     class RoundScoring2(RoundScoring):
-        pass
+        
+        id = 2
+        
+        def round_end(self):
+            '''回合结束效果: 每有3银行轨，获得4转魔'''
+            self.round_end_effect_args = ('magics', 4, 'bank', 3)
+            return super().round_end()
 
     class RoundScoring3(RoundScoring):
-        pass
+        
+        id = 3
+        
+        def round_end(self):
+            '''回合结束效果: 每有2法律轨，获得1书'''
+            self.round_end_effect_args = ('book', 1, 'law', 3)
+            return super().round_end()
 
     class RoundScoring4(RoundScoring):
-        pass
+        
+        id = 4
+        
+        def round_end(self):
+            '''回合结束效果: 每有4医疗轨，获得1铲'''
+            self.round_end_effect_args = ('spade', 1, 'medical', 4)
+            return super().round_end()
 
     class RoundScoring5(RoundScoring):
-        pass
+        
+        id = 5
+        
+        def round_end(self):
+            '''回合结束效果: 每有1银行轨，获得1块'''
+            self.round_end_effect_args = ('money', 1, 'bank', 1)
+            return super().round_end()
 
     class RoundScoring6(RoundScoring):
-        pass
+        
+        id = 6
+        
+        def round_end(self):
+            '''回合结束效果: 每有2医疗轨，获得1矿'''
+            self.round_end_effect_args = ('ore', 1, 'medical', 2)
+            return super().round_end()
 
     class RoundScoring7(RoundScoring):
-        pass
+        
+        id = 7
+        
+        def round_end(self):
+            '''回合结束效果: 每有2银行轨，获得1矿'''
+            self.round_end_effect_args = ('ore', 1, 'bank', 2)
+            return super().round_end()
 
     class RoundScoring8(RoundScoring):
-        pass
+        
+        id = 8
+        
+        def round_end(self):
+            '''回合结束效果: 每有1工程轨，获得1块'''
+            self.round_end_effect_args = ('money', 1, 'engineering', 1)
+            return super().round_end()
 
     class RoundScoring9(RoundScoring):
-        pass
+        
+        id = 9
+        
+        def round_end(self):
+            '''回合结束效果: 每有3医疗轨，获得1书'''
+            self.round_end_effect_args = ('book', 1, 'medical', 3)
+            return super().round_end()
 
     class RoundScoring10(RoundScoring):
-        pass
+        
+        id = 10
+        
+        def round_end(self):
+            '''回合结束效果: 每有4工程轨，获得1铲'''
+            self.round_end_effect_args = ('spade', 1, 'engineering', 4)
+            return super().round_end()
 
     class RoundScoring11(RoundScoring):
-        pass
+        
+        id = 11
+        
+        def round_end(self):
+            '''回合结束效果: 每有3工程轨，获得1米宝'''
+            self.round_end_effect_args = ('meeple', 1, 'engineering', 3)
+            return super().round_end()
 
     class RoundScoring12(RoundScoring):
-        pass
+        
+        id = 12
+        
+        def round_end(self):
+            '''回合结束效果: 每有2法律轨，获得3转魔'''
+            self.round_end_effect_args = ('magics', 3, 'law', 2)
+            return super().round_end()
 
     class FinalScoring1(FinalScoring):
         pass
