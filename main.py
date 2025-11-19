@@ -26,7 +26,7 @@ if __name__ == "__main__":
         'action_history': [],
         'action_mode': 'input',                         # input | simulate | reproduce
         'web_io': io,
-        'need_estimate': True
+        'need_estimate': False
     }
     time.sleep(1)
     game_engine = GameEngine(game_args_dict)
