@@ -549,7 +549,7 @@ class ActionSystem:
                 # 获取铲子和建筑参数
                 shovel_times, *build_args = args
                 # 立即选择位置
-                self.game_state.invoke_immediate_aciton(self.player_id, ('select_position', 'reachable', ('shovel', shovel_times)))
+                if self.game_state.invoke_immediate_aciton(self.player_id, ('select_position', 'reachable', ('shovel', shovel_times))): return 
                 # 执行铲子行动
                 self.game_state.adjust(self.player_id, [('land', shovel_times)])
 
@@ -612,7 +612,7 @@ class ActionSystem:
             # 获取选择坐标参数
             pos_arg, *build_arg = args
             # 选择升级位置
-            self.game_state.invoke_immediate_aciton(self.player_id, ('select_position', 'controlled', pos_arg))
+            if self.game_state.invoke_immediate_aciton(self.player_id, ('select_position', 'controlled', pos_arg)): return 
             # 执行升级行动
             self.game_state.adjust(self.player_id, [('building', *build_arg)])
 

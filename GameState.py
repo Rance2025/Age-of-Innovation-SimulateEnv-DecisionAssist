@@ -786,7 +786,7 @@ class GameStateBase:
                     self.players[player_idx].boardscore + 1                                         # 最大可支付版面分数
                 )
                 if actual_num:
-                    self.invoke_immediate_aciton(player_idx, ('gain_magics', actual_num))
+                    if self.invoke_immediate_aciton(player_idx, ('gain_magics', actual_num)): return 
 
     def city_establishment_check(self, player_id: int, mode: str, pos: tuple[int, int], bridge_key: tuple[tuple[int,int],tuple[int,int]] = tuple()):
 
@@ -924,7 +924,7 @@ class GameStateBase:
                 # 触发立即行动，选取城片（保证一定存在可选城片）
                 for city_tile_id in range(1,8):
                     if self.all_available_object_dict['city_tile'][city_tile_id].check_get(player_id):                 
-                        self.invoke_immediate_aciton(player_id, ('select_city_tile',))
+                        if self.invoke_immediate_aciton(player_id, ('select_city_tile',)): return
                         break
         
     def init_check(self):
@@ -1076,7 +1076,7 @@ class GameStateBase:
                     act_num = min(sum(self.setup.current_global_books.values()), num)
                     for time in range(act_num):
                         # print(f'请选择您想获取的第{time + 1}本书的类型')
-                        self.invoke_immediate_aciton(player_id, ('select_book', 'get'))
+                        if self.invoke_immediate_aciton(player_id, ('select_book', 'get')): return 
                 case 'get', _:
                     act_num = min(self.setup.current_global_books[f'{typ}_book'], num)
                     self.setup.current_global_books[f'{typ}_book'] -= act_num
@@ -1084,7 +1084,7 @@ class GameStateBase:
                 case 'use', 'any':
                     for time in range(num):
                         print(f'请选择您想使用的第{time + 1}本书的类型')
-                        self.invoke_immediate_aciton(player_id, ('select_book', 'use'))
+                        if self.invoke_immediate_aciton(player_id, ('select_book', 'use')): return 
                 case 'use', _:
                     if num <= self.players[player_id].resources[f'{typ}_book']:
                         self.players[player_id].resources[f'{typ}_book'] -= num
@@ -1239,7 +1239,7 @@ class GameStateBase:
                     else:
                         # 如无，则跳出循环，取消后续立即行动调起
                         break
-                    self.invoke_immediate_aciton(player_id, ('select_track',))
+                    if self.invoke_immediate_aciton(player_id, ('select_track',)): return 
 
             # 爬轨行动效果
             self.action_effect(player_id=player_id, climb_track_nums=actual_num)
@@ -1275,10 +1275,10 @@ class GameStateBase:
                 ):
                     if mode == 'build_setup':
                         # 立即选择位置
-                        self.invoke_immediate_aciton(
+                        if self.invoke_immediate_aciton(
                             player_id, 
                             ('select_position', 'anywhere', set([self.players[player_id].planning_card_id]))
-                        )
+                        ): return 
                         # 获取选择的位置
                         i,j = self.players[player_id].choice_position
 
@@ -1308,10 +1308,10 @@ class GameStateBase:
                                 self.players[player_id].terrain_id_need_shovel_times[terrain] <= max_shovel_times
                                 and controller == -1    
                             ):
-                                self.invoke_immediate_aciton(
+                                if self.invoke_immediate_aciton(
                                     player_id, 
                                     ('select_position', 'reachable', ('build', max_shovel_times))
-                                )
+                                ): return 
                                 i,j = self.players[player_id].choice_position
                                 cur_terrain = self.map_board_state.map_grid[i][j][0]
                                 need_shovel_times = self.players[player_id].terrain_id_need_shovel_times[cur_terrain]
@@ -1489,7 +1489,7 @@ class GameStateBase:
             # 调起建桥立即行动（保证一定可建）
             if self.check(player_id, [('bridge',)]):
                 self.players[player_id].resources['all_bridges'] -= 1
-                self.invoke_immediate_aciton(player_id, ('build_bridge',))
+                if self.invoke_immediate_aciton(player_id, ('build_bridge',)): return 
              
         def shovel(player_id: int, shovel_times: int, can_build_after_shovel: bool = True):
             # 初始化第一铲地标记和位置
@@ -1507,7 +1507,7 @@ class GameStateBase:
                     # 未跳出，则代表无可铲地块，则跳出铲行动
                     break
                 # 选择可铲位置（保证一定存在可铲地）
-                self.invoke_immediate_aciton(player_id, ('select_position', 'reachable', ('shovel', 1)))
+                if self.invoke_immediate_aciton(player_id, ('select_position', 'reachable', ('shovel', 1))): return 
                 # 记录一铲地坐标
                 if first_shovel:
                     first_pos = self.players[player_id].choice_position
@@ -1537,7 +1537,7 @@ class GameStateBase:
                     ('building', 1)
                 ]):
                     self.players[player_id].choice_position = first_pos
-                    self.invoke_immediate_aciton(player_id,('build_workshop',))
+                    if self.invoke_immediate_aciton(player_id,('build_workshop',)): return 
 
         def improve_navigation(player_id):
             # 判断是否可升级
@@ -1585,7 +1585,7 @@ class GameStateBase:
         def get_ability_tile(player_id: int):
             for ability_tile_id in range(1,13):
                 if self.all_available_object_dict['ability_tile'][ability_tile_id].check_get(player_id):
-                    self.invoke_immediate_aciton(player_id, ('select_ability_tile',))
+                    if self.invoke_immediate_aciton(player_id, ('select_ability_tile',)): return 
                     break
 
         all_adjust_list = {

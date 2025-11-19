@@ -60,6 +60,9 @@ class AgentBase:
                     action_id = int(action_id)
                     self.web_io.output(self.player_id + 1, readable_action_ids[action_id])
                     print(f'玩家{self.player_id + 1}执行了{readable_action_ids[action_id]}')
+                    # 记录该行动
+                    self.game_args['action_history'].append((self.player_id, typ, action_id))
+                    # 执行该行动
                     self.action_system.execute_action(typ, action_id)
                 else:
                     if 65 in available_action_ids:
@@ -68,9 +71,11 @@ class AgentBase:
                         action_id = random.choice(available_action_ids)
                     self.web_io.output(self.player_id + 1, readable_action_ids[action_id])
                     print(f'玩家{self.player_id + 1}执行了{readable_action_ids[action_id]}')
+                    # 记录该行动
+                    self.game_args['action_history'].append((self.player_id, typ, action_id))
+                    # 执行该行动
                     self.action_system.execute_action(typ, action_id)
-                # 记录该行动
-                self.game_args['action_history'].append((self.player_id, typ, action_id))
+                
 
             case 'target':
                 action_id = args
@@ -101,14 +106,12 @@ class AgentBase:
         def tracebacking(action_path: list = []): 
             reproduce_dict = self.reproduce(action_path)
             reproduce_game = reproduce_dict['reproduce_game']
-            reproduce_action_system = reproduce_game.agents[self.player_id].action_system
-            is_next_action_exist = reproduce_action_system.is_next_action_exist()
+            action_player_id ,action_typ, action_args = self.reproduce(action_path)['next_action']
 
-            if not is_next_action_exist:
+            if action_player_id != self.player_id:
                 all_available_action_path.append(action_path.copy())
                 return
             
-            action_player_id ,action_typ, action_args = self.reproduce(action_path)['next_action']
             available_action_ids = reproduce_game.agents[action_player_id].action_system.get_available_actions(mode=action_typ,args=action_args)
 
             for try_action_id in available_action_ids:

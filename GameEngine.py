@@ -27,8 +27,10 @@ class GameEngine:
                 flag, *data = out_ref.action(player_id, 'immediate', args)
                 if flag:
                     out_ref.next_immediate_action = data
+                    return True
                 else:
                     out_ref.next_immediate_action = []
+                return False
             
         return GameState(self.web_io, self.num_players, self.game_args)
     
@@ -65,14 +67,15 @@ class GameEngine:
                     self.agents[player_id].action_step('random', typ, args)
             case 'reproduce':
                 if self.next_immediate_action:
-                    action_typ, action_args = self.next_immediate_action
-                    return (True, player_id, action_typ, action_args)
+                    return (True, *self.next_immediate_action)
                 
                 if self.action_history:
                     action_player_id, action_typ, action_id = self.action_history.pop(0)
                     assert action_player_id == player_id
                     assert action_typ == typ
                     self.agents[player_id].action_step('target', typ, action_id)
+                    if action_typ == 'normal' and not self.agents[player_id].action_system.is_next_action_exist():
+                        self.agents[player_id].action_system.reset_action_state()
                 else:
                     return (True, player_id, typ, args)
         return (False,)
@@ -82,11 +85,13 @@ class GameEngine:
         
         def initial_setup_phase():
             """初始设置阶段"""
-            self.web_io.update_global_status("初始设置阶段")
+            if self.game_args['action_mode'] == 'input':
+                self.web_io.update_global_status("初始设置阶段")
             
             # 4轮选择（逆蛇轮抽）
             for round_idx in range(1,5):
-                self.web_io.update_global_status(f"第{round_idx }轮初始设置行动")
+                if self.game_args['action_mode'] == 'input':
+                    self.web_io.update_global_status(f"第{round_idx }轮初始设置行动")
 
                 # 确定本轮玩家顺序
                 if round_idx % 2 == 1:
@@ -101,7 +106,8 @@ class GameEngine:
                     
             self.game_state.setup_choice_is_completed = True    
 
-            self.web_io.update_global_status("初始建筑摆放阶段")
+            if self.game_args['action_mode'] == 'input':
+                self.web_io.update_global_status("初始建筑摆放阶段")
             build_order = []
             faction_8_owner_id = -1
             faction_10_owner_id = -1
@@ -122,12 +128,12 @@ class GameEngine:
                     build_order = [idx for idx in self.game_state.pass_order + self.game_state.current_player_order if idx != faction_8_owner_id] + [faction_10_owner_id, faction_8_owner_id]
 
             for player_idx in build_order:
-                print()
                 flag, *data = self.action(player_idx)
                 if flag:
                     return (True, *data)
 
-            self.web_io.update_global_status("初始阶段效果结算")
+            if self.game_args['action_mode'] == 'input':
+                self.web_io.update_global_status("初始阶段效果结算")
             for player_idx in self.game_state.pass_order:
                 cur_player_setup_list = self.game_state.players[player_idx].setup_effect_list
                 if cur_player_setup_list:
@@ -149,16 +155,18 @@ class GameEngine:
             self.game_state.pass_order.clear()
             current_player_order = self.game_state.current_player_order.copy()      
 
-            self.web_io.update_global_status(f'第{self.game_state.round}轮收入阶段\n玩家行动顺序：{','.join(map(lambda x:str(x+1),current_player_order))}')
+            if self.game_args['action_mode'] == 'input':
+                self.web_io.update_global_status(f'第{self.game_state.round}轮收入阶段\n玩家行动顺序：{','.join(map(lambda x:str(x+1),current_player_order))}')
             # TODO 打印可视化收入阶段
             for player_idx in self.current_round_init_player_order:
-                print(self.game_state.players[player_idx].income_effect_list)
+                # print(self.game_state.players[player_idx].income_effect_list)
                 for income_effect in self.game_state.players[player_idx].income_effect_list:
                     income_effect(player_idx)
                     if self.next_immediate_action:
                         return (True, *self.next_immediate_action)
             
-            self.web_io.update_global_status(f'第{self.game_state.round}轮行动阶段\n玩家行动顺序：{','.join(map(lambda x:str(x+1),current_player_order))}')
+            if self.game_args['action_mode'] == 'input':
+                self.web_io.update_global_status(f'第{self.game_state.round}轮行动阶段\n玩家行动顺序：{','.join(map(lambda x:str(x+1),current_player_order))}')
             while current_player_order:
                 for player_idx in current_player_order:
                     flag, *data = self.action(player_idx)
@@ -166,7 +174,8 @@ class GameEngine:
                         return (True, *data)
                 current_player_order = self.game_state.current_player_order.copy()
 
-            self.web_io.update_global_status(f'第{self.game_state.round}轮回合结束结算阶段\n玩家行动顺序：{','.join(map(lambda x:str(x+1),self.game_state.pass_order))}')
+            if self.game_args['action_mode'] == 'input':
+                self.web_io.update_global_status(f'第{self.game_state.round}轮回合结束结算阶段\n玩家行动顺序：{','.join(map(lambda x:str(x+1),self.game_state.pass_order))}')
             # TODO 打印可视化结算阶段
             for effect_object_typ in [
                 # 回合结束奖励，并添加下一回合的回合计分
