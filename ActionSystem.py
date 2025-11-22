@@ -510,10 +510,11 @@ class ActionSystem:
 
                 # 遍历可抵达范围坐标
                 for i,j in self.player.reachable_map_ids:
-                    # 获取当前地块地形
-                    terrain = self.game_state.map_board_state.map_grid[i][j][0]
+                    # 获取当前地块地形和控制者
+                    terrain, controller = self.game_state.map_board_state.map_grid[i][j][:2]
                     # 将需要x铲才能成为原生地的地形标记为存在
-                    reachable_terrain_need_shovel_times_typs[self.player.terrain_id_need_shovel_times[terrain]] = True
+                    if controller == -1:
+                        reachable_terrain_need_shovel_times_typs[self.player.terrain_id_need_shovel_times[terrain]] = True
 
                 # 如果可抵地块中铲成原生地所需的最小次数 小于等于 最大可支持建造车间前铲的次数，则允许该行动：将一个地块铲成原生地（如需）并建造一个车间
                 for temp_max_shovel_times_for_build in range(max_shovel_times_for_build,-1,-1):
@@ -981,14 +982,15 @@ class ActionSystem:
             # 所有可用行动id: 232-262
             available_action_ids_list = []
 
-            for order_id, ((i,j),(p,q)) in enumerate(self.game_state.map_board_state.bridges_is_conneted.keys()):
-                match self.game_state.map_board_state.map_grid[i][j][1], self.game_state.map_board_state.map_grid[p][q][1]:
-                    case self.player_id, self.player_id:
-                        available_action_ids_list.append(232+order_id)
-                    case self.player_id, -1:
-                        available_action_ids_list.append(232+order_id)
-                    case -1, self.player_id:
-                        available_action_ids_list.append(232+order_id)
+            for order_id, (((i,j),(p,q)), controller) in enumerate(self.game_state.map_board_state.bridges_is_conneted.items()):
+                if controller  == -1:
+                    match self.game_state.map_board_state.map_grid[i][j][1], self.game_state.map_board_state.map_grid[p][q][1]:
+                        case self.player_id, self.player_id:
+                            available_action_ids_list.append(232+order_id)
+                        case self.player_id, -1:
+                            available_action_ids_list.append(232+order_id)
+                        case -1, self.player_id:
+                            available_action_ids_list.append(232+order_id)
 
             return available_action_ids_list
         

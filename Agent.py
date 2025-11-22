@@ -3,6 +3,8 @@ from DetailedAction import DetailedAction
 import random
 import time
 import copy
+from web_io import GamePanel, Silence_IO
+from typing import Union
 
 class AgentBase:
 
@@ -11,7 +13,7 @@ class AgentBase:
         self.game_state = game_state
         self.player = self.game_state.players[player_id]
         self.action_system = ActionSystem(game_state, player_id)
-        self.web_io = game_args['web_io']
+        self.web_io: Union[GamePanel,Silence_IO] = game_args['web_io']
         self.all_detailed_actions = DetailedAction().all_detailed_actions
         self.game_args = game_args
         self.need_estimate = False
@@ -53,8 +55,17 @@ class AgentBase:
                 for key,value in readable_action_ids.items():
                     res_str += f'{key}: {value}\n'
                 res_str = res_str[:-1]
-                self.web_io.output(0,res_str)
-                print(res_str)
+                color_dict = {
+                    0: 'white',
+                    1: 'brown',
+                    2: 'black',
+                    3: 'blue',
+                    4: 'green',
+                    5: 'grey',
+                    6: 'red',
+                    7: 'yellow',
+                }
+                self.web_io.output(0,res_str,color=color_dict[self.player.planning_card_id])
                 action_id = self.web_io.get_input()
                 if action_id:
                     action_id = int(action_id)
@@ -82,8 +93,8 @@ class AgentBase:
                 self.action_system.execute_action(typ, action_id) 
 
             case 'random':
-                self.seedid = int(time.strftime("%S%H%M", time.localtime()))
-                random.seed(self.seedid)
+                # self.seedid = int(time.strftime("%S%H%M", time.localtime()))
+                # random.seed(self.seedid)
                 # print(f'seed:{self.seedid}')
                 available_action_ids = self.action_system.get_available_actions(typ, args)
                 if 65 in available_action_ids and random.random()<=0.9:
@@ -103,12 +114,13 @@ class AgentBase:
 
     def estimate(self):
         all_available_action_path = []
+        max_deepth = 3
         def tracebacking(action_path: list = []): 
             reproduce_dict = self.reproduce(action_path)
             reproduce_game = reproduce_dict['reproduce_game']
             action_player_id ,action_typ, action_args = self.reproduce(action_path)['next_action']
 
-            if action_player_id != self.player_id:
+            if action_player_id != self.player_id or len(action_path) >= max_deepth:
                 all_available_action_path.append(action_path.copy())
                 return
             
@@ -120,9 +132,19 @@ class AgentBase:
                 tracebacking(action_path)
                 action_path.pop()
 
+        # start_time = time.time()
         tracebacking()
-
-        for action_path in all_available_action_path:
-            pass
+        # all_path_results = []
+        # for action_path in all_available_action_path:
+        #     results = []
+        #     for i in range(100):
+        #         seedid = int(time.strftime("%S%H%M", time.localtime()))+i
+        #         random.seed(seedid)
+        #         res = self.simulate(action_path)
+        #         results.append(res)
+        #     all_path_results.append(sum(results)/len(results))
+        
+        # end_time = time.time()
+        # print(end_time-start_time)
 
         print(all_available_action_path)

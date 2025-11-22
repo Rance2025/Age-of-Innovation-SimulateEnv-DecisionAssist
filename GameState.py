@@ -2,6 +2,8 @@ import random
 import time
 from typing import Callable
 from web_io import GamePanel
+from collections import Counter, defaultdict, deque
+import copy
 
 class GameStateBase:
     """游戏状态类"""
@@ -660,6 +662,7 @@ class GameStateBase:
     def __init__(self, game_args: dict, web_io: GamePanel, num_players: int = 3):
         if num_players:
             self.num_players = num_players                                                                          # 玩家数量
+            self.game_args = game_args
             self.setup = __class__.GameSetup(num_players, (game_args['setup_mode'],game_args['setup_tile_args']))                                                     # 游戏初始状态设置
             self.players:list[__class__.PlayerState] = [__class__.PlayerState(i) for i in range(num_players)]       # 玩家状态
             self.map_board_state = __class__.MapBoardState()                                                        # 地图状态
@@ -684,6 +687,7 @@ class GameStateBase:
             self.adjust = self.init_adjust()                                                                        # 初始化调整函数
             global io
             io = web_io                                                                                             # 网页IO接口
+            self.io = web_io
 
     def invoke_immediate_aciton(self, player_id: int, args: tuple):
         return
@@ -692,8 +696,6 @@ class GameStateBase:
         """更新可抵达的坐标列表"""
 
         def update_reachable_map_ids(pos: tuple[int, int], navigation_distance: int = 1, visited: set = set()):
-            if visited:
-                visited = set()
             
             # 如果已经访问过这个位置，直接返回
             if pos in visited:
@@ -927,6 +929,186 @@ class GameStateBase:
                         if self.invoke_immediate_aciton(player_id, ('select_city_tile',)): return
                         break
         
+    def calculate_players_total_score(self):
+
+        def search_reachable_settlements(player_id: int, pos: tuple[int, int], navigation_distance: int = 1, visited: set = set(), all_reachable_pos: set = set()):
+            
+            # 如果已经访问过这个位置，直接返回
+            if pos in visited:
+                return
+    
+            # 标记当前位置为已访问
+            visited.add(pos)
+
+            i,j = pos
+            direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
+
+            for dx,dy in direction:
+                new_i, new_j = i + dx, j + dy
+                if (
+                    # 在合法边界内
+                    0 <= new_i <= 8 and 0 <= new_j <= 12
+                ):
+                    if (
+                        # 如果该地块是水域
+                        self.map_board_state.map_grid[new_i][new_j][0] == 0
+                        # 航行距离未超过最大航行能力
+                        and navigation_distance <= self.players[player_id].navigation_level
+                    ):
+                        search_reachable_settlements(player_id, (new_i,new_j), navigation_distance+1, visited, all_reachable_pos)
+                    else:
+                        all_reachable_pos.add((new_i,new_j))
+
+        def find_all_settlement_clusters(settlement_dict):
+
+            # 收集所有聚落ID
+            all_settlements = set()
+            for src, dests in settlement_dict.items():
+                all_settlements.add(src)
+                all_settlements.update(dests)
+            
+            # 构建双向连接图
+            graph = {}
+            for settlement in all_settlements:
+                graph[settlement] = set()
+            
+            for src, dests in settlement_dict.items():
+                for dest in dests:
+                    graph[src].add(dest)
+                    graph[dest].add(src)  # 双向连接
+            
+            # 使用BFS找到所有连通分量
+            visited = set()
+            all_clusters = []
+            
+            for settlement in sorted(all_settlements):  # 按ID排序处理
+                if settlement not in visited:
+                    # 新的连通分量
+                    cluster = []
+                    queue = deque([settlement])
+                    visited.add(settlement)
+                    
+                    while queue:
+                        node = queue.popleft()
+                        cluster.append(node)
+                        
+                        for neighbor in graph[node]:
+                            if neighbor not in visited:
+                                visited.add(neighbor)
+                                queue.append(neighbor)
+                    
+                    # 将当前分量添加到结果中
+                    all_clusters.append(sorted(cluster))
+            
+            return all_clusters
+
+        # 计算各玩家大链分数
+        all_players_largest_chain_num = {i:0 for i in range(self.num_players)}
+
+        for player_id in range(self.num_players):
+
+            player = self.players[player_id]
+            chains = defaultdict(set)
+            root_index = []
+            can_achieve_settlement = defaultdict(set)
+            for controlled_pos, root_info in player.settlements_and_cities.items():
+                if root_info[0] not in root_index:
+                    root_index.append(root_info[0])
+                chains[root_index.index(root_info[0])].add(controlled_pos)
+
+            for settlement_id, controlled_pos_set in chains.items():
+                temp_check_set = set()
+                for tmp_settlement_id, tmp_controlled_pos_set in chains.items():
+                    if tmp_settlement_id > settlement_id:
+                        temp_check_set |= tmp_controlled_pos_set
+                
+                for pos in controlled_pos_set:
+                    all_reachable_pos = set()
+                    search_reachable_settlements(player_id, pos, all_reachable_pos=all_reachable_pos)
+                    reachable_check_pos_set = all_reachable_pos & temp_check_set
+                    for can_reach_pos in reachable_check_pos_set:
+                        can_reach_pos_root = player.settlements_and_cities[can_reach_pos][0]
+                        can_achieve_settlement[settlement_id].add(root_index.index(can_reach_pos_root))
+
+            all_clusters = find_all_settlement_clusters(can_achieve_settlement)
+            largest_clusters = 0
+            for cluster in all_clusters:
+                building_num = 0
+                for settlement_id in cluster:
+                    building_num += len(chains[settlement_id])
+                if building_num > largest_clusters:
+                    largest_clusters = building_num
+            all_players_largest_chain_num[player_id] = largest_clusters
+
+        sorted_largest_chain_players = sorted(all_players_largest_chain_num.items(), key=lambda x:x[1], reverse=True)
+        chain_score = [18,12,6]
+        order_id = 1
+        while order_id <= 3:
+            for tie_place in range(order_id+1,self.num_players+1):
+                if sorted_largest_chain_players[order_id-1][1] > sorted_largest_chain_players[tie_place-1][1]:
+                    break
+            else:
+                tie_place = self.num_players + 1
+            get_score_num = sum(chain_score[order_id-1: tie_place-1]) // (tie_place - order_id)
+            for rank in range(order_id, tie_place):
+                self.players[sorted_largest_chain_players[rank-1][0]].chainscore = get_score_num
+            order_id = tie_place
+
+        # 计算各玩家科技轨分数
+        track_score = [8,4,2]
+        for typ in ['bank', 'law', 'engineering', 'medical']:
+            tracks_all_players = []
+            for player_id in range(self.num_players):
+                tracks_all_players.append((player_id, self.players[player_id].tracks[typ]))
+            tracks_all_players.sort(key=lambda x:x[1], reverse=True)
+            order_id = 1
+            while order_id <= 3:
+                for tie_place in range(order_id+1,self.num_players+1):
+                    if tracks_all_players[order_id-1][1] > tracks_all_players[tie_place-1][1]:
+                        break
+                else:
+                    tie_place = self.num_players + 1
+                get_score_num = sum(track_score[order_id-1: tie_place-1]) // (tie_place - order_id)
+                for rank in range(order_id, tie_place):
+                    self.players[tracks_all_players[rank-1][0]].trackscore += get_score_num
+                order_id = tie_place
+
+        # 计算各玩家资源分数
+        for player_id in range(self.num_players):
+            self.players[player_id].resourcescore = sum(
+                [
+                    sum(
+                        self.players[player_id].resources[x]
+                        for x in [
+                            'money', 'ore', 'meeples',
+                            'bank_book', 'law_book', 'engineering_book', 'medical_book',
+                        ]
+                    ),
+                    self.players[player_id].magics[3],
+                    self.players[player_id].magics[2]//2,
+                ]
+            ) // 5
+        #     print(self.players[player_id].resources,self.players[player_id].magics)
+        # print({
+        #     player_idx:[
+        #         self.players[player_idx].boardscore,
+        #         self.players[player_idx].chainscore,
+        #         self.players[player_idx].trackscore,
+        #         self.players[player_idx].resourcescore
+        #     ]
+        #     for player_idx in range(self.num_players)
+        # })
+        return {
+            player_idx: sum([
+                self.players[player_idx].boardscore,
+                self.players[player_idx].chainscore,
+                self.players[player_idx].trackscore,
+                self.players[player_idx].resourcescore
+            ])
+            for player_idx in range(self.num_players)
+        }
+        
+
     def init_check(self):
 
         def check_money(player_id: int, num: int) -> bool:
@@ -1083,7 +1265,7 @@ class GameStateBase:
                     self.players[player_id].resources[f'{typ}_book'] += act_num
                 case 'use', 'any':
                     for time in range(num):
-                        print(f'请选择您想使用的第{time + 1}本书的类型')
+                        # print(f'请选择您想使用的第{time + 1}本书的类型')
                         if self.invoke_immediate_aciton(player_id, ('select_book', 'use')): return 
                 case 'use', _:
                     if num <= self.players[player_id].resources[f'{typ}_book']:
@@ -1205,22 +1387,22 @@ class GameStateBase:
                         case 'bank':
                             def display_board_bank_tracks_9(player_idx):
                                 self.adjust(player_idx, [('money', 'get', 3)])
-                                print(f'银行轨道等级9 -> 3块钱')
+                                # print(f'银行轨道等级9 -> 3块钱')
                             self.players[player_id].income_effect_list.append(display_board_bank_tracks_9)
                         case 'law':
                             def display_board_law_tracks_9(player_idx):
                                 self.adjust(player_idx, [('magics', 'get', 6)])
-                                print(f'法律轨道等级9 -> 6转魔')
+                                # print(f'法律轨道等级9 -> 6转魔')
                             self.players[player_id].income_effect_list.append(display_board_law_tracks_9)
                         case 'engineering':
                             def display_board_engineering_tracks_9(player_idx):
                                 self.adjust(player_idx, [('ore', 'get', 1)])
-                                print(f'工程轨道等级9 -> 1矿')
+                                # print(f'工程轨道等级9 -> 1矿')
                             self.players[player_id].income_effect_list.append(display_board_engineering_tracks_9)
                         case 'medical':
                             def display_board_medical_tracks_9(player_idx):
                                 self.adjust(player_idx, [('score', 'get', 'board', 3)])
-                                print(f'医疗轨道等级9 -> 3分')
+                                # print(f'医疗轨道等级9 -> 3分')
                             self.players[player_id].income_effect_list.append(display_board_medical_tracks_9)
                         case _:
                             raise ValueError(f'不存在{typ}轨道效果')
@@ -1331,7 +1513,8 @@ class GameStateBase:
                             if mode == 'build_normal':
                                 raise ValueError(f'无可建地')
                             elif mode == 'build_neutral':
-                                print(f'中立建造无可建地')
+                                # print(f'中立建造无可建地')
+                                return 
 
                     # 检查该地块是否符合条件
                     match self.map_board_state.map_grid[i][j]:
@@ -1605,13 +1788,102 @@ class GameStateBase:
             'ability_tile': get_ability_tile
         }
 
-        def adjust(player_id: int, list_to_be_adjusted):
+        def adjust(player_id: int, list_to_be_adjusted) -> tuple[str, str]:
+            reward_str_list = []
+            spend_str_list = []
             for adjust_item, *adjust_args in list_to_be_adjusted:
                 if adjust_item not in all_adjust_list:
                     raise ValueError(f'非法状态调整对象：{adjust_item}')
                 else:
                     all_adjust_list[adjust_item](player_id, *adjust_args)
-
+                    match adjust_item, adjust_args:
+                        case 'money', ('get', num):
+                            if num > 0:
+                                reward_str_list.append(f'{num}块钱')
+                        case 'money', ('use', num):
+                            if num > 0:
+                                spend_str_list.append(f'{num}块钱') 
+                        case 'ore', ('get', num):
+                            if num > 0:
+                                reward_str_list.append(f'{num}矿')
+                        case 'ore', ('use', num):
+                            if num > 0:
+                                spend_str_list.append(f'{num}矿')
+                        case 'book', ('get', typ, num):
+                            if num > 0:
+                                match typ:
+                                    case 'any':
+                                        reward_str_list.append(f'{num}任意书')
+                                    case 'bank':
+                                        reward_str_list.append(f'{num}银行书')
+                                    case 'law':
+                                        reward_str_list.append(f'{num}法律书')
+                                    case 'engineering':
+                                        reward_str_list.append(f'{num}工程书')
+                                    case 'medical':
+                                        reward_str_list.append(f'{num}医疗书')
+                        case 'book', ('use', typ, num):
+                            if num > 0:
+                                match typ:
+                                    case 'any':
+                                        spend_str_list.append(f'{num}任意书')
+                                    case 'bank':
+                                        spend_str_list.append(f'{num}银行书')
+                                    case 'law':
+                                        spend_str_list.append(f'{num}法律书')
+                                    case 'engineering':
+                                        spend_str_list.append(f'{num}工程书')
+                                    case 'medical':
+                                        spend_str_list.append(f'{num}医疗书')
+                        case 'meeple', ('get', num):
+                            if num > 0:
+                                reward_str_list.append(f'{num}米宝')
+                        case 'meeple', ('use', num):
+                            if num > 0:
+                                spend_str_list.append(f'{num}米宝')
+                        case 'score', ('get', 'board', num):
+                            if num > 0:
+                                reward_str_list.append(f'{num}分')
+                        case 'score', ('use', 'baord', num):
+                            if num > 0:
+                                spend_str_list.append(f'{num}分')
+                        case 'magics', ('get', num):
+                            if num > 0:
+                                reward_str_list.append(f'{num}转魔')
+                        case 'magics', ('use', num):
+                            if num > 0:
+                                spend_str_list.append(f'{num}转魔')
+                        case 'tracks', (typ, num):
+                            if num > 0:
+                                match typ:
+                                    case 'any':
+                                        reward_str_list.append(f'推{num}任意轨')
+                                    case 'bank':
+                                        reward_str_list.append(f'推{num}银行轨')
+                                    case 'law':
+                                        reward_str_list.append(f'推{num}法律轨')
+                                    case 'engineering':
+                                        reward_str_list.append(f'推{num}工程轨')
+                                    case 'medical':
+                                        reward_str_list.append(f'推{num}医疗轨')
+                        case 'spade', (num, _):
+                            if num > 0:
+                                reward_str_list.append(f'{num}铲')
+                        case 'navigation', _:
+                            reward_str_list.append('升1航行')
+                        case 'shovel', _:
+                            reward_str_list.append('升1铲子')
+                        case 'ability_tile', _:
+                            reward_str_list.append('1能力板块')
+            if spend_str_list:
+                spend_str = ' + '.join(spend_str_list)
+            else:
+                spend_str = ''
+            if reward_str_list:
+                reward_str = ' + '.join(reward_str_list)
+            else:
+                reward_str = ''
+            return spend_str, reward_str
         return adjust
     
     def effect_object(self): # 效果板块

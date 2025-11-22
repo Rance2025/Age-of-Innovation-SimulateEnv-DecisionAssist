@@ -1,63 +1,5 @@
 from GameState import GameStateBase
 
-# 效果打印
-def print_effect(tile_name, **kwargs):
-    """重构为接受任意关键字参数"""
-    # 默认值字典
-    defaults = {
-        'ore_nums': 0, 'money_nums': 0, 'magics_nums': 0, 'meeple_nums': 0,
-        'bank_book_nums': 0, 'law_book_nums': 0, 'engineering_book_nums': 0, 'medical_book_nums': 0,
-        'bank_track_nums': 0, 'law_track_nums': 0, 'engineering_track_nums': 0, 'medical_track_nums': 0,
-        'navigation_nums': 0, 'shovel_nums': 0, 'spade_nums': 0,
-    }
-    
-    # 合并用户提供的参数
-    params = {**defaults, **kwargs}
-    
-    # 原有逻辑保持不变
-    res_str_name = f'{tile_name}'
-    res_str_spend = ''
-    res_str_reward = ''
-    reward_flag = False
-    spend_flag = False
-    for num, name in zip(
-        [
-            params['ore_nums'], params['money_nums'], params['magics_nums'], params['meeple_nums'],
-            params['bank_book_nums'], params['law_book_nums'], params['engineering_book_nums'], params['medical_book_nums'],
-            params['bank_track_nums'], params['law_track_nums'], params['engineering_track_nums'], params['medical_track_nums'],
-            params['navigation_nums'], params['shovel_nums'], params['spade_nums'],
-        ], 
-        [
-            '矿', '块钱', '转魔', '米宝',
-            '银行书', '法律书', '工程书', '医疗书',
-            '银行轨', '法律轨', '工程轨', '医疗轨',
-            '升航行', '升铲子', '铲'
-        ]
-    ):
-        if reward_flag == False:
-            if num > 0:
-                res_str_reward += f'{num}{name}'
-                reward_flag = True
-        else:
-            if num > 0:
-                res_str_reward += f' + {num}{name}'
-
-        if spend_flag == False:
-            if num < 0:
-                res_str_spend += f'{abs(num)}{name}'
-                spend_flag = True
-        else:
-            if num < 0:
-                res_str_spend += f' + {abs(num)}{name}'
-
-    if reward_flag:
-        if spend_flag:
-            res_str = res_str_name + '（' + res_str_spend + ' -> ' + res_str_reward + '）'
-            print(res_str)
-        else:
-            res_str = res_str_name + ' -> ' + res_str_reward
-            print(res_str)
-
 class AllEffectObject:
 
     class EffectObject:
@@ -65,6 +7,8 @@ class AllEffectObject:
 
         max_owner = 1
         additional_action_name = 'Effect_Object_Base'
+        name_dict = {}
+        id = 0
 
         def __init__(self, game_state: GameStateBase) -> None:
             self.game_state = game_state
@@ -91,25 +35,29 @@ class AllEffectObject:
         # 立即执行方法
         def execute_immediate_effect(self, executed_player_id:int):
             # 执行立即效果
-            self.game_state.adjust(executed_player_id, self.immediate_effect)
+            spend_str, reward_str = self.game_state.adjust(executed_player_id, self.immediate_effect)
+            self._print_effect('立即效果', executed_player_id, spend_str, reward_str)
             # 清空本版块立即效果列表（以防多玩家获取同一板块时，后获得者重复执行效果）
             self.immediate_effect.clear()
         # 回合收入方法
         def execute_income_effect(self, executed_player_id:int):
             # 执行收入效果
-            self.game_state.adjust(executed_player_id, self.income_effect)
+            spend_str, reward_str = self.game_state.adjust(executed_player_id, self.income_effect)
+            self._print_effect('收入效果',executed_player_id, spend_str, reward_str)
             # 清空本版块收入效果列表（以防多玩家获取同一板块时，后获得者重复执行效果）
             self.income_effect.clear()
         # 略过回合方法
         def execute_pass_effect(self, executed_player_id:int):
             # 执行略过回合效果
-            self.game_state.adjust(executed_player_id, self.pass_effect)
+            spend_str, reward_str = self.game_state.adjust(executed_player_id, self.pass_effect)
+            self._print_effect('略过效果',executed_player_id, spend_str, reward_str)
             # 清空本版块略过回合效果列表（以防多玩家获取同一板块时，后获得者重复执行效果）
             self.pass_effect.clear()
         # 初始设置方法
         def execute_setup_effect(self, executed_player_id:int):
             # 执行初始设置效果
-            self.game_state.adjust(executed_player_id, self.setup_effect)
+            spend_str, reward_str = self.game_state.adjust(executed_player_id, self.setup_effect)
+            self._print_effect('初始效果',executed_player_id, spend_str, reward_str)
             # 清空初始设置效果
             self.setup_effect.clear()
         # 额外行动方法
@@ -144,16 +92,34 @@ class AllEffectObject:
         def back(self, executed_player_id):
             pass
 
+        def _print_effect(self, mode, executed_player_id, spend_str, reward_str):
+            if self.game_state.game_args['action_mode'] == 'input':
+                color_dict = {
+                    '立即效果': 'orange',
+                    '初始效果': 'orange',
+                    '收入效果': 'pink',
+                    '略过效果': 'purple'
+                }
+                if spend_str and reward_str:
+                    print_str = f"{self.name_dict[self.id]}({spend_str}) -> {reward_str}"
+                    self.game_state.io.output(executed_player_id+1,print_str,color=color_dict[mode])
+                elif reward_str:
+                    print_str = f"{self.name_dict[self.id]} -> {reward_str}"
+                    self.game_state.io.output(executed_player_id+1,print_str,color=color_dict[mode])
+                elif spend_str:
+                    print_str = f"{self.name_dict[self.id]}({spend_str})"
+                    self.game_state.io.output(executed_player_id+1,print_str,color=color_dict[mode])
+
     class PlanningCard(EffectObject):
 
         name_dict = {
-            1: "平原（棕）",
-            2: "沼泽（黑）",
-            3: "湖泊（蓝）",
-            4: "森林（绿）",
-            5: "山脉（灰）",
-            6: "荒地（红）",
-            7: "沙漠（黄）",
+            1: "平原（棕）规划卡",
+            2: "沼泽（黑）规划卡",
+            3: "湖泊（蓝）规划卡",
+            4: "森林（绿）规划卡",
+            5: "山脉（灰）规划卡",
+            6: "荒地（红）规划卡",
+            7: "沙漠（黄）规划卡",
         } 
         
         id = 0
@@ -167,19 +133,29 @@ class AllEffectObject:
                 ('magics', 'get', 4-buildings[2] if buildings[2]>=2 else 2*(4-buildings[2])-2), 
                 ('meeple', 'get', 3-buildings[4] + 1-buildings[5]) 
             ])
-            print_effect(
-                tile_name = f'{self.name_dict[self.id]}规划卡',
-                ore_nums = 10-buildings[1] if buildings[1]>=5 else 9-buildings[1],
-                money_nums = 2*(4-buildings[2]),
-                magics_nums = 4-buildings[2] if buildings[2]>=2 else 2*(4-buildings[2])-2,
-                meeple_nums = 3-buildings[4] + 1-buildings[5],
-            )
             super().execute_income_effect(executed_player_id)
 
     class Faction(EffectObject):
-        pass
+        
+        name_dict = {
+            1: '神佑者',
+            2: '猫人',
+            3: '哥布林',
+            4: '幻术师',
+            5: '发明家',
+            6: '蜥蜴人',
+            7: '鼹鼠',
+            8: '僧侣',
+            9: '航海家',
+            10: '奥马尔',
+            11: '哲学家',
+            12: '通灵师',
+        }
 
     class PalaceTile(EffectObject):
+
+        name_dict = {i: f"宫殿板块{i}" for i in range(1,17)}
+
         # 当获取时
         def get(self, got_player_id):
             self.owner_list.append(got_player_id)
@@ -199,12 +175,14 @@ class AllEffectObject:
 
     class RoundBooster(EffectObject):
 
+        name_dict = {i: f"回合助推板{i}" for i in range(1,11)}
         id = 0
 
         # 当回合结束时
         def round_end(self):
             if not self.owner_list:
-                print(f"回合助推板{self.id} -> 获取时额外获得1块钱")
+                if self.game_state.game_args['action_mode'] == 'input':
+                    print(f"回合助推板{self.id} -> 获取时额外获得1块钱")
                 self.immediate_effect.extend([
                     ('money', 'get', 1),
                 ])
@@ -262,6 +240,7 @@ class AllEffectObject:
 
     class AbilityTile(EffectObject):
         
+        name_dict = {i: f"能力板块{i}" for i in range(1,13)}
         id = 0
         max_owner = 4
 
@@ -278,12 +257,6 @@ class AllEffectObject:
             ]
             # 获取该能力板块奖励
             self.game_state.adjust(got_player_id, reward)
-            # 使用：动态构建参数字典
-            print_effect(**{
-                'tile_name': f'能力板块{self.id}',
-                f'{typ}_book_nums': num_book,
-                f'{typ}_track_nums': 3 - num_book,
-            })
             # 获取能力板块行动效果
             self.game_state.action_effect(player_id=got_player_id, get_ability_tile_typ=typ)
             super().get(got_player_id)
@@ -291,6 +264,7 @@ class AllEffectObject:
 
     class ScienceTile(EffectObject):
 
+        name_dict = {i: f"高科板块{i}" for i in range(1,19)}
         id = 0
 
         # 检查是否可获取
@@ -340,7 +314,8 @@ class AllEffectObject:
             self.game_state.action_effect(player_id=got_player_id, get_science_tile=True)
 
     class RoundScoring(EffectObject):
-
+        
+        name_dict = {i: f"回合计分板块{i}" for i in range(1,13)}
         id = 0
 
         def round_end(self):
@@ -381,10 +356,12 @@ class AllEffectObject:
         
     class FinalScoring(EffectObject):
         
+        name_dict = {i: f"最终计分板块{i}" for i in range(1,5)}
         '''其行动效果均已写入action_effect方法中'''
-        pass
             
     class BookAction(EffectObject):
+
+        name_dict = {i: f"书行动板块{i}" for i in range(1,7)}
 
         # 当回合结束时
         def round_end(self):
@@ -394,6 +371,7 @@ class AllEffectObject:
 
     class CityTile(EffectObject):
 
+        name_dict = {i: f"城片板块{i}" for i in range(1,8)}
         max_owner = 3
         # 同一玩家可重复获取
         def check_get(self, player_id: int) -> bool:
@@ -411,7 +389,9 @@ class AllEffectObject:
 
     class MagicsAction(EffectObject):
         
+        name_dict = {i: f"魔力行动板块{i}" for i in range(1,7)}
         # 当回合结束时
+
         def round_end(self):
             # 清空控制者列表
             self.owner_list.clear()
@@ -502,10 +482,8 @@ class AllEffectObject:
 
         def execute_setup_effect(self, executed_player_id):
             '''初始设置阶段: 在初始建筑摆放完毕后立即一铲不可建房'''
-            # 立即选择位置
-            self.game_state.invoke_immediate_aciton(executed_player_id, ('select_position', 'reachable', ('shovel', 1)))
             self.setup_effect.extend([
-                ('land', 1)
+                ('spade', 1, False)
             ])
             super().execute_setup_effect(executed_player_id)
 
@@ -527,6 +505,8 @@ class AllEffectObject:
 
     class FelinesFaction(Faction):
 
+        id = 2
+
         def execute_immediate_effect(self, executed_player_id):
             '''立即效果: 银行、医学轨道推一格'''
             self.immediate_effect.extend([
@@ -539,6 +519,8 @@ class AllEffectObject:
         # 猫人行动效果已写入action_effect中
 
     class GoblinsFaction(Faction):
+
+        id = 3
 
         def execute_immediate_effect(self, executed_player_id):
             '''立即效果: 银行、工程轨道推一格 + 获取1矿'''
@@ -554,6 +536,8 @@ class AllEffectObject:
 
     class IllusionistsFaction(Faction):
 
+        id = 4
+
         def execute_immediate_effect(self, executed_player_id):
             '''立即效果: 医学轨道推两格'''
             self.immediate_effect.extend([
@@ -566,6 +550,8 @@ class AllEffectObject:
 
     class InventorsFaction(Faction):
 
+        id = 5
+
         def execute_setup_effect(self, executed_player_id):
             '''初始设置阶段: 获取任一能力板块'''
             self.setup_effect.extend([
@@ -574,6 +560,8 @@ class AllEffectObject:
             super().execute_setup_effect(executed_player_id)
 
     class LizardsFaction(Faction):
+
+        id = 6
 
         def execute_setup_effect(self, executed_player_id):
             '''初始设置阶段: 任意轨道推一格执行两次'''
@@ -586,6 +574,8 @@ class AllEffectObject:
         # TODO 蜥蜴人行动效果
 
     class MolesFaction(Faction):
+
+        id = 7
 
         def execute_immediate_effect(self, executed_player_id):
             '''立即效果: 工程轨道推两格'''
@@ -602,6 +592,8 @@ class AllEffectObject:
 
     class MonksFaction(Faction):
 
+        id = 8
+
         def execute_immediate_effect(self, executed_player_id):
             '''立即效果: 法律轨道推一格'''
             self.immediate_effect.extend([
@@ -614,6 +606,8 @@ class AllEffectObject:
 
     class NavigatorsFaction(Faction):
 
+        id = 9
+
         def execute_immediate_effect(self, executed_player_id):
             '''立即效果: 法律轨道推三格'''
             self.immediate_effect.extend([
@@ -625,6 +619,8 @@ class AllEffectObject:
         # 航海家行动效果已写入action_effect中
 
     class OmarFaction(Faction):
+
+        id = 10
 
         def execute_immediate_effect(self, executed_player_id):
             '''立即效果: 银行、工程轨道推一格 + 获取一中立塔楼'''
@@ -647,6 +643,8 @@ class AllEffectObject:
             super().execute_income_effect(executed_player_id)
 
     class PhilosophersFaction(Faction):
+
+        id = 11
 
         def execute_immediate_effect(self, executed_player_id):
             '''立即效果: 银行轨道推两格'''
@@ -687,6 +685,8 @@ class AllEffectObject:
 
     class PsychicsFaction(Faction):
 
+        id = 12
+
         def execute_immediate_effect(self, executed_player_id):
             '''立即效果: 银行、医学轨道推一格 + 获取1矿'''
             self.immediate_effect.extend([
@@ -723,6 +723,8 @@ class AllEffectObject:
                     self.game_state.adjust(player_id, [('magics', 'get', 5)])
 
     class PalaceTile1(PalaceTile):
+
+        id = 1
         
         def execute_income_effect(self, executed_player_id):
             '''收入效果: 获得5魔力'''
@@ -760,6 +762,7 @@ class AllEffectObject:
 
     class PalaceTile2(PalaceTile):
         
+        id = 2
         additional_action_name = 'additional_action_palace_tile_2'
         
         def additional_action(self, mode, player_id, args=tuple()):
@@ -788,6 +791,8 @@ class AllEffectObject:
                     self.game_state.adjust(player_id, [('spade', 2)])
 
     class PalaceTile3(PalaceTile):
+        
+        id = 3
         
         def execute_income_effect(self, executed_player_id):
             '''收入效果: 获得2魔力'''
@@ -825,7 +830,7 @@ class AllEffectObject:
                     # 设置每回合一次附加行动已执行
                     self.additional_action_is_done[player_id] = True
                     # 选择降级位置
-                    self.game_state.invoke_immediate_aciton(player_id, ('select_position', 'controlled', (4, None)))
+                    if self.game_state.invoke_immediate_aciton(player_id, ('select_position', 'controlled', (4, None))): return 
                     # 执行降级行动并获取奖励
                     self.game_state.adjust(player_id, [
                         ('building', 'degrade', 2, False), 
@@ -834,6 +839,8 @@ class AllEffectObject:
                     ])
 
     class PalaceTile4(PalaceTile):
+
+        id = 4
         
         def execute_income_effect(self, executed_player_id):
             '''收入效果: 获得2魔力'''
@@ -871,11 +878,13 @@ class AllEffectObject:
                     # 设置每回合一次附加行动已执行
                     self.additional_action_is_done[player_id] = True
                     # 选择升级位置
-                    self.game_state.invoke_immediate_aciton(player_id, ('select_position', 'controlled', (1, 'alone_or_neighbor')))
+                    if self.game_state.invoke_immediate_aciton(player_id, ('select_position', 'controlled', (1, 'alone_or_neighbor'))): return 
                     # 执行升级行动
                     self.game_state.adjust(player_id, [('building', 'upgrade_special', 2, False)])
 
     class PalaceTile5(PalaceTile):
+
+        id = 5
         
         def execute_income_effect(self, executed_player_id):
             '''收入效果: 获得4魔力'''
@@ -892,6 +901,8 @@ class AllEffectObject:
             super().execute_immediate_effect(executed_player_id)
 
     class PalaceTile6(PalaceTile):
+
+        id = 6
         
         def execute_income_effect(self, executed_player_id):
             '''收入效果: 获得2魔力 + 1书'''
@@ -929,6 +940,8 @@ class AllEffectObject:
                     self.game_state.adjust(player_id, [('tracks', 'any', 2)])        
 
     class PalaceTile7(PalaceTile):
+
+        id = 7
         
         def execute_income_effect(self, executed_player_id):
             '''收入效果: 获得4魔力'''
@@ -949,6 +962,8 @@ class AllEffectObject:
             super().execute_pass_effect(executed_player_id)
 
     class PalaceTile8(PalaceTile):
+
+        id = 8
         
         def execute_income_effect(self, executed_player_id):
             '''收入效果: 获得2块钱 + 1矿 + 2魔力'''
@@ -963,6 +978,8 @@ class AllEffectObject:
 
     class PalaceTile9(PalaceTile):
 
+        id = 9
+
         def execute_income_effect(self, executed_player_id):
             '''收入效果: 获得1米宝'''
             self.income_effect.extend([
@@ -973,6 +990,8 @@ class AllEffectObject:
         # TODO 涉及选择位置行动     
 
     class PalaceTile10(PalaceTile):
+
+        id = 10
         
         def execute_income_effect(self, executed_player_id):
             '''收入效果: 获得6块钱'''
@@ -990,6 +1009,8 @@ class AllEffectObject:
             super().execute_immediate_effect(executed_player_id)
 
     class PalaceTile11(PalaceTile):
+
+        id = 11
         
         def execute_income_effect(self, executed_player_id):
             '''收入效果: 获得1矿'''
@@ -1000,10 +1021,14 @@ class AllEffectObject:
 
         def execute_immediate_effect(self, executed_player_id):
             '''立即效果: 获得1城片'''
-            self.game_state.invoke_immediate_aciton(executed_player_id, ('select_city_tile',))
+            self.immediate_effect.extend([
+                ('ability_tile',)
+            ])
             super().execute_immediate_effect(executed_player_id)
 
     class PalaceTile12(PalaceTile):
+
+        id = 12
         
         def execute_income_effect(self, executed_player_id):
             '''收入效果: 获得8转魔'''
@@ -1016,6 +1041,8 @@ class AllEffectObject:
         # 建造行动效果已写入action_effect中
 
     class PalaceTile13(PalaceTile):
+
+        id = 13
         
         additional_action_name = 'additional_action_palace_tile_13'
         
@@ -1051,6 +1078,8 @@ class AllEffectObject:
         # 建造行动效果已写入action_effect中
 
     class PalaceTile14(PalaceTile):
+
+        id = 14
         
         def execute_income_effect(self, executed_player_id):
             '''收入效果: 获得6转魔'''
@@ -1070,6 +1099,8 @@ class AllEffectObject:
             super().execute_immediate_effect(executed_player_id)
 
     class PalaceTile15(PalaceTile):
+
+        id = 15
         
         def execute_income_effect(self, executed_player_id):
             '''收入效果: 获得6转魔'''
@@ -1092,6 +1123,8 @@ class AllEffectObject:
             super().execute_immediate_effect(executed_player_id)
 
     class PalaceTile16(PalaceTile):
+
+        id = 16
         
         def execute_income_effect(self, executed_player_id):
             '''收入效果: 获得2转魔 + 1书'''
@@ -1435,7 +1468,7 @@ class AllEffectObject:
                     # 设置主行动已执行
                     self.game_state.players[player_id].main_action_is_done = True
                     # 选择建造位置
-                    self.game_state.invoke_immediate_aciton(player_id, ('select_position', 'controlled', (8, None)))
+                    if self.game_state.invoke_immediate_aciton(player_id, ('select_position', 'controlled', (8, None))): return 
                     # 执行建造行动
                     self.game_state.adjust(player_id, [('building', 'build_annex', 8, True)])
 
@@ -2016,18 +2049,32 @@ class AllEffectObject:
             return super().round_end()
 
     class FinalScoring1(FinalScoring):
+
+        id = 1
+
         pass
 
     class FinalScoring2(FinalScoring):
+
+        id = 2
+
         pass
 
     class FinalScoring3(FinalScoring):
+
+        id = 3
+
         pass
 
     class FinalScoring4(FinalScoring):
+
+        id = 4
+
         pass
 
     class BookAction1(BookAction):
+
+        id = 1
         
         def cost(self, player_id):
             return [('book', 'self', 'any', 1)], [('book', 'use', 'any', 1)]
@@ -2039,6 +2086,8 @@ class AllEffectObject:
             super().execute_immediate_effect(executed_player_id)
 
     class BookAction2(BookAction):
+
+        id = 2
         
         def cost(self, player_id):
             return [('book', 'self', 'any', 1)], [('book', 'use', 'any', 1)]
@@ -2050,6 +2099,8 @@ class AllEffectObject:
             super().execute_immediate_effect(executed_player_id)
 
     class BookAction3(BookAction):
+
+        id = 3
         
         def cost(self, player_id):
             return [('book', 'self', 'any', 2)], [('book', 'use', 'any', 2)]
@@ -2061,6 +2112,8 @@ class AllEffectObject:
             super().execute_immediate_effect(executed_player_id)
 
     class BookAction4(BookAction):
+
+        id = 4
         
         def cost(self, player_id):
             return [('book', 'self', 'any', 2)], [('book', 'use', 'any', 2)]
@@ -2068,10 +2121,12 @@ class AllEffectObject:
         def execute_immediate_effect(self, executed_player_id):
             super().execute_immediate_effect(executed_player_id)
             if self.game_state.players[executed_player_id].buildings[1] < 9:
-                self.game_state.invoke_immediate_aciton(executed_player_id, ('select_position', 'controlled', (1, 'alone_or_neighbor')))
+                if self.game_state.invoke_immediate_aciton(executed_player_id, ('select_position', 'controlled', (1, 'alone_or_neighbor'))): return 
                 self.game_state.adjust(executed_player_id,[('building', 'upgrade_special', 2, False)])
             
     class BookAction5(BookAction):
+
+        id = 5
         
         def cost(self, player_id):
             return [('book', 'self', 'any', 2)], [('book', 'use', 'any', 2)]
@@ -2083,6 +2138,8 @@ class AllEffectObject:
             super().execute_immediate_effect(executed_player_id)
 
     class BookAction6(BookAction):
+
+        id = 6
         
         def cost(self, player_id):
             return [('book', 'self', 'any', 3)], [('book', 'use', 'any', 3)]
@@ -2095,6 +2152,8 @@ class AllEffectObject:
     
     class CityTileBook(CityTile):
 
+        id = 1
+
         def execute_immediate_effect(self, executed_player_id):
             self.immediate_effect.extend([
                 ('book', 'get', 'any', 2),
@@ -2103,6 +2162,8 @@ class AllEffectObject:
             super().execute_immediate_effect(executed_player_id)
 
     class CityTileTrack(CityTile):
+
+        id = 2
 
         def execute_immediate_effect(self, executed_player_id):
             self.immediate_effect.extend([
@@ -2116,6 +2177,8 @@ class AllEffectObject:
     
     class CityTileShovel(CityTile):
 
+        id = 3
+
         def execute_immediate_effect(self, executed_player_id):
             self.immediate_effect.extend([
                 ('spade', 2),
@@ -2124,6 +2187,8 @@ class AllEffectObject:
             super().execute_immediate_effect(executed_player_id)
     
     class CityTileMagics(CityTile):
+
+        id = 4
 
         def execute_immediate_effect(self, executed_player_id):
             self.immediate_effect.extend([
@@ -2134,6 +2199,8 @@ class AllEffectObject:
     
     class CityTileOre(CityTile):
 
+        id = 5
+
         def execute_immediate_effect(self, executed_player_id):
             self.immediate_effect.extend([
                 ('ore', 'get', 3),
@@ -2143,6 +2210,8 @@ class AllEffectObject:
     
     class CityTileMeeple(CityTile):
 
+        id = 6
+
         def execute_immediate_effect(self, executed_player_id):
             self.immediate_effect.extend([
                 ('meeple', 'get', 1),
@@ -2151,6 +2220,8 @@ class AllEffectObject:
             super().execute_immediate_effect(executed_player_id)
     
     class CityTileMoney(CityTile):
+
+        id = 7
         
         def execute_immediate_effect(self, executed_player_id):
             self.immediate_effect.extend([
@@ -2160,6 +2231,8 @@ class AllEffectObject:
             super().execute_immediate_effect(executed_player_id)
 
     class MagicsActionBridge(MagicsAction):
+
+        id = 1
 
         def cost(self, player_id):
             return [('magics',3,3)], [('magics', 'use', 3)]
@@ -2171,6 +2244,8 @@ class AllEffectObject:
             super().execute_immediate_effect(executed_player_id)
 
     class MagicsActionMeeple(MagicsAction):
+
+        id = 2
         
         def cost(self, player_id):
             return [('magics',3,3)], [('magics', 'use', 3)]
@@ -2182,6 +2257,8 @@ class AllEffectObject:
             super().execute_immediate_effect(executed_player_id)
         
     class MagicsActionOre(MagicsAction):
+
+        id = 3
         
         def cost(self, player_id):
             return [('magics',3,4)], [('magics', 'use', 4)]
@@ -2193,6 +2270,8 @@ class AllEffectObject:
             super().execute_immediate_effect(executed_player_id)
 
     class MagicsActionMoney(MagicsAction):
+
+        id = 4
         
         def cost(self, player_id):
             return [('magics',3,4)], [('magics', 'use', 4)]
@@ -2204,6 +2283,8 @@ class AllEffectObject:
             super().execute_immediate_effect(executed_player_id)
 
     class MagicsActionShovel1(MagicsAction):
+
+        id = 5
         
         def cost(self, player_id):
             return [('magics',3,4)], [('magics', 'use', 4)]
@@ -2215,6 +2296,8 @@ class AllEffectObject:
             super().execute_immediate_effect(executed_player_id)
 
     class MagicsActionShovel2(MagicsAction):
+
+        id = 6
         
         def cost(self, player_id):
             return [('magics',3,6)], [('magics', 'use', 6)]

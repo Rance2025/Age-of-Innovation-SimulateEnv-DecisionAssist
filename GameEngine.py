@@ -1,5 +1,6 @@
 from GameState import GameStateBase
 from Agent import AgentBase
+from web_io import Silence_IO
 
 class GameEngine:
     """游戏引擎"""
@@ -65,6 +66,12 @@ class GameEngine:
                     self.agents[player_id].action_step('target', typ, action_id)
                 else:
                     self.agents[player_id].action_step('random', typ, args)
+                    
+                if typ == 'normal':
+                    if self.agents[player_id].action_system.is_next_action_exist():
+                        self.action(player_id, 'normal')
+                    else:
+                        self.agents[player_id].action_system.reset_action_state()
             case 'reproduce':
                 if self.next_immediate_action:
                     return (True, *self.next_immediate_action)
@@ -74,8 +81,11 @@ class GameEngine:
                     assert action_player_id == player_id
                     assert action_typ == typ
                     self.agents[player_id].action_step('target', typ, action_id)
-                    if action_typ == 'normal' and not self.agents[player_id].action_system.is_next_action_exist():
-                        self.agents[player_id].action_system.reset_action_state()
+                    if typ == 'normal':
+                        if self.agents[player_id].action_system.is_next_action_exist():
+                            self.action(player_id, 'normal')
+                        else:
+                            self.agents[player_id].action_system.reset_action_state()
                 else:
                     return (True, player_id, typ, args)
         return (False,)
@@ -157,7 +167,7 @@ class GameEngine:
 
             if self.game_args['action_mode'] == 'input':
                 self.web_io.update_global_status(f'第{self.game_state.round}轮收入阶段\n玩家行动顺序：{','.join(map(lambda x:str(x+1),current_player_order))}')
-            # TODO 打印可视化收入阶段
+
             for player_idx in self.current_round_init_player_order:
                 # print(self.game_state.players[player_idx].income_effect_list)
                 for income_effect in self.game_state.players[player_idx].income_effect_list:
@@ -176,7 +186,7 @@ class GameEngine:
 
             if self.game_args['action_mode'] == 'input':
                 self.web_io.update_global_status(f'第{self.game_state.round}轮回合结束结算阶段\n玩家行动顺序：{','.join(map(lambda x:str(x+1),self.game_state.pass_order))}')
-            # TODO 打印可视化结算阶段
+
             for effect_object_typ in [
                 # 回合结束奖励，并添加下一回合的回合计分
                 'round_scoring', 'final_scoring',
@@ -200,30 +210,21 @@ class GameEngine:
         if flag:
             return data
 
-        print(f"\n=== 正式轮次阶段 ===")
+        if self.game_args['action_mode'] == 'input': print(f"\n=== 正式轮次阶段 ===")
         for round_idx in range(1, 7):
             # 设置游戏当前轮次
             self.game_state.round = round_idx  
-            print(f"\n--- 第{round_idx}轮 ---")
+            if self.game_args['action_mode'] == 'input':print(f"\n--- 第{round_idx}轮 ---")
             
             flag, *data = execute_formal_round()
             if flag:
                 return data
 
-        print("\n=== 终局结算阶段 ===\n")
-        # TODO 终局结算
-        "游戏结束，进入终局结算"
+        if self.game_args['action_mode'] == 'input':print("\n=== 终局结算阶段 ===\n")
+        rank = sorted(self.game_state.calculate_players_total_score().items(),key=lambda x:x[1],reverse=True)
+        
+        return tuple(map(lambda x:x[1],rank))
         return (None,None)
-
-    class silence_io:
-        def get_input(self, prompt):
-            pass
-        def output(self, channel, message):
-            pass
-        def update_player_states(self, states):
-            pass
-        def update_global_status(self, message):
-            pass
 
     def reproduce(self, action_history_appendix: list):
         reproduce_args = {
@@ -233,7 +234,7 @@ class GameEngine:
             'setup_player_order_args': self.game_args['setup_player_order_args'].copy(),
             'action_history': self.game_args['action_history'].copy() + action_history_appendix.copy(),
             'action_mode': 'reproduce',
-            'web_io': self.silence_io(),
+            'web_io': Silence_IO(),
         }
         reproduce_game = GameEngine(reproduce_args)
         next_action_data = reproduce_game.run_game()
@@ -250,7 +251,7 @@ class GameEngine:
             'setup_player_order_args': self.game_args['setup_player_order_args'].copy(),
             'action_history': self.game_args['action_history'].copy() + action_history_appendix.copy(),
             'action_mode': 'simulate',
-            'web_io': self.silence_io(),
+            'web_io': Silence_IO(),
         }
         simulate_game = GameEngine(simulate_args)
         simulate_game.run_game()

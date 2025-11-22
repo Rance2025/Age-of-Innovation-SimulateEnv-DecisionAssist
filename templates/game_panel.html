@@ -146,16 +146,6 @@
             background-color: var(--bg-elevated);
         }
         
-        .stat-item {
-            margin-bottom: 12px;
-            border-bottom: 1px solid var(--border);
-        }
-        
-        .stat-item:last-child {
-            border-bottom: none;
-            margin-bottom: 0;
-        }
-        
         .stat-label {
             font-size: 0.8rem;
             color: var(--text-secondary);
@@ -178,13 +168,16 @@
             background-color: var(--bg-secondary);
         }
         
+        /* 修改日志项样式，支持自定义颜色 */
         .log-item {
             background-color: var(--bg-tertiary);
-            border-left: 2px solid var(--accent);
+            border-left: 2px solid var(--accent); /* 默认颜色 */
             padding: 6px;
             margin-bottom: 4px;
             border-radius: 0 0 0 0;
             font-family: 'Consolas', monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
         }
 
         .log-item, .action-item {
@@ -194,6 +187,91 @@
         
         .log-item:hover {
             background-color: rgba(77, 166, 255, 0.1);
+        }
+        /* 玩家状态面板新样式 */
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .stat-row:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            border-right: 1px solid var(--border);
+            margin-top: 6px;
+            margin-bottom: 6px;
+        }
+        
+        .stat-item:last-child {
+            border-right: none;
+        }
+
+        .stat-content {
+            display: flex;
+            align-items: center;
+            gap: 6px; /* 控制图标和数字之间的间距 */
+            justify-content: center;
+            width: 100%;
+        }
+
+        .stat-icon {
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+
+        /* 图标颜色定义 */
+        .fa-coins { color: gold; }
+        .fa-cube { color: silver; }
+        .fa-user { color: #ff6b6b; }
+        .fa-university { color: #4ecdc4; }
+        .fa-gavel { color: #45b7d1; }
+        .fa-cog { color: #96ceb4; }
+        .fa-heartbeat { color: #feca57; }
+        .fa-city { color: #ff9ff3; }
+        .fa-ship { color: #54a0ff; }
+        .fa-digging { color: #a29bfe; }
+
+        /* 图标堆叠样式 */
+        .icon-stack {
+            position: relative;
+            display: inline-block;
+            width: 1.5em;
+            height: 1.5em;
+            flex-shrink: 0;
+        }
+
+        .icon-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            font-size: 1.5em;
+            color: #e4e4e4;
+        }
+
+        .icon-foreground {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 0.7em;
+            color: #0a0a0a;
+        }
+
+        .stat-value {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            white-space: nowrap;
         }
         
         /* ===== 中间区域 (50%) ===== */
@@ -307,12 +385,28 @@
         
         .action-item {
             background-color: var(--bg-tertiary);
-            border-left: 2px solid var(--accent);
+            border-left: 4px solid var(--accent); /* 默认颜色 */
             padding: 10px;
             margin-bottom: 8px;
             border-radius: 0 2px 2px 0;
             font-family: 'Consolas', monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
         }
+        /* 支持不同颜色的边框 */
+        .log-item[data-color="blue"] { border-left-color: #007bff; }
+        .log-item[data-color="orange"] { border-left-color: #f1a61b; }
+        .log-item[data-color="purple"] { border-left-color: #ad32ef; }
+        .log-item[data-color="pink"] { border-left-color: #e57ea9; }
+
+        .action-item[data-color="red"] { border-left-color: #cc2828; }
+        .action-item[data-color="green"] { border-left-color: #37af37; }
+        .action-item[data-color="blue"] { border-left-color: #35a0d5; }
+        .action-item[data-color="yellow"] { border-left-color: #e8e83d; }
+        .action-item[data-color="grey"] { border-left-color: #a1a1a1; }
+        .action-item[data-color="brown"] { border-left-color: #85491D; }
+        .action-item[data-color="black"] { border-left-color: #595959; }
+        .action-item[data-color="white"] { border-left-color: #ffffff; }
         
         .global-input {
             background-color: var(--bg-secondary);
@@ -425,21 +519,107 @@
                             </div>
                             <div class="player-status">
                                 <div class="player-stats">
-                                    <div class="stat-item">
-                                        <div class="stat-label">部队规模</div>
-                                        <div class="stat-value">0</div>
+                                    <!-- 第一行：资源数量 -->
+                                    <div class="stat-row">
+                                        <div class="stat-item">
+                                            <div class="stat-content">
+                                                <i class="fas fa-coins stat-icon"></i>
+                                                <span class="stat-value" id="player{{i}}-money">0</span>
+                                            </div>
+                                        </div>
+                                        <div class="stat-item">
+                                            <div class="stat-content">
+                                                <i class="fas fa-cube stat-icon"></i>
+                                                <span class="stat-value" id="player{{i}}-mineral">0</span>
+                                            </div>
+                                        </div>
+                                        <div class="stat-item">
+                                            <div class="stat-content">
+                                                <i class="fas fa-user stat-icon"></i>
+                                                <span class="stat-value" id="player{{i}}-mibao">0</span>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div class="stat-item">
-                                        <div class="stat-label">资源储备</div>
-                                        <div class="stat-value">0</div>
+                                    
+                                    <!-- 第二行：书籍数量 -->
+                                    <div class="stat-row">
+                                        <div class="stat-item">
+                                            <div class="stat-content">
+                                                <i class="fas fa-university stat-icon"></i>
+                                                <span class="stat-value" id="player{{i}}-bank">0</span>
+                                            </div>
+                                        </div>
+                                        <div class="stat-item">
+                                            <div class="stat-content">
+                                                <i class="fas fa-gavel stat-icon"></i>
+                                                <span class="stat-value" id="player{{i}}-law">0</span>
+                                            </div>
+                                        </div>
+                                        <div class="stat-item">
+                                            <div class="stat-content">
+                                                <i class="fas fa-cog stat-icon"></i>
+                                                <span class="stat-value" id="player{{i}}-engineering">0</span>
+                                            </div>
+                                        </div>
+                                        <div class="stat-item">
+                                            <div class="stat-content">
+                                                <i class="fas fa-heartbeat stat-icon"></i>
+                                                <span class="stat-value" id="player{{i}}-medical">0</span>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div class="stat-item">
-                                        <div class="stat-label">当前状态</div>
-                                        <div class="stat-value">待命</div>
+                                    
+                                    <!-- 第三行：三区魔力 -->
+                                    <div class="stat-row">
+                                        <div class="stat-item">
+                                            <div class="stat-content">
+                                                <div class="icon-stack">
+                                                    <i class="fa-solid fa-circle icon-background"></i>
+                                                    <i class="fa-solid fa-1 icon-foreground"></i>
+                                                </div>
+                                                <span class="stat-value" id="player{{i}}-magic1">0</span>
+                                            </div>
+                                        </div>
+                                        <div class="stat-item">
+                                            <div class="stat-content">
+                                                <div class="icon-stack">
+                                                    <i class="fa-solid fa-circle icon-background"></i>
+                                                    <i class="fa-solid fa-2 icon-foreground"></i>
+                                                </div>
+                                                <span class="stat-value" id="player{{i}}-magic2">0</span>
+                                            </div>
+                                        </div>
+                                        <div class="stat-item">
+                                            <div class="stat-content">
+                                                <div class="icon-stack">
+                                                    <i class="fa-solid fa-circle icon-background"></i>
+                                                    <i class="fa-solid fa-3 icon-foreground"></i>
+                                                </div>
+                                                <span class="stat-value" id="player{{i}}-magic3">0</span>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div class="stat-item">
-                                        <div class="stat-label">胜率</div>
-                                        <div class="stat-value">0%</div>
+                                    
+                                    <!-- 第四行：其他状态 -->
+                                    <div class="stat-row">
+                                        <div class="stat-item">
+                                            <div class="stat-content">
+                                                <i class="fas fa-city stat-icon"></i>
+                                                <span class="stat-value" id="player{{i}}-cities">0</span>
+                                            </div>
+                                        </div>
+                                        <div class="stat-item">
+                                            <div class="stat-content">
+                                                <i class="fas fa-ship stat-icon"></i>
+                                                <span class="stat-value" id="player{{i}}-navigation">0</span>
+                                            </div>
+                                        </div>
+                                        <div class="stat-item">
+                                            <div class="stat-content">
+                                                <i class="fas fa-digging stat-icon"></i>
+                                                <span class="stat-value" id="player{{i}}-shovel">0</span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="player-log" id="player-log-{{ i }}">
@@ -516,19 +696,23 @@
         };
         
         // 2. 可选行动流
+        // 修改可选行动流处理，支持自定义颜色
         eventSources.actions = new EventSource('/stream/actions');
         eventSources.actions.onmessage = e => {
             if (e.data.includes(":heartbeat")) return;
             try {
-                const data = JSON.parse(e.data);
+                const data = JSON.parse(JSON.parse(e.data).content);
                 const actionContent = document.getElementById('action-content');
                 const item = document.createElement('div');
                 item.className = 'action-item';
                 item.textContent = data.content;
+                // 设置自定义颜色
+                if (data.color) {
+                    item.setAttribute('data-color', data.color);
+                }
                 actionContent.appendChild(item);
                 actionContent.scrollTop = actionContent.scrollHeight;
                 
-                // 更新计数
                 const countElement = document.getElementById('action-count');
                 countElement.textContent = parseInt(countElement.textContent) + 1;
             } catch (err) {
@@ -537,17 +721,22 @@
         };
         
         // 3. 玩家日志流
+        // 修改玩家日志流处理，支持自定义颜色
         for (let i = 1; i <= {{ panel_count }}; i++) {
             eventSources[`player${i}`] = new EventSource(`/stream/player${i}`);
             eventSources[`player${i}`].onmessage = e => {
                 if (e.data.includes(":heartbeat")) return;
                 try {
-                    const data = JSON.parse(e.data);
+                    const data = JSON.parse(JSON.parse(e.data).content);
                     const logPanel = document.getElementById(`player-log-${i}`);
                     if (logPanel) {
                         const item = document.createElement('div');
                         item.className = 'log-item';
                         item.textContent = data.content;
+                        // 设置自定义颜色
+                        if (data.color) {
+                            item.setAttribute('data-color', data.color);
+                        }
                         logPanel.appendChild(item);
                         logPanel.scrollTop = logPanel.scrollHeight;
                     }

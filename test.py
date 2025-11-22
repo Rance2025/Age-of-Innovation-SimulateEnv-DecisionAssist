@@ -218,3 +218,46 @@
 # import copy
 # g = copy.deepcopy(game_args_dict)
 # print(g)
+# from collections import Counter
+
+# # 方法1：使用普通字典（传统方式）
+# def count_with_dict(items):
+#     count_dict = {}
+#     for item in items:
+#         if item in count_dict:
+#             count_dict[item] += 1
+#         else:
+#             count_dict[item] = 1
+#     return count_dict
+
+# # 方法2：使用 defaultdict（改进方式）
+# from collections import defaultdict
+# def count_with_defaultdict(items):
+#     count_dict = defaultdict(int)
+#     for item in items:
+#         count_dict[item] += 1
+#     return dict(count_dict)
+
+# # 方法3：使用 Counter（推荐方式）
+# def count_with_counter(items):
+#     return Counter(items)
+
+# # 测试数据
+# test_data = ['a', 'b', 'c', 'a', 'b', 'a', 'd'] * 1000
+
+# # 性能比较
+# import time
+
+# def benchmark_counting():
+#     methods = [count_with_dict, count_with_defaultdict, count_with_counter]
+    
+#     for method in methods:
+#         start_time = time.time()
+#         result = method(test_data)
+#         end_time = time.time()
+        
+#         print(f"{method.__name__}: {end_time - start_time:.10f}秒")
+
+# benchmark_counting()
+all_players_largest_chain_num = {1:2,3:4,2:2,4:3}
+print(sorted(all_players_largest_chain_num.items(), key=lambda x:x[1], reverse=True))
