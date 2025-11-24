@@ -58,7 +58,7 @@
         .players-monitor {
             width: 28%;
             height: 100%;
-            overflow: auto;
+            overflow: hidden;
             background-color: var(--bg-secondary);
             border: 1px solid var(--border);
             border-radius: var(--border-radius);
@@ -82,20 +82,32 @@
         .monitor-content {
             flex: 1;
             display: flex;
-            height: 95%;
+            height: 94%;
             flex-direction: column;
             overflow: hidden;
             padding: 0;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            margin-left: 9px;
+            margin-right: 9px;
+            margin-bottom: 8px;
+            background-color: #171717;
         }
         
         .player-grid {
-            display: grid;
-            grid-template-rows: repeat(auto-fill, 1fr);
+            display: flex;
+            flex-direction: column;
             gap: var(--gap);
             padding: var(--gap);
-            flex: none;
-            overflow: hidden;
-            height: 100%;
+            flex: 1;
+            overflow-y: auto;
+            max-height: 100%;
+            /* min-height: 0; 关键修复：允许内容区域收缩 */
+        }
+
+        /* 隐藏Webkit浏览器（Chrome, Safari）的滚动条 */
+        .player-grid::-webkit-scrollbar {
+            display: none;
         }
         
         .player-card {
@@ -105,7 +117,34 @@
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            height: 100%;
+            height: 32.3%; /* 使用max-height替代height */
+            flex-shrink: 0;
+            transition: height 0.3s ease; /* 过渡max-height属性 */
+        }
+
+
+        .player-status {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            min-height: 0;
+            transition: opacity 0.3s ease;
+            opacity: 1;
+        }
+
+
+        .player-card:hover {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.3);
+        }
+        
+        .player-card.collapsed .player-status {
+            opacity: 0;
+        }
+
+        /* 确保收缩状态下的高度 */
+        .player-card.collapsed {
+            height: 50px; /* 收缩后的高度，等于标题栏高度 */
         }
         
         .player-header {
@@ -115,12 +154,58 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            cursor: pointer;
+            user-select: none;
+            transition: background-color 0.2s;
+            flex-shrink: 0;
+            height: 50px; 
+            /* 明确设置标题栏高度 */
+            box-sizing: border-box;
         }
-        
+
+        .player-header:hover {
+            background-color: rgba(77, 166, 255, 0.1);
+        }
+
+        .player-header-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* 规划卡指示器 */
+        .planning-card-indicator {
+            display: flex;
+            align-items: center;
+        }
+
+        .planning-card-circle {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #ffffff;
+            border: 0;
+        }
+
+        /* 派系徽章 */
+        .faction-badge {
+            background-color: rgba(77, 166, 255, 0.2);
+            color: var(--accent-light);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-left: 6px;
+            border: 1px solid rgba(77, 166, 255, 0.3);
+        }
+
+        /* 玩家标题 */
         .player-title {
             font-size: 1rem;
             font-weight: 600;
             color: var(--text-primary);
+            display: flex;
+            align-items: center;
         }
         
         .player-score {
@@ -136,6 +221,16 @@
             flex: 1;
             display: flex;
             overflow: hidden;
+            min-height: 0;
+            transition: 
+                opacity 0.3s ease,
+                transform 0.3s ease, /* 添加变换过渡 */
+                margin 0.3s ease,
+                visibility 0.3s ease; /* 添加可见性过渡 */
+            opacity: 1;
+            transform: scaleY(1); /* 正常状态：垂直缩放为1 */
+            transform-origin: top; /* 变换原点在顶部 */
+            visibility: visible; /* 正常状态：可见 */
         }
         
         .player-stats {
@@ -146,48 +241,6 @@
             background-color: var(--bg-elevated);
         }
         
-        .stat-label {
-            font-size: 0.8rem;
-            color: var(--text-secondary);
-            margin-bottom: 4px;
-        }
-        
-        .stat-value {
-            font-size: 1.1rem;
-            font-weight: 700;
-            color: var(--text-primary);
-        }
-        
-        .player-log {
-            flex: 1.5;
-            padding: var(--panel-padding);
-            overflow-y: scroll;
-            font-size: 0.8rem;
-            line-height: 1.4;
-            color: var(--text-secondary);
-            background-color: var(--bg-secondary);
-        }
-        
-        /* 修改日志项样式，支持自定义颜色 */
-        .log-item {
-            background-color: var(--bg-tertiary);
-            border-left: 2px solid var(--accent); /* 默认颜色 */
-            padding: 6px;
-            margin-bottom: 4px;
-            border-radius: 0 0 0 0;
-            font-family: 'Consolas', monospace;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
-
-        .log-item, .action-item {
-            white-space: pre-wrap; /* 保留空白字符，包括换行 */
-            word-wrap: break-word; /* 允许长单词换行 */
-        }
-        
-        .log-item:hover {
-            background-color: rgba(77, 166, 255, 0.1);
-        }
         /* 玩家状态面板新样式 */
         .stat-row {
             display: flex;
@@ -272,6 +325,68 @@
             font-weight: 700;
             color: var(--text-primary);
             white-space: nowrap;
+        }
+
+        .player-log {
+            flex: 1.5;
+            padding: var(--panel-padding);
+            overflow-y: auto;
+            font-size: 0.8rem;
+            line-height: 1.4;
+            color: var(--text-secondary);
+            background-color: var(--bg-secondary);
+        }
+        .player-log::-webkit-scrollbar {
+            display: none;
+        }
+        
+        /* 修改日志项样式，支持自定义颜色 */
+        .log-item {
+            background-color: var(--bg-tertiary);
+            border-left: 2px solid var(--accent); /* 默认颜色 */
+            padding: 6px;
+            margin-bottom: 4px;
+            border-radius: 0 0 0 0;
+            font-family: 'Consolas', monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        /* 支持不同颜色的边框 */
+        .log-item[data-color="blue"] { border-left-color: #007bff; }
+        .log-item[data-color="orange"] { border-left-color: #f1a61b; }
+        .log-item[data-color="purple"] { border-left-color: #ad32ef; }
+        .log-item[data-color="pink"] { border-left-color: #e57ea9; }
+
+        .log-item, .action-item {
+            white-space: pre-wrap; /* 保留空白字符，包括换行 */
+            word-wrap: break-word; /* 允许长单词换行 */
+        }
+        
+        .log-item:hover {
+            background-color: rgba(77, 166, 255, 0.1);
+        }
+
+        /* 滚动条优化 */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: rgba(100, 100, 100, 0.5);
+            border-radius: 3px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(150, 150, 150, 0.7);
+        }
+        
+        .player-log::-webkit-scrollbar-thumb {
+            background: var(--accent);
         }
         
         /* ===== 中间区域 (50%) ===== */
@@ -393,11 +508,6 @@
             white-space: pre-wrap;
             word-wrap: break-word;
         }
-        /* 支持不同颜色的边框 */
-        .log-item[data-color="blue"] { border-left-color: #007bff; }
-        .log-item[data-color="orange"] { border-left-color: #f1a61b; }
-        .log-item[data-color="purple"] { border-left-color: #ad32ef; }
-        .log-item[data-color="pink"] { border-left-color: #e57ea9; }
 
         .action-item[data-color="red"] { border-left-color: #cc2828; }
         .action-item[data-color="green"] { border-left-color: #37af37; }
@@ -479,25 +589,7 @@
         .action-content::-webkit-scrollbar-thumb {
             background: var(--accent);
         }
-        
-        /* ===== 修复2：确保高度等分 ===== */
-        @media (max-height: 800px) {
-            .player-card {
-                min-height: 0;
-            }
-            
-            .player-stats, .player-log {
-                overflow: hidden;
-            }
-            
-            .stat-item {
-                margin-bottom: 8px;
-            }
-            
-            .log-item {
-                margin-bottom: 6px;
-            }
-        }
+    
     </style>
 </head>
 <body>
@@ -513,9 +605,25 @@
                     <div class="player-grid" id="player-grid">
                         {% for i in range(1, panel_count+1) %}
                         <div class="player-card">
-                            <div class="player-header">
-                                <div class="player-title">玩家 {{ i }}</div>
-                                <div class="player-score">20</div>
+                            <!-- 修改玩家标题栏部分 -->
+                            <div class="player-header" onclick="toggleCard(this)">
+                                <div class="player-header-left">
+                                    <!-- 规划卡显示（首次传递后显示） -->
+                                    <div class="planning-card-indicator" 
+                                         id="player{{i}}-planning-card"
+                                         style="display: none;">
+                                        <div class="planning-card-circle"></div>
+                                    </div>
+                                    
+                                    <div class="player-title">
+                                        <span id="player{{i}}-title">玩家 {{ i }}</span>
+                                        <!-- 派系显示（首次传递后显示） -->
+                                        <span class="faction-badge" 
+                                              id="player{{i}}-faction"
+                                              style="display: none;"></span>
+                                    </div>
+                                </div>
+                                <div class="player-score" id="player{{i}}-score">20</div>
                             </div>
                             <div class="player-status">
                                 <div class="player-stats">
@@ -577,7 +685,7 @@
                                                     <i class="fa-solid fa-circle icon-background"></i>
                                                     <i class="fa-solid fa-1 icon-foreground"></i>
                                                 </div>
-                                                <span class="stat-value" id="player{{i}}-magic1">0</span>
+                                                <span class="stat-value" id="player{{i}}-magic1">5</span>
                                             </div>
                                         </div>
                                         <div class="stat-item">
@@ -586,7 +694,7 @@
                                                     <i class="fa-solid fa-circle icon-background"></i>
                                                     <i class="fa-solid fa-2 icon-foreground"></i>
                                                 </div>
-                                                <span class="stat-value" id="player{{i}}-magic2">0</span>
+                                                <span class="stat-value" id="player{{i}}-magic2">7</span>
                                             </div>
                                         </div>
                                         <div class="stat-item">
@@ -617,7 +725,7 @@
                                         <div class="stat-item">
                                             <div class="stat-content">
                                                 <i class="fas fa-digging stat-icon"></i>
-                                                <span class="stat-value" id="player{{i}}-shovel">0</span>
+                                                <span class="stat-value" id="player{{i}}-shovel">3</span>
                                             </div>
                                         </div>
                                     </div>
@@ -680,6 +788,12 @@
     </div>
 
     <script>
+        // 切换玩家卡片展开/收缩状态
+        function toggleCard(header) {
+            const card = header.parentElement;
+            card.classList.toggle('collapsed');
+        }
+
         // 连接所有数据流
         const eventSources = {};
         
@@ -728,20 +842,25 @@
                 if (e.data.includes(":heartbeat")) return;
                 try {
                     const data = JSON.parse(JSON.parse(e.data).content);
-                    const logPanel = document.getElementById(`player-log-${i}`);
-                    if (logPanel) {
-                        const item = document.createElement('div');
-                        item.className = 'log-item';
-                        item.textContent = data.content;
-                        // 设置自定义颜色
-                        if (data.color) {
-                            item.setAttribute('data-color', data.color);
+                    if ('type' in data && data.type === 'log_info') {
+                        const logPanel = document.getElementById(`player-log-${i}`);
+                        if (logPanel) {
+                            const item = document.createElement('div');
+                            item.className = 'log-item';
+                            item.textContent = data.content;
+                            // 设置自定义颜色
+                            if (data.color) {
+                                item.setAttribute('data-color', data.color);
+                            }
+                            logPanel.appendChild(item);
+                            logPanel.scrollTop = logPanel.scrollHeight;
                         }
-                        logPanel.appendChild(item);
-                        logPanel.scrollTop = logPanel.scrollHeight;
+                    } else if ('type' in data && data.type === 'state_update') {
+                        // 处理状态更新
+                        handlePlayerStateUpdate(data.data);
                     }
                 } catch (err) {
-                    console.error(`玩家${i}日志解析错误:`, err);
+                    console.error(`玩家${i}消息解析错误:`, err);
                 }
             };
         }
@@ -775,6 +894,87 @@
         window.addEventListener('beforeunload', () => {
             Object.values(eventSources).forEach(es => es.close());
         });
+
+        // 处理玩家状态更新
+        function handlePlayerStateUpdate(updateData) {
+            const playerId = updateData.player_id;
+            const updates = updateData.updates;
+            
+            // 更新数值字段
+            const numericFields = {
+                'money': 'money',
+                'ore': 'mineral',
+                'meeple': 'mibao',
+                'bank_book': 'bank',
+                'law_book': 'law',
+                'engineering_book': 'engineering',
+                'medical_book': 'medical',
+                'magics_1': 'magic1',
+                'magics_2': 'magic2',
+                'magics_3': 'magic3',
+                'city_amount': 'cities',
+                'navigation_level': 'navigation',
+                'shovel_level': 'shovel'
+            };
+            
+            // 更新对应的DOM元素
+            for (const [backendField, frontendId] of Object.entries(numericFields)) {
+                if (backendField in updates) {
+                    const element = document.getElementById(`player${playerId}-${frontendId}`);
+                    if (element) {
+                        element.textContent = updates[backendField];
+                    }
+                }
+            }
+            
+            // 更新标题栏特殊字段
+            if ('score' in updates) {
+                const scoreElement = document.getElementById(`player${playerId}-score`);
+                if (scoreElement) {
+                    scoreElement.textContent = updates.score;
+                }
+            }
+            
+            // 更新派系显示
+            if ('faction' in updates) {
+                const factionElement = document.getElementById(`player${playerId}-faction`);
+                if (factionElement) {
+                    if (updates.faction) {
+                        factionElement.textContent = updates.faction;
+                        factionElement.style.display = 'inline';
+                    } else {
+                        factionElement.style.display = 'none';
+                    }
+                }
+            }
+            
+            // 更新规划卡显示
+            if ('planning_card' in updates) {
+                const planningCardElement = document.getElementById(`player${playerId}-planning-card`);
+                if (planningCardElement) {
+                    if (updates.planning_card) {
+                        // 显示规划卡，设置颜色
+                        const circle = planningCardElement.querySelector('.planning-card-circle');
+                        if (circle) {
+                            // 根据规划卡类型设置颜色
+                            const colorMap = {
+                                "森林": "#37af37",    // 森林 - 绿色
+                                "湖泊": "#35a0d5",    // 湖泊 - 蓝色
+                                "沙漠": "#e8e83d",    // 沙漠 - 黄色
+                                "山脉": "#a1a1a1",    // 山地 - 灰色
+                                "平原": "#85491D",    // 平原 - 棕色
+                                "沼泽": "#595959",    // 沼泽 - 黑色
+                                "荒地": "#cc2828",    // 荒地 - 红色
+                            };
+                            circle.style.backgroundColor = colorMap[updates.planning_card] || "#ffffff";
+                        }
+                        planningCardElement.style.display = 'flex';
+                    } else {
+                        planningCardElement.style.display = 'none';
+                    }
+                }
+            }
+        }
     </script>
 </body>
 </html>

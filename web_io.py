@@ -30,6 +30,37 @@ class GamePanel:
         # 启动服务
         threading.Thread(target=self._run_server, daemon=True).start()
         # print(f"✓ 面板运行中: http://{host}:{port} (玩家数: {player_count})")
+
+        # 添加玩家状态存储
+        self.player_states = [{
+            'money': 0,
+            'ore': 0,
+            'meeple': 0,
+            'bank_book': 0,
+            'law_book': 0,
+            'engineering_book': 0,
+            'medical_book': 0,
+            'magics_1': 0,
+            'magics_2': 0,
+            'magics_3': 0,
+            'city_amount': 0,
+            'navigation_level': 0,
+            'shovel_level': 0,
+            'planning_card': None,  # 字符串类型
+            'faction': None,        # 字符串类型
+            'score': 0
+        } for _ in range(player_count)]
+
+        # 规划卡颜色映射
+        self.planning_card_colors = {
+            "development": "#ff4444",      # 发展卡 - 红色
+            "military": "#4444ff",        # 军事卡 - 蓝色
+            "trade": "#44ff44",           # 贸易卡 - 绿色
+            "technology": "#ffff44",       # 科技卡 - 黄色
+            "diplomacy": "#ff44ff",       # 外交卡 - 紫色
+            "infrastructure": "#ffaa44",  # 基建卡 - 橙色
+            "expansion": "#44ffff"        # 扩张卡 - 青色
+        }
     
     def _run_server(self):
         """运行Flask服务器"""
@@ -102,17 +133,57 @@ class GamePanel:
         """2. 输出到指定信息框 (0=可选行动, 1+=玩家)，支持自定义颜色"""
         if 0 <= channel <= self.player_count:
             # 发送包含颜色信息的数据
-            data = {'content': str(message)}
+            data = {'type': 'log_info','content': str(message)}
             if color:
                 data['color'] = color
             self.queues['outputs'][channel].put(json.dumps(data))
 
-    def update_player_state(self, player_id, field, value):
-        """更新单个玩家状态字段"""
-        if 1 <= player_id <= self.player_count:
-            # 这里需要存储玩家状态，然后通过新的SSE流发送
-            # 简化实现：直接更新DOM（实际需要更复杂的实现）
-            pass
+    def update_player_state(self, player_id, updates):
+        """
+        3. 更新玩家状态 - 支持部分字段更新
+        player_id: 玩家ID (1-based)
+        updates: 包含要更新字段的字典
+        """
+        if not 0 <= player_id < self.player_count:
+            raise ValueError(f"玩家ID必须在1-{self.player_count}之间")
+
+        # 更新状态数据
+        state = self.player_states[player_id]
+        for key, value in updates.items():
+            if key in state:
+                state[key] = value
+        
+        # 准备发送到前端的数据
+        frontend_data = {
+            'player_id': player_id+1,
+            'updates': {}
+        }
+        
+        # 处理前13个数值字段
+        numeric_fields = [
+            'money', 'ore', 'meeple', 'bank_book', 'law_book', 
+            'engineering_book', 'medical_book', 'magics_1', 
+            'magics_2', 'magics_3', 'city_amount', 
+            'navigation_level', 'shovel_level'
+        ]
+        
+        for field in numeric_fields:
+            if field in updates:
+                frontend_data['updates'][field] = state[field]
+        
+        # 处理标题栏特殊字段
+        title_fields = ['planning_card', 'faction', 'score']
+        for field in title_fields:
+            if field in updates:
+                frontend_data['updates'][field] = state[field]
+        
+        # 发送到前端
+        self.queues['outputs'][player_id+1].put(json.dumps({
+            'type': 'state_update',
+            'data': frontend_data
+        }))
+        
+        return True
 
     def update_global_status(self, message):
         """4. 更新全局状态 (对局状态)"""
@@ -123,13 +194,13 @@ class Silence_IO:
         pass
     def output(self, channel, message, color=None):
         pass
-    def update_player_states(self, states, color=None):
+    def update_player_states(self, player_id, field, value):
         pass
     def update_global_status(self, message):
         pass
 # 测试代码
 if __name__ == "__main__":
-    panel = GamePanel(player_count=3)
+    panel = GamePanel(player_count=5)
     
     import time
     # time.sleep(3)  # 等待服务器启动
@@ -168,9 +239,25 @@ if __name__ == "__main__":
             
     # except KeyboardInterrupt:
     #     print("\n=== 测试结束 ===")
-    while True:
-        panel.output(0, "这是红色消息", color="red")
-        time.sleep(3)
+    panel.update_player_state(1, {
+        'money': 150,
+        'ore': 75,
+        'meeple': 3,
+        'bank_book': 2,
+        'law_book': 1,
+        'engineering_book': 0,
+        'medical_book': 1,
+        'magics_1': 5,
+        'magics_2': 3,
+        'magics_3': 2,
+        'city_amount': 4,
+        'navigation_level': 2,
+        'shovel_level': 1,
+        'planning_card': 'development',  # 发展卡，显示红色圆圈
+        'faction': '帝国',               # 派系名称
+        'score': 30
+    })
+    time.sleep(5)
 
 
     

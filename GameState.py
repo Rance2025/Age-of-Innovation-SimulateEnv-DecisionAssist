@@ -304,8 +304,8 @@ class GameStateBase:
             
             # 资源系统
             self.resources = {
-                'money': 15,            # 钱
-                'ore': 3,               # 矿
+                'money': 0,            # 钱
+                'ore': 0,               # 矿
                 'bank_book': 0,         # 银行书
                 'law_book': 0,          # 法律书
                 'engineering_book': 0,  # 工程书
@@ -1247,10 +1247,14 @@ class GameStateBase:
         def adjust_money(player_id: int, mode: str, num: int):
             mode_factor = 1 if mode == 'get' else -1
             self.players[player_id].resources['money'] += mode_factor * num
+            if self.game_args['action_mode'] == 'input':
+                self.io.update_player_state(player_id, {'money': self.players[player_id].resources['money']})
         
         def adjust_ore(player_id:int , mode: str, num:int):
             mode_factor = 1 if mode == 'get' else -1
             self.players[player_id].resources['ore'] += mode_factor * num
+            if self.game_args['action_mode'] == 'input':
+                self.io.update_player_state(player_id, {'ore': self.players[player_id].resources['ore']})
         
         def adjust_book(player_id:int , mode: str, typ: str, num: int):
             match mode, typ:
@@ -1273,7 +1277,9 @@ class GameStateBase:
                         self.setup.current_global_books[f'{typ}_book'] += num
                     else:
                         raise ValueError(f'{player_id + 1}号玩家未拥有{typ}书{num}本')
-        
+            if self.game_args['action_mode'] == 'input':
+                self.io.update_player_state(player_id, {f'{x}_book': self.players[player_id].resources[f'{x}_book'] for x in ['bank', 'law', 'engineering', 'medical']})
+
         def adjust_meeple(player_id: int, mode: str, args):
             match mode:
                 case 'get':
@@ -1305,7 +1311,9 @@ class GameStateBase:
                     climb_track(player_id, typ, climb_num)
                     # 插入米宝行动效果触发
                     self.action_effect(player_id=player_id, insert_meeple=True)
-
+            if self.game_args['action_mode'] == 'input':
+                self.io.update_player_state(player_id, {'meeple': self.players[player_id].resources['meeples']})
+                
         def adjust_score(player_id: int, mode: str, which: str, num: int):
             mode_factor = 1 if mode == 'get' else -1
             match which:
@@ -1319,7 +1327,8 @@ class GameStateBase:
                     self.players[player_id].resourcescore += mode_factor * num
                 case _:
                     raise ValueError(f'不存在【{which}】板块分数')
-            return []
+            if self.game_args['action_mode'] == 'input':
+                self.io.update_player_state(player_id, {'score': self.players[player_id].boardscore})
     
         def magic_rotation(player_id: int, mode:str, num:int):
             match mode:
@@ -1348,6 +1357,8 @@ class GameStateBase:
                 case 'science_tile_18':
                     self.players[player_id].magics[3] += num
                     # 科技板块效果-宫殿
+            if self.game_args['action_mode'] == 'input':
+                self.io.update_player_state(player_id, {f'magics_{x}': self.players[player_id].magics[x] for x in range(1, 4)})
 
         def climb_track(player_id: int, typ: str, num: int):
 
@@ -1748,6 +1759,10 @@ class GameStateBase:
                 # 升级航行行动效果触发
                 self.action_effect(player_id=player_id, improve_navigation_or_shovel=True)
 
+            if self.game_args['action_mode'] == 'input':
+                self.io.update_player_state(player_id, {'navigation_level': self.players[player_id].navigation_level})
+
+
         def improve_shovel(player_id: int):
             # 判断是否可升级
             if self.players[player_id].shovel_level > 1:
@@ -1765,6 +1780,9 @@ class GameStateBase:
                 # 升级铲子行动效果触发
                 self.action_effect(player_id=player_id, improve_navigation_or_shovel=True)
         
+            if self.game_args['action_mode'] == 'input':
+                self.io.update_player_state(player_id, {'shovel_level': self.players[player_id].shovel_level})
+
         def get_ability_tile(player_id: int):
             for ability_tile_id in range(1,13):
                 if self.all_available_object_dict['ability_tile'][ability_tile_id].check_get(player_id):

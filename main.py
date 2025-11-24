@@ -11,7 +11,7 @@ if __name__ == "__main__":
         io.update_global_status("=== 大创造时代游戏开始 ===")
         game_args_dict = {
             'num_players': num_players,
-            'setup_mode': 'target',                         # input | random | target 
+            'setup_mode': 'random',                         # input | random | target 
             'setup_tile_args' : (
                 3,                                          # 排除的规划卡
                 [2, 3, 5, 8],                               # 派系板块 (3+1=4个)
@@ -25,8 +25,8 @@ if __name__ == "__main__":
             ),
             'setup_player_order_args': [2, 0, 1],
             'action_history': [],
-            'action_mode': 'input',                          # input | simulate | reproduce
-            'web_io': io, # Silence_IO(5),
+            'action_mode': 'input',                          # input | sim6ulate | reproduce
+            'web_io': io, # Silence_IO(),
             'need_estimate': False,
         }
         # time.sleep(1)

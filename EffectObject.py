@@ -124,6 +124,11 @@ class AllEffectObject:
         
         id = 0
 
+        def get(self, got_player_id):
+            super().get(got_player_id)
+            if self.game_state.game_args['action_mode'] == 'input':
+                self.game_state.io.update_player_state(got_player_id, {'planning_card': self.name_dict[self.id][:2]})
+
         def execute_income_effect(self, executed_player_id):
             '''回合收入效果: 规划卡 (即个人板面) 建筑收入'''
             buildings = self.game_state.players[executed_player_id].buildings
@@ -134,6 +139,13 @@ class AllEffectObject:
                 ('meeple', 'get', 3-buildings[4] + 1-buildings[5]) 
             ])
             super().execute_income_effect(executed_player_id)
+
+        def execute_immediate_effect(self, executed_player_id: int):
+            self.immediate_effect.extend([
+                ('money', 'get', 15),
+                ('ore', 'get', 3),
+            ])
+            super().execute_immediate_effect(executed_player_id)
 
     class Faction(EffectObject):
         
@@ -151,6 +163,13 @@ class AllEffectObject:
             11: '哲学家',
             12: '通灵师',
         }
+
+        id = 0
+        
+        def get(self, got_player_id):
+            super().get(got_player_id)
+            if self.game_state.game_args['action_mode'] == 'input':
+                self.game_state.io.update_player_state(got_player_id, {'faction': self.name_dict[self.id]})
 
     class PalaceTile(EffectObject):
 
@@ -382,6 +401,8 @@ class AllEffectObject:
         def get(self, got_player_id):
             super().get(got_player_id)
             self.game_state.action_effect(player_id=got_player_id, get_city_tile=True)
+            if self.game_state.game_args['action_mode'] == 'input':
+                self.game_state.io.update_player_state(got_player_id, {'city_amount': self.game_state.players[got_player_id].citys_amount})
         
         def execute_immediate_effect(self, executed_player_id):
             self.game_state.players[executed_player_id].citys_amount += 1
