@@ -36,28 +36,28 @@ class AllEffectObject:
         def execute_immediate_effect(self, executed_player_id:int):
             # 执行立即效果
             spend_str, reward_str = self.game_state.adjust(executed_player_id, self.immediate_effect)
-            self._print_effect('立即效果', executed_player_id, spend_str, reward_str)
+            self._print_effect('immediate', executed_player_id, spend_str, reward_str)
             # 清空本版块立即效果列表（以防多玩家获取同一板块时，后获得者重复执行效果）
             self.immediate_effect.clear()
         # 回合收入方法
         def execute_income_effect(self, executed_player_id:int):
             # 执行收入效果
             spend_str, reward_str = self.game_state.adjust(executed_player_id, self.income_effect)
-            self._print_effect('收入效果',executed_player_id, spend_str, reward_str)
+            self._print_effect('income',executed_player_id, spend_str, reward_str)
             # 清空本版块收入效果列表（以防多玩家获取同一板块时，后获得者重复执行效果）
             self.income_effect.clear()
         # 略过回合方法
         def execute_pass_effect(self, executed_player_id:int):
             # 执行略过回合效果
             spend_str, reward_str = self.game_state.adjust(executed_player_id, self.pass_effect)
-            self._print_effect('略过效果',executed_player_id, spend_str, reward_str)
+            self._print_effect('pass',executed_player_id, spend_str, reward_str)
             # 清空本版块略过回合效果列表（以防多玩家获取同一板块时，后获得者重复执行效果）
             self.pass_effect.clear()
         # 初始设置方法
         def execute_setup_effect(self, executed_player_id:int):
             # 执行初始设置效果
             spend_str, reward_str = self.game_state.adjust(executed_player_id, self.setup_effect)
-            self._print_effect('初始效果',executed_player_id, spend_str, reward_str)
+            self._print_effect('setup',executed_player_id, spend_str, reward_str)
             # 清空初始设置效果
             self.setup_effect.clear()
         # 额外行动方法
@@ -93,22 +93,21 @@ class AllEffectObject:
             pass
 
         def _print_effect(self, mode, executed_player_id, spend_str, reward_str):
-            if self.game_state.game_args['action_mode'] == 'input':
-                color_dict = {
-                    '立即效果': 'orange',
-                    '初始效果': 'orange',
-                    '收入效果': 'pink',
-                    '略过效果': 'purple'
-                }
-                if spend_str and reward_str:
-                    print_str = f"{self.name_dict[self.id]}({spend_str}) -> {reward_str}"
-                    self.game_state.io.output(executed_player_id+1,print_str,color=color_dict[mode])
-                elif reward_str:
-                    print_str = f"{self.name_dict[self.id]} -> {reward_str}"
-                    self.game_state.io.output(executed_player_id+1,print_str,color=color_dict[mode])
-                elif spend_str:
-                    print_str = f"{self.name_dict[self.id]}({spend_str})"
-                    self.game_state.io.output(executed_player_id+1,print_str,color=color_dict[mode])
+            color_dict = {
+                'immediate': 'orange',
+                'setup': 'orange',
+                'income': 'pink',
+                'pass': 'purple',
+            }
+            if spend_str and reward_str:
+                print_str = f"{self.name_dict[self.id]}({spend_str}) -> {reward_str}"
+                self.game_state.io.output(executed_player_id+1,print_str,color=color_dict[mode])
+            elif reward_str:
+                print_str = f"{self.name_dict[self.id]} -> {reward_str}"
+                self.game_state.io.output(executed_player_id+1,print_str,color=color_dict[mode])
+            elif spend_str:
+                print_str = f"{self.name_dict[self.id]}({spend_str})"
+                self.game_state.io.output(executed_player_id+1,print_str,color=color_dict[mode])
 
     class PlanningCard(EffectObject):
 
@@ -126,8 +125,7 @@ class AllEffectObject:
 
         def get(self, got_player_id):
             super().get(got_player_id)
-            if self.game_state.game_args['action_mode'] == 'input':
-                self.game_state.io.update_player_state(got_player_id, {'planning_card': self.name_dict[self.id][:2]})
+            self.game_state.io.update_player_state(got_player_id, {'planning_card': self.name_dict[self.id][:2]})
 
         def execute_income_effect(self, executed_player_id):
             '''回合收入效果: 规划卡 (即个人板面) 建筑收入'''
@@ -168,8 +166,7 @@ class AllEffectObject:
         
         def get(self, got_player_id):
             super().get(got_player_id)
-            if self.game_state.game_args['action_mode'] == 'input':
-                self.game_state.io.update_player_state(got_player_id, {'faction': self.name_dict[self.id]})
+            self.game_state.io.update_player_state(got_player_id, {'faction': self.name_dict[self.id]})
 
     class PalaceTile(EffectObject):
 
@@ -200,8 +197,7 @@ class AllEffectObject:
         # 当回合结束时
         def round_end(self):
             if not self.owner_list:
-                if self.game_state.game_args['action_mode'] == 'input':
-                    print(f"回合助推板{self.id} -> 获取时额外获得1块钱")
+                # print(f"回合助推板{self.id} -> 获取时额外获得1块钱")
                 self.immediate_effect.extend([
                     ('money', 'get', 1),
                 ])
@@ -401,8 +397,7 @@ class AllEffectObject:
         def get(self, got_player_id):
             super().get(got_player_id)
             self.game_state.action_effect(player_id=got_player_id, get_city_tile=True)
-            if self.game_state.game_args['action_mode'] == 'input':
-                self.game_state.io.update_player_state(got_player_id, {'city_amount': self.game_state.players[got_player_id].citys_amount})
+            self.game_state.io.update_player_state(got_player_id, {'city_amount': self.game_state.players[got_player_id].citys_amount})
         
         def execute_immediate_effect(self, executed_player_id):
             self.game_state.players[executed_player_id].citys_amount += 1

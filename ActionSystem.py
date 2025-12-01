@@ -915,7 +915,10 @@ class ActionSystem:
             if args == 'give_up':
                 pass
             else:
-                self.game_state.adjust(self.player_id, [('magics', 'get', args)])
+                if args > 1:
+                    self.game_state.adjust(self.player_id, [('magics', 'get', args), ('score', 'use', 'board', args-1)])
+                else:
+                    self.game_state.adjust(self.player_id, [('magics', 'get', args)])
 
         def check_select_city_tile_action() -> list:
             

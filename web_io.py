@@ -1,7 +1,8 @@
-import threading
-import queue
+import os
+from flask import Flask, render_template, request, Response, send_file
 import json
-from flask import Flask, render_template, request, Response
+import queue
+import threading
 
 class GamePanel:
     def __init__(self, host='127.0.0.1', port=5000, player_count=3):
@@ -13,7 +14,6 @@ class GamePanel:
         self.queues = {
             'input': queue.Queue(),       # 用户输入
             'outputs': [queue.Queue() for _ in range(player_count + 1)],  # 0=可选行动, 1+=玩家
-            'player_states': queue.Queue(), # 所有玩家状态
             'global_status': queue.Queue()  # 全局状态
         }
         
@@ -26,6 +26,7 @@ class GamePanel:
         self.app.route('/')(self.render_panel)
         self.app.route('/input', methods=['POST'])(self.handle_input)
         self.app.route('/stream/<stream_type>')(self.stream_data)
+        self.app.route('/images/<path:filename>')(self.serve_image)  # 添加图片服务
         
         # 启动服务
         threading.Thread(target=self._run_server, daemon=True).start()
@@ -123,6 +124,20 @@ class GamePanel:
                 'Access-Control-Allow-Origin': '*'
             }
         )
+    
+    def serve_image(self, filename):
+        """提供图片文件服务"""
+        try:
+            # 检查文件是否存在
+            image_path = os.path.join('images', filename)
+            if not os.path.exists(image_path):
+                return "Image not found", 404
+            
+            # 发送文件
+            return send_file(image_path)
+        except Exception as e:
+            return str(e), 500
+        
     # ===== 4个核心接口 =====
     def get_input(self, prompt="> "):
         """1. 获取用户输入"""
@@ -187,7 +202,155 @@ class GamePanel:
 
     def update_global_status(self, message):
         """4. 更新全局状态 (对局状态)"""
-        self.queues['global_status'].put(message)
+        self.queues['global_status'].put(json.dumps({
+            'type': 'global_state',
+            'content': message
+        }))
+
+    def update_terrain(self, row, col, terrain_type):
+        """
+        5. 更新地图地形
+        row: 行索引 (0-8)
+        col: 列索引 (0-12)
+        terrain_type: 地形类型 (0-7)
+        """
+        if not 0 <= row <= 8 or not 0 <= col <= 12:
+            raise ValueError("行索引必须在0-8之间，列索引必须在0-12之间")
+        
+        if terrain_type not in range(8):
+            raise ValueError("地形类型必须在0-7之间")
+        
+        # 准备发送到前端的数据
+        terrain_data = {
+            'type': 'terrain_update',
+            'data': {
+                'row': row,
+                'col': col,
+                'terrain_type': terrain_type
+            }
+        }
+        
+        # 发送到前端（通过可选行动通道）
+        self.queues['global_status'].put(json.dumps(terrain_data))
+    
+    def update_building(self, hex_row, hex_col, building_color, building_id, mode='replace'):
+        """
+        在指定六边形上放置元素
+        hex_row: 六边形行号 (0-8 对应 A-I)
+        hex_col: 六边形列号 (0-12 对应 1-13)
+        building_color: planning-card-id (中立为0)
+        building_id: 建筑类型 (1-5: 车间,工会,宫殿,学校,大学)
+        mode: 模式 - 'replace'（替换）或 'overlay'（叠加）
+        """
+        if not (0 <= hex_row <= 8 and 0 <= hex_col <= 12):
+            raise ValueError("六边形坐标必须在有效范围内: 行(0-8), 列(0-12)")
+        
+        if building_color not in range(8):
+            raise ValueError("x参数必须在有效范围内")
+        
+        if building_id not in range(1,9):
+            raise ValueError("y参数必须在1-8之间")
+        
+        if mode not in ['replace', 'overlay']:
+            raise ValueError("模式必须是 'replace' 或 'overlay'")
+        
+        # 准备发送到前端的数据
+        element_data = {
+            'type': 'element_placement',
+            'data': {
+                'hex_row': hex_row,
+                'hex_col': hex_col,
+                'x': building_color,
+                'y': building_id,
+                'mode': mode
+            }
+        }
+        
+        # 发送到前端（通过全局状态通道）
+        self.queues['global_status'].put(json.dumps(element_data))
+        return True
+    
+    def set_round_scoring(self, round_num, round_scoring_id):
+        """
+        设置回合计分图片
+        round_num: 回合数 (1-6)
+        x: 计分图片编号 (0-12)
+        """
+        if not 1 <= round_num <= 6:
+            raise ValueError("回合数必须在1-6之间")
+        
+        if not 0 <= round_scoring_id <= 12:
+            raise ValueError("计分图片编号必须在0-12之间")
+        
+        # 准备发送到前端的数据
+        scoring_data = {
+            'type': 'round_scoring',
+            'data': {
+                'round': round_num,
+                'x': round_scoring_id
+            }
+        }
+        
+        # 发送到前端
+        self.queues['global_status'].put(json.dumps(scoring_data))
+        return True
+
+    def set_final_round_bonus(self, final_scoring_id):
+        """
+        设置第6回合的叠加奖励图片
+        x: 奖励图片编号 (13-16)
+        """
+        if not 1 <= final_scoring_id <= 4:
+            raise ValueError("奖励图片编号必须在1-4之间")
+        
+        # 准备发送到前端的数据
+        bonus_data = {
+            'type': 'final_round_bonus',
+            'data': {
+                'x': final_scoring_id + 12
+            }
+        }
+        
+        # 发送到前端
+        self.queues['global_status'].put(json.dumps(bonus_data))
+        return True
+
+    def set_bonus_columns(self, round_bonus_ids):
+        """
+        全量更新右侧助推板块图片
+        x_list: 包含图片编号的列表 (1-20)
+        """
+        if not isinstance(round_bonus_ids, list):
+            raise ValueError("参数必须是列表")
+        
+        for x in round_bonus_ids:
+            if not 1 <= x <= 20:
+                raise ValueError("助推板块图片编号必须在1-20之间")
+        
+        # 准备发送到前端的数据
+        bonus_columns_data = {
+            'type': 'bonus_columns',
+            'data': {
+                'x_list': round_bonus_ids
+            }
+        }
+        
+        # 发送到前端
+        self.queues['global_status'].put(json.dumps(bonus_columns_data))
+        return True
+    
+    def round_update(self, round):
+        
+        # 准备发送到前端的数据
+        round_update_data = {
+            'type': 'round_scoring_update',
+            'data': {
+                'round': round
+            }
+        }
+        # 发送到前端
+        self.queues['global_status'].put(json.dumps(round_update_data))
+        return True
 
 class Silence_IO:
     def get_input(self, prompt = '>'):
@@ -198,9 +361,22 @@ class Silence_IO:
         pass
     def update_global_status(self, message):
         pass
+    def update_terrain(self, row, col, terrain_type):
+        pass
+    def update_building(self, hex_row, hex_col, building_colour, building_id, mode='replace'):
+        pass
+    def set_round_scoring(self, round_num, round_scoring_id):
+        pass
+    def set_final_round_bonus(self, final_scoring_id):
+        pass
+    def set_bonus_columns(self, round_bonus_ids):
+        pass
+    def round_update(self, round):
+        pass
+
 # 测试代码
 if __name__ == "__main__":
-    panel = GamePanel(player_count=5)
+    panel = GamePanel(player_count=3)
     
     import time
     # time.sleep(3)  # 等待服务器启动
@@ -239,25 +415,29 @@ if __name__ == "__main__":
             
     # except KeyboardInterrupt:
     #     print("\n=== 测试结束 ===")
-    panel.update_player_state(1, {
-        'money': 150,
-        'ore': 75,
-        'meeple': 3,
-        'bank_book': 2,
-        'law_book': 1,
-        'engineering_book': 0,
-        'medical_book': 1,
-        'magics_1': 5,
-        'magics_2': 3,
-        'magics_3': 2,
-        'city_amount': 4,
-        'navigation_level': 2,
-        'shovel_level': 1,
-        'planning_card': 'development',  # 发展卡，显示红色圆圈
-        'faction': '帝国',               # 派系名称
-        'score': 30
-    })
-    time.sleep(5)
+    while True:
+        panel.update_player_state(1, {
+            'money': 150,
+            'ore': 75,
+            'meeple': 3,
+            'bank_book': 2,
+            'law_book': 1,
+            'engineering_book': 0,
+            'medical_book': 1,
+            'magics_1': 5,
+            'magics_2': 3,
+            'magics_3': 2,
+            'city_amount': 4,
+            'navigation_level': 2,
+            'shovel_level': 1,
+            'planning_card': '山脉',  # 发展卡，显示红色圆圈
+            'faction': '帝国',               # 派系名称
+            'score': 30
+        })
+        panel.update_building(0, 0, 1, 2, 'replace')
+        panel.set_final_round_bonus(2)
+        panel.round_update(5)
+        time.sleep(3)
 
 
     

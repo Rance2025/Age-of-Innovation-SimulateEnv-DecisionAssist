@@ -69,7 +69,7 @@ class AgentBase:
                 action_id = self.web_io.get_input()
                 if action_id:
                     action_id = int(action_id)
-                    self.web_io.output(self.player_id + 1, readable_action_ids[action_id])
+                    self.web_io.output(self.player_id + 1, readable_action_ids[action_id], color='blue' if typ == 'normal' else 'celeste')
                     print(f'玩家{self.player_id + 1}执行了{readable_action_ids[action_id]}')
                     # 记录该行动
                     self.game_args['action_history'].append((self.player_id, typ, action_id))
@@ -80,7 +80,7 @@ class AgentBase:
                         action_id = 65
                     else:
                         action_id = random.choice(available_action_ids)
-                    self.web_io.output(self.player_id + 1, readable_action_ids[action_id])
+                    self.web_io.output(self.player_id + 1, readable_action_ids[action_id], color='blue' if typ == 'normal' else 'celeste')
                     print(f'玩家{self.player_id + 1}执行了{readable_action_ids[action_id]}')
                     # 记录该行动
                     self.game_args['action_history'].append((self.player_id, typ, action_id))

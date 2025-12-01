@@ -82,16 +82,16 @@ class DetailedAction:
             70: {'action': 'insert_meeple', 'args': 'engineering', 	'description': '选择在工程轨插入米宝'},
             71: {'action': 'insert_meeple', 'args': 'medical', 		'description': '选择在医学轨插入米宝'},
             
-			72: {'action': 'select_book', 'args': ('get', 'bank'), 		'description': '选择获取一本银行书'},
+			72: {'action': 'select_book', 'args': ('get', 'bank'), 		    'description': '选择获取一本银行书'},
             73: {'action': 'select_book', 'args': ('get', 'law'), 			'description': '选择获取一本法律书'},
             74: {'action': 'select_book', 'args': ('get', 'engineering'),	'description': '选择获取一本工程书'},
             75: {'action': 'select_book', 'args': ('get', 'medical'),	 	'description': '选择获取一本医学书'},
-            76: {'action': 'select_book', 'args': ('use', 'bank'), 		'description': '选择花费一本银行书'},
+            76: {'action': 'select_book', 'args': ('use', 'bank'), 		    'description': '选择花费一本银行书'},
             77: {'action': 'select_book', 'args': ('use', 'law'), 			'description': '选择花费一本法律书'},
             78: {'action': 'select_book', 'args': ('use', 'engineering'),	'description': '选择花费一本工程书'},
             79: {'action': 'select_book', 'args': ('use', 'medical'),	 	'description': '选择花费一本医学书'},
             
-			80: {'action': 'select_track', 'args': 'bank', 		'description': '选择推进一格银行轨'},
+			80: {'action': 'select_track', 'args': 'bank', 		    'description': '选择推进一格银行轨'},
             81: {'action': 'select_track', 'args': 'law', 			'description': '选择推进一格法律轨'},
             82: {'action': 'select_track', 'args': 'engineering', 	'description': '选择推进一格工程轨'},
             83: {'action': 'select_track', 'args': 'medical', 		'description': '选择推进一格医学轨'},
@@ -214,7 +214,7 @@ class DetailedAction:
             196: {'action': 'gain_magics', 'args': 22, 'description': '选择吸取22点魔力'},
             197: {'action': 'gain_magics', 'args': 23, 'description': '选择吸取23点魔力'},
             198: {'action': 'gain_magics', 'args': 24, 'description': '选择吸取24点魔力'},
-            199: {'action': 'gain_magics', 'args': 'give_up', 'description': '放弃选择魔力'},
+            199: {'action': 'gain_magics', 'args': 'give_up', 'description': '放弃吸取魔力'},
 
             200: {'action': 'select_city_tile', 'args': 1, 'description': '选择出两书城'},
             201: {'action': 'select_city_tile', 'args': 2, 'description': '选择出四轨城'},
