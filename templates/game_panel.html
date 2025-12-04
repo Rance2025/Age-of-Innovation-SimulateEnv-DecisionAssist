@@ -448,7 +448,9 @@
                 display: none;
             }
 
+            /* 修复游戏卡片边框高亮效果 */
             .game-card {
+                position: relative; /* 确保伪元素正确定位 */
                 background-color: var(--bg-tertiary);
                 border-radius: var(--border-radius);
                 border: 1px solid var(--border);
@@ -460,34 +462,29 @@
                 transition: max-height 0.3s ease;
             }
 
+            /* 修复悬停效果 - 确保边框阴影完整显示 */
             .game-card:hover {
                 border-color: var(--accent);
                 box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.3);
             }
 
+            /* 修复收缩状态下的边框高亮 */
             .game-card.collapsed {
-                /* height: 50px;  */
-                /* 收缩后的高度，等于标题栏高度 */
                 max-height: 50px;
             }
 
+            /* 确保标题栏在收缩状态下正确显示 */
             .game-header {
                 padding: 8px var(--panel-padding);
                 background-color: var(--bg-tertiary);
-                /* border-bottom: 1px solid var(--border); */
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
                 cursor: pointer;
                 user-select: none;
-                transition: background-color 0.2s;
                 flex-shrink: 0;
                 height: 50px;
                 box-sizing: border-box;
-            }
-
-            .game-header:hover {
-                background-color: rgba(77, 166, 255, 0.1);
             }
 
             .game-header-left {
@@ -511,31 +508,214 @@
                 text-align: center;
             }
 
-            .game-indicator {
-                color: var(--text-secondary);
-                transition: transform 0.3s ease;
+            /* 游戏标题栏右侧布局 */
+            .game-header-right {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                position: relative; /* 确保弹窗正确定位 */
             }
 
-            .game-card.collapsed .game-indicator {
+            /* 修复弹窗样式 - 关键修复 */
+            .terrain-tooltip-container {
+                position: relative;
+                display: flex;
+                align-items: center;
+                transition: opacity 0.3s ease;
+            }
+
+            /* 游戏卡片折叠时隐藏帮助图标 */
+            .game-card.collapsed .terrain-tooltip-container {
+                opacity: 0;
+                transform: scale(0.85);
+                pointer-events: none; /* 防止在隐藏状态下被交互 */
+            }
+
+            /* 确保折叠状态下箭头图标位置正确 */
+            .game-card.collapsed .game-header-right {
+                justify-content: flex-end; /* 折叠时内容右对齐 */
+            }
+
+            /* 确保地形提示弹窗在折叠时也隐藏 */
+            .game-card.collapsed .terrain-tooltip {
+                display: none !important;
+            }
+
+            /* 地形提示图标样式 */
+            .terrain-tooltip-trigger {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 24px;
+                height: 24px;
+                color: var(--text-secondary);
+                cursor: help;
+                transition: all 0.3s ease;
+                border-radius: 50%;
+                font-size: 16px;
+                z-index: 10;
+            }
+
+            .terrain-tooltip-trigger:hover {
+                color: var(--accent);
+                background-color: rgba(0, 123, 255, 0.1);
+                transform: scale(1.1);
+            }
+
+            /* 地形图例弹窗样式 - 重新设计定位 */
+            .terrain-tooltip {
+                position: absolute;
+                top: 100%; /* 从触发器底部开始 */
+                right: 0;
+                background: var(--bg-secondary);
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                padding: 15px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                z-index: 1000;
+                min-width: 200px;
+                opacity: 0;
+                visibility: hidden;
+                transform: translateY(-10px); /* 初始位置向上偏移 */
+                transition: all 0.3s ease;
+                margin-top: 8px; /* 与触发器间距 */
+                pointer-events: none; /* 防止干扰 */
+            }
+
+            /* 显示状态 */
+            .terrain-tooltip.show {
+                opacity: 1;
+                visibility: visible;
+                transform: translateY(0);
+                pointer-events: none; /* 显示时允许交互 */
+            }
+
+            /* 添加箭头指示器 */
+            .terrain-tooltip::before {
+                content: '';
+                position: absolute;
+                top: -6px;
+                right: 12px;
+                width: 12px;
+                height: 12px;
+                background: var(--bg-secondary);
+                border-left: 1px solid var(--border);
+                border-top: 1px solid var(--border);
+                transform: rotate(45deg);
+                z-index: -1;
+            }
+
+            .color-ring-container {
+                background: var(--bg-secondary);
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                padding: 20px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                max-width: 320px;
+                width: 100%;
+            }
+
+            .tooltip-content h3 {
+                margin: 0 0 15px 0;
+                font-size: 1rem;
+                color: var(--text-primary);
+                text-align: center;
+                border-bottom: 1px solid var(--border);
+                padding-bottom: 10px;
+            }
+
+            /* 色环容器 */
+            .color-ring-wrapper {
+                display: flex;
+                justify-content: center;
+                margin-bottom: 20px;
+            }
+            
+            /* 优化图例布局 - 整体居中 */
+            .legend {
+                display: grid;
+                grid-template-columns: 1fr 1fr; /* 保持两列 */
+                gap: 12px 20px; /* 增加列间距 */
+                justify-items: center; /* 每列内容居中 */
+                justify-content: center; /* 整体容器居中 */
+                margin: 0 auto;
+                max-width: 280px; /* 限制最大宽度 */
+            }
+            
+            /* 图例项样式 */
+            .legend-item {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                width: 100%; /* 使每个图例项占满可用宽度 */
+                justify-content: center; /* 图例项内容居中 */
+            }
+            
+            .color-box {
+                width: 16px;
+                height: 16px;
+                border-radius: 3px;
+                flex-shrink: 0;
+            }
+            
+            /* 水域图例特殊样式 */
+            .water-legend {
+                border: 2px dashed rgba(255, 255, 255, 0.6);
+                background-color: transparent;
+            }
+
+            /* 确保游戏标题栏正确布局 */
+            .game-header-right {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                position: relative;
+            }
+
+            /* 修改箭头指示器样式 - 简化悬停效果 */
+            .game-indicator {
+                color: var(--text-secondary);
+                transition: all 0.3s ease;
+                padding: 6px;
+                border-radius: 4px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 24px;
+                height: 24px;
+            }
+
+            /* 简化悬停效果 - 只改变图标颜色 */
+            .game-indicator:hover {
+                color: var(--accent);
+            }
+
+            /* 添加旋转动画 - 逆时针旋转90度 */
+            .game-card.collapsed .game-indicator i {
                 transform: rotate(-90deg);
             }
 
+            /* 确保图标有平滑的旋转过渡 */
+            .game-indicator i {
+                transition: transform 0.3s ease;
+            }
+
+            /* 确保内容区域正确隐藏 */
             .map-board-status {
                 flex: 1;
                 display: flex;
                 overflow: hidden;
                 min-height: 0;
-                transition: 
-                    opacity 0.3s ease;
-                    /* transform 0.5s ease; */
+                transition: opacity 0.3s ease;
                 opacity: 1;
-                /* transform: scaleY(1);
-                transform-origin: top; */
+                /* 确保不干扰边框阴影 */
+                position: relative;
+                z-index: 0;
             }
 
             .game-card.collapsed .map-board-status {
                 opacity: 0;
-                /* transform: scaleY(0); */
             }
 
             .game-stats {
@@ -724,9 +904,9 @@
                 content: '';    
                 position: absolute;
                 z-index: -1;
-                left: -60%;
+                left: -50%;
                 top: -50%;
-                width: 220%;
+                width: 200%;
                 height: 200%;
                 background-color: #1a232a;
                 background-repeat: no-repeat;
@@ -838,45 +1018,91 @@
             }
             
             /* 右侧奖励区 - 占剩余70%宽度 */
+            /* 右侧奖励区容器 */
             .right-column {
-                width: 70%;
+                width: 70%; /* 占总体卡片的70% */
                 display: flex;
-                gap: 10px;
-                min-height: 100%;
-                padding: 5px;
-                align-items: stretch;
+                gap: 6px; /* 单元格间距 */
+                padding: 4px;
+                /* align-items: normal;  */
+                /* 拉伸子项以填充高度 */
+                min-height: 100px; /* 最小高度 */
+                box-sizing: border-box;
+                overflow: hidden; /* 隐藏溢出内容 */
             }
 
+            /* 奖励单元格 - 自适应布局 */
             .bonus-cell {
-                flex: 1;
-                /* background-color: transparent; */
-                /* border: 1px solid var(--border); */
-                /* border-radius: 4px; */
+                position: relative;
+                flex: 1; /* 等分可用空间 */
+                min-width: 0; /* 防止内容溢出 */
+                perspective: 1000px;
+                border-radius: 4px;
+                overflow: hidden;
+                /* cursor: pointer; */
+                display: flex;
+                flex-direction: column;
+            }
+
+            /* 卡片容器 - 保持宽高比 */
+            .bonus-cell .card-container {
+                position: relative;
+                width: 100%;
+                padding-bottom: 266.67%; /* 400/150 = 2.6667，保持图片比例 */
+                transform-style: preserve-3d;
+                transition: transform 0.6s ease;
+                flex-shrink: 0;
+            }
+
+            /* 卡片面 - 绝对定位填充容器 */
+            .bonus-cell .card-face {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                backface-visibility: hidden;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                min-width: 0; /* 防止内容溢出 */
-                position: relative; /* 为标签定位做准备 */
+                background: var(--bg-tertiary);
+                border-radius: 4px;
             }
 
+            .bonus-cell .card-face.back {
+                transform: rotateY(180deg);
+            }
+
+            /* 单个翻面状态 */
+            .bonus-cell.flipped .card-container {
+                transform: rotateY(180deg);
+            }
+
+            /* 图片样式 - 填充卡片面 */
             .bonus-cell img {
                 width: 100%;
                 height: 100%;
                 object-fit: contain;
-                /* padding: 5px; */
+                /* padding: 0px; */
+                box-sizing: border-box;
             }
             
             /* 助推板标签 */
             .bonus-label {
                 position: absolute;
                 bottom: 6px;
-                /* left: 0px; */
+                left: 8px;
+                right: 8px;
                 font-size: 0.6rem;
                 color: #ededed;
                 background: rgba(0, 0, 0, 0.5);
                 padding: 2px 4px;
                 border-radius: 4px;
-                z-index: 3;
+                z-index: 10;
+                pointer-events: none;
+                text-align: center; /* 文本居中 */
+                white-space: nowrap; /* 防止文本换行 */
+                min-width: 0px; /* 设置最小宽度，确保标签有足够空间 */
             }
             
             
@@ -1233,15 +1459,140 @@
                             <div class="game-card">
                                 <div class="game-header" onclick="toggleGameCard(this)">
                                     <div class="game-header-left">
-                                        <div class="game-title">
-                                            <i class="fas fa-map"></i>
-                                            <span>游戏版图</span>
+                                      <div class="game-title">
+                                        <i class="fas fa-map"></i>
+                                        <span>游戏版图</span>
+                                      </div>
+                                    </div>
+                                    <div class="game-header-right">
+                                      <!-- 地形提示图标 -->
+                                      <div class="terrain-tooltip-container">
+                                        <div class="terrain-tooltip-trigger" id="terrain-tooltip-trigger">
+                                          <i class="fas fa-question-circle"></i>
                                         </div>
-                                    </div>
-                                    <div class="game-indicator">
+                                        <!-- 地形图例弹窗 -->
+                                        <div class="terrain-tooltip" id="terrain-tooltip">
+                                          <div class="tooltip-content">
+                                            <h3>地形色环与图例</h3>
+                                            
+                                            <!-- 优化的色环 -->
+                                            <div class="color-ring-wrapper">
+                                              <svg width="200" height="200" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+                                                <!-- 精确七等分扇形 - 使用三角函数计算的精确坐标 -->
+                                                
+                                                <!-- 扇形1：森林 (0° - 51.43°) -->
+                                                <path d="
+                                                  M 200 200
+                                                  L 200 20
+                                                  A 180 180 0 0 1 340.73 87.77
+                                                  Z
+                                                " fill="#37af37" stroke="rgb(219, 219, 219)" stroke-width="3" />
+                                                
+                                                <!-- 扇形2：山脉 (51.43° - 102.86°) -->
+                                                <path d="
+                                                  M 200 200
+                                                  L 340.73 87.77
+                                                  A 180 180 0 0 1 375.49 240.05
+                                                  Z
+                                                " fill="#a1a1a1" stroke="rgb(219, 219, 219)" stroke-width="3" />
+                                                
+                                                <!-- 扇形3：湖泊 (102.86° - 154.29°) -->
+                                                <path d="
+                                                  M 200 200
+                                                  L 375.49 240.05
+                                                  A 180 180 0 0 1 278.10 362.17
+                                                  Z
+                                                " fill="#35a0d5" stroke="rgb(219, 219, 219)" stroke-width="3" />
+                                                
+                                                <!-- 扇形4：荒地 (154.29° - 205.71°) -->
+                                                <path d="
+                                                  M 200 200
+                                                  L 278.10 362.17
+                                                  A 180 180 0 0 1 121.90 362.17
+                                                  Z
+                                                " fill="#cc2828" stroke="rgb(219, 219, 219)" stroke-width="3" />
+                                                
+                                                <!-- 扇形5：沼泽 (205.71° - 257.14°) -->
+                                                <path d="
+                                                  M 200 200
+                                                  L 121.90 362.17
+                                                  A 180 180 0 0 1 24.51 240.05
+                                                  Z
+                                                " fill="#595959" stroke="rgb(219, 219, 219)" stroke-width="3" />
+                                                
+                                                <!-- 扇形6：沙漠 (257.14° - 308.57°) -->
+                                                <path d="
+                                                  M 200 200
+                                                  L 24.51 240.05
+                                                  A 180 180 0 0 1 59.27 87.77
+                                                  Z
+                                                " fill="#e8e83d" stroke="rgb(219, 219, 219)" stroke-width="3" />
+                                                
+                                                <!-- 扇形7：平原 (308.57° - 360°) -->
+                                                <path d="
+                                                  M 200 200
+                                                  L 59.27 87.77
+                                                  A 180 180 0 0 1 200 20
+                                                  Z
+                                                " fill="#85491D" stroke="rgb(219, 219, 219)" stroke-width="3" />
+                                                
+                                                <!-- 内圆（透明填充，白色边框，形成圆环效果） -->
+                                                <circle cx="200" cy="200" r="75" fill="var(--bg-secondary);" stroke="rgb(219, 219, 219)" stroke-width="3" />
+                                              </svg>
+                                            </div>
+                                            
+                                            <!-- 地形图例 - 4行2列布局 -->
+                                            <div class="legend">
+                                              <!-- 第1行 -->
+                                              <div class="legend-item">
+                                                <div class="color-box" style="background-color: #37af37;"></div>
+                                                <span>森林</span>
+                                              </div>
+                                              <div class="legend-item">
+                                                <div class="color-box" style="background-color: #a1a1a1;"></div>
+                                                <span>山脉</span>
+                                              </div>
+                                              
+                                              <!-- 第2行 -->
+                                              <div class="legend-item">
+                                                <div class="color-box" style="background-color: #35a0d5;"></div>
+                                                <span>湖泊</span>
+                                              </div>
+                                              <div class="legend-item">
+                                                <div class="color-box" style="background-color: #cc2828;"></div>
+                                                <span>荒地</span>
+                                              </div>
+                                              
+                                              <!-- 第3行 -->
+                                              <div class="legend-item">
+                                                <div class="color-box" style="background-color: #595959;"></div>
+                                                <span>沼泽</span>
+                                              </div>
+                                              <div class="legend-item">
+                                                <div class="color-box" style="background-color: #e8e83d;"></div>
+                                                <span>沙漠</span>
+                                              </div>
+                                              
+                                              <!-- 第4行 -->
+                                              <div class="legend-item">
+                                                <div class="color-box" style="background-color: #85491D;"></div>
+                                                <span>平原</span>
+                                              </div>
+                                              <div class="legend-item">
+                                                <!-- 水域图例使用透明色虚线边框 -->
+                                                <div class="color-box water-legend"></div>
+                                                <span>水域</span>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <!-- 修改箭头图标，添加点击事件 -->
+                                      <div class="game-indicator">
                                         <i class="fas fa-chevron-down"></i>
+                                      </div>
                                     </div>
-                                </div>
+                                  </div>
                                 <div class="map-board-status">
                                     <div class="map-container-full">
                                         <svg id="hex-grid-svg" width="100%" height="100%" viewBox="0 0 800 640" preserveAspectRatio="xMidYMid slice">
@@ -1435,9 +1786,9 @@
                 card.classList.toggle('collapsed');
             }
             
-            // 切换游戏卡片展开/收缩状态
-            function toggleGameCard(header) {
-                const card = header.parentElement;
+            // 修改切换游戏卡片展开/收缩状态的函数
+            function toggleGameCard(indicator) {
+                const card = indicator.closest('.game-card');
                 card.classList.toggle('collapsed');
             }
 
@@ -1482,6 +1833,14 @@
                         // 回合计分板翻面
                         const roundData = data.data;
                         RoundScoringUpdate(roundData.round);
+                    } else if ('type' in data && data.type === 'round_bonus_get') {
+                        // 回合助推板获取
+                        const BonusData = data.data;
+                        flipSingleBonusColumn(BonusData.round_booster_index);
+                    } else if ('type' in data && data.type === 'round_bonus_back') {
+                        // 回合助推板获取
+                        const BonusData = data.data;
+                        flipSingleBonusColumn(BonusData.round_booster_index);
                     }
                 } catch (err) {
                     console.error("全局状态解析错误:", err);
@@ -1940,6 +2299,102 @@
                 
                 return true;
             }
+
+            // 完全重写弹窗控制逻辑
+            document.addEventListener('DOMContentLoaded', function() {
+                const tooltipTrigger = document.getElementById('terrain-tooltip-trigger');
+                const tooltip = document.getElementById('terrain-tooltip');
+                let tooltipTimeout;
+                let isTooltipVisible = false;
+                
+                if (!tooltipTrigger || !tooltip) {
+                    console.error('未找到弹窗相关元素');
+                    return;
+                }
+                
+                console.log('地形图例弹窗功能已初始化');
+                
+                // 鼠标进入触发器
+                tooltipTrigger.addEventListener('mouseenter', function() {
+                    console.log('鼠标进入提示图标，开始显示计时');
+                    clearTimeout(tooltipTimeout);
+                    
+                    tooltipTimeout = setTimeout(() => {
+                        if (!isTooltipVisible) {
+                            showTooltip();
+                        }
+                    }, 300);
+                });
+                
+                // 鼠标离开触发器
+                tooltipTrigger.addEventListener('mouseleave', function() {
+                    console.log('鼠标离开提示图标，开始隐藏计时');
+                    clearTimeout(tooltipTimeout);
+                    
+                    // 短暂延迟后隐藏，给鼠标移动到弹窗的时间
+                    tooltipTimeout = setTimeout(() => {
+                        if (isTooltipVisible) {
+                            // 检查鼠标是否在弹窗上
+                            const isHoveringTooltip = tooltip.matches(':hover') || 
+                                                    document.querySelector(':hover') === tooltip;
+                            
+                            if (!isHoveringTooltip) {
+                                hideTooltip();
+                            }
+                        }
+                    }, 300);
+                });
+                
+                // 显示弹窗函数
+                function showTooltip() {
+                    tooltip.classList.add('show');
+                    isTooltipVisible = true;
+                    console.log('弹窗已显示');
+                }
+                
+                // 隐藏弹窗函数
+                function hideTooltip() {
+                    tooltip.classList.remove('show');
+                    isTooltipVisible = false;
+                    clearTimeout(tooltipTimeout);
+                    console.log('弹窗已隐藏');
+                }
+                
+                // 添加全局控制函数
+                window.toggleTerrainTooltip = function(show) {
+                    if (show === undefined) {
+                        // 切换状态
+                        if (isTooltipVisible) {
+                            hideTooltip();
+                        } else {
+                            showTooltip();
+                        }
+                    } else if (show) {
+                        showTooltip();
+                    } else {
+                        hideTooltip();
+                    }
+                };
+            });
+
+            // 添加调试函数
+            function debugTooltip() {
+                const trigger = document.getElementById('terrain-tooltip-trigger');
+                const tooltip = document.getElementById('terrain-tooltip');
+                
+                console.group('地形图例调试信息');
+                console.log('触发器元素:', trigger);
+                console.log('弹窗元素:', tooltip);
+                console.log('弹窗显示状态:', tooltip?.classList.contains('show'));
+                console.log('弹窗计算样式:', tooltip ? window.getComputedStyle(tooltip) : '未找到');
+                console.groupEnd();
+                
+                // 手动测试显示/隐藏
+                if (tooltip) {
+                    tooltip.classList.toggle('show');
+                    console.log('手动切换弹窗状态');
+                }
+            }
             
             // 回合到网格位置的映射
             const ROUND_POSITIONS = {
@@ -2139,34 +2594,11 @@
                 
                 return false;
             }
-            // 添加调试函数检查层级
-            function debugRound6Layers() {
-                console.log('=== 第六回合层级调试 ===');
-                
-                const round6 = document.querySelector('.round-6');
-                if (!round6) {
-                    console.error('找不到第六回合元素');
-                    return;
-                }
-                
-                const elements = round6.querySelectorAll('*');
-                elements.forEach(el => {
-                    const style = window.getComputedStyle(el);
-                    console.log(el.className, {
-                        zIndex: style.zIndex,
-                        display: style.display,
-                        visibility: style.visibility,
-                        opacity: style.opacity,
-                        position: style.position
-                    });
-                });
-            }
 
-            // 在设置叠加图片后调用调试
-            function setFinalRoundBonusWithDebug(x) {
-                const result = setFinalRoundBonus(x);
-                setTimeout(debugRound6Layers, 100); // 延迟100ms后检查层级
-                return result;
+            // 计算背面图片编号的辅助函数
+            function getBackImageNumber(x) {
+                if (x === 0) return 0; // 0对应0
+                return x + 10; // 其他编号对应+10
             }
                         
             // 3. 全量更新右侧的回合助推板块图片
@@ -2201,19 +2633,44 @@
                     cell.className = 'bonus-cell';
                     cell.setAttribute('data-index', index);
                     cell.setAttribute('data-x', x);
-
+                    
+                    // 计算背面图片编号
+                    const backX = getBackImageNumber(x);
+                    
+                    // 创建宽高比容器（Flex方案使用）
+                    const aspectContainer = document.createElement('div');
+                    aspectContainer.className = 'card-container';
+                    
+                    // 创建正面卡片
+                    const frontFace = document.createElement('div');
+                    frontFace.className = 'card-face front';
+                    const frontImg = document.createElement('img');
+                    frontImg.src = `images/bonus/${x}.png`;
+                    frontImg.alt = `助推板块 ${x}`;
+                    frontFace.appendChild(frontImg);
+                    
+                    // 创建背面卡片
+                    const backFace = document.createElement('div');
+                    backFace.className = 'card-face back';
+                    const backImg = document.createElement('img');
+                    backImg.src = `images/bonus/${backX}.png`;
+                    backImg.alt = `助推板块背面 ${backX}`;
+                    backFace.appendChild(backImg);
+                    
+                    // 将正反面添加到卡片容器
+                    aspectContainer.appendChild(frontFace);
+                    aspectContainer.appendChild(backFace);
+                    
                     // 创建标签
                     const label = document.createElement('span');
                     label.className = 'bonus-label';
                     label.textContent = `回合助推板 ${x}`;
-
-                    const img = document.createElement('img');
-                    img.src = `images/bonus/${x}.png`;
-                    img.alt = `助推板块 ${x}`;
                     
-                    
-                    cell.appendChild(img);
+                    // 将卡片容器和标签添加到单元格
+                    cell.appendChild(aspectContainer);
                     cell.appendChild(label);
+                    
+                    // 将单元格添加到网格
                     bonusGrid.appendChild(cell);
                 });
                 
@@ -2221,6 +2678,101 @@
                 return true;
             }
             
+            // 修复后的单个奖励板块翻转函数
+            function flipSingleBonusColumn(index) {
+                // 获取所有奖励单元格
+                const bonusCells = document.querySelectorAll('.bonus-cell');
+                
+                if (!bonusCells || bonusCells.length === 0) {
+                    console.error('未找到奖励板块单元格');
+                    return false;
+                }
+                
+                // 检查索引是否有效
+                if (index === undefined || index === null || index < 0 || index >= bonusCells.length) {
+                    console.error(`索引 ${index} 无效，有效范围: 0-${bonusCells.length-1}，当前单元格数量: ${bonusCells.length}`);
+                    return false;
+                }
+                
+                // 获取指定索引的单元格
+                const targetCell = bonusCells[index];
+                
+                if (!targetCell) {
+                    console.error(`索引 ${index} 对应的单元格不存在`);
+                    return false;
+                }
+                
+                // 检查单元格是否包含必要的类
+                if (!targetCell.classList) {
+                    console.error('目标单元格没有classList属性', targetCell);
+                    return false;
+                }
+                
+                // 切换翻转状态
+                targetCell.classList.toggle('flipped');
+                
+                // 获取当前状态
+                const isFlipped = targetCell.classList.contains('flipped');
+                const xValue = targetCell.getAttribute('data-x') || '未知';
+                
+                console.log(`助推板块 ${index} (编号: ${xValue}) 已${isFlipped ? '翻到背面' : '翻到正面'}`);
+                return true;
+            }
+
+            // 新增函数：设置单个奖励板块的翻转状态
+            function setSingleBonusColumnFlip(index, flipToBack) {
+                const bonusCells = document.querySelectorAll('.bonus-cell');
+                
+                if (bonusCells.length === 0) {
+                    console.error('未找到奖励板块单元格');
+                    return false;
+                }
+                
+                // 检查索引是否有效
+                if (index < 0 || index >= bonusCells.length) {
+                    console.error(`索引 ${index} 无效，有效范围: 0-${bonusCells.length-1}`);
+                    return false;
+                }
+                
+                // 获取指定索引的单元格
+                const targetCell = bonusCells[index];
+                
+                // 根据参数设置翻转状态
+                if (flipToBack) {
+                    targetCell.classList.add('flipped');
+                } else {
+                    targetCell.classList.remove('flipped');
+                }
+                
+                const xValue = targetCell.getAttribute('data-x');
+                console.log(`助推板块 ${index} (编号: ${xValue}) 设置为${flipToBack ? '背面' : '正面'}`);
+                return true;
+            }
+
+            // 新增函数：获取单个奖励板块的翻转状态
+            function getSingleBonusColumnFlipState(index) {
+                const bonusCells = document.querySelectorAll('.bonus-cell');
+                
+                if (bonusCells.length === 0) {
+                    console.error('未找到奖励板块单元格');
+                    return null;
+                }
+                
+                // 检查索引是否有效
+                if (index < 0 || index >= bonusCells.length) {
+                    console.error(`索引 ${index} 无效，有效范围: 0-${bonusCells.length-1}`);
+                    return null;
+                }
+                
+                // 获取指定索引的单元格
+                const targetCell = bonusCells[index];
+                const isFlipped = targetCell.classList.contains('flipped');
+                const xValue = targetCell.getAttribute('data-x');
+                
+                console.log(`助推板块 ${index} (编号: ${xValue}) 当前状态: ${isFlipped ? '背面' : '正面'}`);
+                return isFlipped;
+            }
+
             // 修改初始化函数
             function initializeRoundInfo() {
                 // 初始化回合状态

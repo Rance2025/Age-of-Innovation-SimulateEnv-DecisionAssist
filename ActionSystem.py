@@ -460,7 +460,7 @@ class ActionSystem:
                     case 8:
                         return [166]
                     case 10:
-                        if self.player.buildings[1] >= 8 and self.player.buildings[6] > 0:
+                        if self.player.buildings[1] >= 8 and self.player.buildings[6] == 0:
                             return [165, 167]
                         elif self.player.buildings[1] == 7:
                             return [167]

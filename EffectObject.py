@@ -208,6 +208,8 @@ class AllEffectObject:
             super().get(got_player_id)
             # 设置玩家新一轮回合助推板
             self.game_state.players[got_player_id].booster_ids.append(self.id)
+            # 数据面板更新
+            self.game_state.io.get_round_bonus(self.game_state.setup.selected_round_boosters, self.id)
 
         # 当交还时
         def back(self, executed_player_id):
@@ -225,6 +227,8 @@ class AllEffectObject:
             self.game_state.current_player_order.remove(executed_player_id)
             # 将该玩家id加入当前回合跳过顺序列表
             self.game_state.pass_order.append(executed_player_id)
+            # 数据面板更新
+            self.game_state.io.return_round_bonus(self.game_state.setup.selected_round_boosters, self.id)
 
         def _remove_effect_functions(self, player_id):
             """安全移除所有属于本回合助推板的收入、略过、回合结束效果函数"""
@@ -639,15 +643,14 @@ class AllEffectObject:
         id = 10
 
         def execute_immediate_effect(self, executed_player_id):
-            '''立即效果: 银行、工程轨道推一格 + 获取一中立塔楼'''
+            '''立即效果: 银行、工程轨道推一格'''
             self.immediate_effect.extend([
                 ('tracks','bank',1), 
                 ('tracks','engineering',1)
             ])
-            self.game_state.players[executed_player_id].buildings[6] += 1
             super().execute_immediate_effect(executed_player_id)
             
-        '''初始设置阶段: 可多摆放一个中立塔楼作为初始建筑'''
+        '''初始设置阶段: 可额外摆放一个中立塔楼作为初始建筑'''
         # 写成check_setup_building_action中了
 
         def execute_income_effect(self, executed_player_id):

@@ -351,6 +351,46 @@ class GamePanel:
         # 发送到前端
         self.queues['global_status'].put(json.dumps(round_update_data))
         return True
+    
+    def get_round_bonus(self, setup_round_booster_ids, round_booster_id):
+        """
+        获取回合的助推图片编号
+        round_booster_id: 回合的助推图片编号 (1-10)
+        """
+        if not 1 <= round_booster_id <= 10:
+            raise ValueError("回合的助推图片编号必须在1-10之间")
+        
+        # 准备发送到前端的数据
+        get_booster_data = {
+            'type': 'round_bonus_get',
+            'data': {
+                'round_booster_index': setup_round_booster_ids.index(round_booster_id),
+            }
+        }
+        print(setup_round_booster_ids.index(round_booster_id))
+        # 发送到前端
+        self.queues['global_status'].put(json.dumps(get_booster_data))
+        return True
+
+    def return_round_bonus(self, setup_round_booster_ids, round_booster_id):
+        """
+        返还回合助推图片
+        round_booster_id: 回合的助推图片编号 (1-10)
+        """
+        if not 1 <= round_booster_id <= 10:
+            raise ValueError("回合的助推图片编号必须在1-10之间")
+        
+        # 准备发送到前端的数据
+        get_booster_data = {
+            'type': 'round_bonus_back',
+            'data': {
+                'round_booster_index': setup_round_booster_ids.index(round_booster_id),
+            }
+        }
+        print(setup_round_booster_ids.index(round_booster_id))
+        # 发送到前端
+        self.queues['global_status'].put(json.dumps(get_booster_data))
+        return True
 
 class Silence_IO:
     def get_input(self, prompt = '>'):
@@ -372,6 +412,10 @@ class Silence_IO:
     def set_bonus_columns(self, round_bonus_ids):
         pass
     def round_update(self, round):
+        pass
+    def get_round_bonus(self, setup_round_booster_ids, round_booster_id):
+        pass
+    def return_round_bonus(self, setup_round_booster_ids, round_booster_id):
         pass
 
 # 测试代码

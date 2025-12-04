@@ -2042,7 +2042,10 @@ class GameStateBase:
             reward.append(('money', 'get', 2* shovel_times))
         elif get_city_tile and self.players[player_id].faction_id == 6:
             pass # TODO 鼹鼠派系行动效果
-        elif building_id == 1 and is_edge and self.players[player_id].faction_id == 9:
+        elif building_id == 1 and is_riverside and self.players[player_id].faction_id == 9:
             reward.append(('score', 'get', 'board', 2))
         elif get_ability_tile_typ and self.players[player_id].faction_id == 11:
             reward.append(('book', 'get', get_ability_tile_typ, 1))
+
+        # 获取奖励
+        self.adjust(player_id=player_id, list_to_be_adjusted=reward)
