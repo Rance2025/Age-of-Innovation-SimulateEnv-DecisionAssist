@@ -1,0 +1,82 @@
+{
+  "timestamp": "2026-02-07T23:11:26.508889",
+  "game_args": {
+    "num_players": 3,
+    "setup_mode": "target",
+    "setup_tile_args": [
+      3,
+      [
+        2,
+        3,
+        5,
+        8
+      ],
+      [
+        3,
+        9,
+        14,
+        16
+      ],
+      [
+        1,
+        3,
+        4,
+        7,
+        8,
+        10
+      ],
+      [
+        5,
+        3,
+        4,
+        8,
+        2,
+        6
+      ],
+      2,
+      [
+        3,
+        7,
+        2,
+        6,
+        9,
+        10,
+        12,
+        1,
+        11,
+        5,
+        4,
+        8
+      ],
+      [
+        3,
+        5,
+        18,
+        7,
+        4,
+        2,
+        9,
+        11
+      ],
+      [
+        2,
+        4,
+        6
+      ]
+    ],
+    "setup_player_order_args": [
+      2,
+      0,
+      1
+    ],
+    "action_history": [],
+    "simulation_path": [],
+    "action_mode": "simulate",
+    "need_estimate": false
+  },
+  "result": [
+    79,
+    64,
+    64
+  ]
+}

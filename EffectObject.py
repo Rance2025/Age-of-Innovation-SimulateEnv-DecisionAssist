@@ -280,7 +280,6 @@ class AllEffectObject:
             self.game_state.action_effect(player_id=got_player_id, get_ability_tile_typ=typ)
             super().get(got_player_id)
             
-
     class ScienceTile(EffectObject):
 
         name_dict = {i: f"高科板块{i}" for i in range(1,19)}
@@ -410,8 +409,17 @@ class AllEffectObject:
     class MagicsAction(EffectObject):
         
         name_dict = {i: f"魔力行动板块{i}" for i in range(1,7)}
+        
+        # 立即效果
+        def execute_immediate_effect(self, executed_player_id):
+            # 幻术师行动效果
+            if self.game_state.players[executed_player_id].faction_id == 4:
+                self.immediate_effect.extend([
+                    ('score','get','board',2 if self.game_state.num_players ==  5 else 1)
+                ])
+            super().execute_immediate_effect(executed_player_id)
+        
         # 当回合结束时
-
         def round_end(self):
             # 清空控制者列表
             self.owner_list.clear()
@@ -566,7 +574,7 @@ class AllEffectObject:
             super().execute_immediate_effect(executed_player_id)
         
         '''行动效果: 每次执行魔力行动时, 少花费一点魔力并获得板面分数 (1分, 5人局2分)'''
-        # TODO 幻术师行动效果
+        # 已写进EffectObject的MagicsAction中
 
     class InventorsFaction(Faction):
 
@@ -591,7 +599,7 @@ class AllEffectObject:
             super().execute_setup_effect(executed_player_id)
 
         '''行动效果: 当建城时, 立即免费一铲 + 免费建造一个车间 (无需在刚刚铲的地块上)'''
-        # TODO 蜥蜴人行动效果
+        # 已写进GameState的action_effect和adjust_building方法中
 
     class MolesFaction(Faction):
 
@@ -605,10 +613,47 @@ class AllEffectObject:
             super().execute_immediate_effect(executed_player_id)
         
         '''行动效果: 当执行地形改造并/或建造车间时, 可支付1矿跨越一个地形执行 (终局计分视为可抵达,即使无剩余矿), 并获得4版面分数'''
-        # TODO 鼹鼠行动效果
+        # TODO 鼹鼠 附加可用行动
+        additional_action_name = 'additional_action_moles_faction'
+        
+        def additional_action(self, mode, player_id, args=tuple()):
+            '''附加行动: 支付1矿跨越一个地形执行地形改造和/或建造车间并获得4分'''
+            '''通过添加一个快速行动：支付1矿并拓宽可抵地块列表来实现，并在检测到该地块被选中时收回范围，获得4分'''
+            match mode:
+                case 'check':
+                    if (
+                        # 判断不处于初始阶段
+                        self.game_state.round != 0
+                        # 判断主要行动是否未完成
+                        and self.game_state.players[player_id].main_action_is_done == False
+                    ):  
+                        # 所有可用行动id: 302
+
+                        
+                        
+
+                        available_map_ids = set()
+                        for i,j in self.game_state.players[player_id].controlled_map_ids:
+                            two_direction = [(-2,-1),(-2,0),(-2,1),(-1,i%2-2),(-1,i%2+1),(0,-2),(0,2),(1,i%2-2),(1,i%2+1),(2,-1),(2,0),(2,1)]
+                            available_map_ids |= {(i+dx,j+dy) for dx,dy in two_direction if 0 <= i+dx <= 8 and 0 <= j+dy <= 12}
+                        for i,j in self.game_state.players[player_id].controlled_map_ids:
+                            one_direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
+                            available_map_ids -= {(i+dx,j+dy) for dx,dy in one_direction if 0 <= i+dx <= 8 and 0 <= j+dy <= 12}
+                        return []
+                        
+                    else:
+                        return []
+                    
+                case 'execute':
+
+                    # 设置主行动已执行
+                    self.game_state.players[player_id].main_action_is_done = True
+                    # 获取奖励
+                    self.game_state.adjust(player_id, [('building', 'get', 'any', 1)])
+
         
         '''附加可用行动: 支付1矿, 建造1座桥梁, 连接两侧建筑, 视为相邻'''
-        # TODO 附加可用行动
+        # TODO 鼹鼠 附加可用行动
 
     class MonksFaction(Faction):
 
@@ -993,7 +1038,7 @@ class AllEffectObject:
             ])
             super().execute_income_effect(executed_player_id)
         
-        # TODO 涉及建城效果
+        # 允许6魔力建城，已写进city_establishment_check特判中
 
     class PalaceTile9(PalaceTile):
 
@@ -1006,7 +1051,8 @@ class AllEffectObject:
             ])
             super().execute_income_effect(executed_player_id)
 
-        # TODO 涉及选择位置行动     
+        # TODO 涉及选择位置行动
+        # TODO 涉及最终聚落结算    
 
     class PalaceTile10(PalaceTile):
 
@@ -1107,7 +1153,238 @@ class AllEffectObject:
             ])
             super().execute_income_effect(executed_player_id)
 
-        # TODO 涉及建城检查效果
+        additional_action_name = 'additional_action_palace_tile_14'
+        
+        def additional_action(self, mode, player_id, args=tuple()):
+            '''附加行动: 跨越1河流地块建城'''
+            match mode:
+                case 'check':
+                    if (
+                        # 判断不处于初始阶段
+                        self.game_state.round != 0
+                    ):
+                        # 获取所有水域地块
+                        all_water_pos = [
+                            (x,y) for x in range(9) for y in range(13) 
+                            if self.game_state.map_board_state.map_grid[x][y][0] == 0
+                        ]
+
+                        # 遍历所有水域地块
+                        for i,j in all_water_pos:
+                            # 获取相邻的聚落（以根节点为代表）
+                            adjacent_settlements = set()
+
+                            # 建立搜索方向
+                            direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
+
+                            # 遍历所有相邻的地块
+                            for dx,dy in direction:
+                                new_i, new_j = i+dx, j+dy
+                                if (
+                                    # 边界检查
+                                    0 <= new_i <= 8 and 0 <= new_j <= 12
+                                    # 排除水域地块
+                                    and self.game_state.map_board_state.map_grid[new_i][new_j][0] != 0
+                                    # 确保控制者为当前玩家
+                                    and self.game_state.map_board_state.map_grid[new_i][new_j][1] == player_id
+                                ): 
+                                    # 获取该相邻地块上的建筑的聚落根节点
+                                    building_root, building_root_is_city = self.game_state.map_board_state.find_settlement_root(
+                                        self.game_state.players[player_id].settlements_and_cities,
+                                        (new_i, new_j)
+                                    )
+                                    # 如果该聚落尚未建城
+                                    if building_root_is_city == False:
+                                        # 则将根节点加入相邻聚落集合中
+                                        adjacent_settlements.add(building_root) 
+
+                            # 判断该水域地块相邻地块中是否为存在两个以上未建城聚落    
+                            if len(adjacent_settlements) >= 2:
+
+                                curent_settlement_magics_total = 0  # 当前聚落魔力点之和
+                                curent_settlement_building_nums = 0 # 当前聚落建筑数量
+                                # 遍历所有控制地块，获取其上建筑形成聚落的最少所需要的建筑数
+                                city_min_needed_building_nums = 4
+                                # 判断建城所需最少的总魔力点数
+                                city_min_needed_magics_nums = 7
+
+                                # 遍历所有控制地块
+                                for controlled_pos in self.game_state.players[player_id].controlled_map_ids:
+                                    # 获取控制地库的根节点
+                                    controlled_pos_root, _ = self.game_state.map_board_state.find_settlement_root(
+                                        self.game_state.players[player_id].settlements_and_cities,
+                                        controlled_pos
+                                    )
+                                    # 如果该控制地块的根节点在相邻聚落集合中
+                                    if controlled_pos_root in adjacent_settlements:
+                                        cur_i,cur_j = controlled_pos
+                                        # 则获取该建筑对应魔力点
+                                        building_id, num_side_building = self.game_state.map_board_state.map_grid[cur_i][cur_j][2:4]
+                                        magics_num = self.game_state.map_board_state.building_magic[building_id] + num_side_building
+                                        # 累加计算该聚落魔力点总数
+                                        curent_settlement_magics_total += magics_num
+                                        # 累加计算该聚落建筑总数
+                                        curent_settlement_building_nums += 1 + num_side_building
+                                        # 计算建城最低所需建筑数
+                                        match building_id:
+                                            case 5: # 聚落中有大学允许最低3个建筑建城
+                                                if city_min_needed_building_nums > 3:
+                                                    city_min_needed_building_nums = 3 
+                                            case 7: # 聚落中有纪念碑允许最低2个建筑建城
+                                                if city_min_needed_building_nums > 2:
+                                                    city_min_needed_building_nums = 2
+
+                                # 判断当前聚落是否满足建城条件
+                                if (
+                                    # 判断当前聚落魔力点数和是否大于等于最低建城所需总魔力点数
+                                    curent_settlement_magics_total >= city_min_needed_magics_nums
+                                    # 判断当前聚落建筑数量是否大于等于最低建城所需建筑数
+                                    and curent_settlement_building_nums >= city_min_needed_building_nums
+                                ): 
+                                    return [302]
+                        return []     
+                    else:
+                        return []
+                    
+                case 'execute':
+                    # 可选择建城的水域地块
+                    available_water_pos = []
+                    # 获取所有水域地块
+                    all_water_pos = [
+                        (x,y) for x in range(9) for y in range(13) 
+                        if self.game_state.map_board_state.map_grid[x][y][0] == 0
+                    ]
+
+                    # 遍历所有水域地块
+                    for i,j in all_water_pos:
+                        # 获取相邻的聚落（以根节点为代表）
+                        adjacent_settlements = set()
+
+                        # 建立搜索方向
+                        direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
+
+                        # 遍历所有相邻的地块
+                        for dx,dy in direction:
+                            new_i, new_j = i+dx, j+dy
+                            if (
+                                # 边界检查
+                                0 <= new_i <= 8 and 0 <= new_j <= 12
+                                # 排除水域地块
+                                and self.game_state.map_board_state.map_grid[new_i][new_j][0] != 0
+                                # 确保控制者为当前玩家
+                                and self.game_state.map_board_state.map_grid[new_i][new_j][1] == player_id
+                            ): 
+                                # 获取该相邻地块上的建筑的聚落根节点
+                                building_root, building_root_is_city = self.game_state.map_board_state.find_settlement_root(
+                                    self.game_state.players[player_id].settlements_and_cities,
+                                    (new_i, new_j)
+                                )
+                                # 如果该聚落尚未建城
+                                if building_root_is_city == False:
+                                    # 则将根节点加入相邻聚落集合中
+                                    adjacent_settlements.add(building_root) 
+
+                        # 判断该水域地块相邻地块中是否为存在两个以上未建城聚落    
+                        if len(adjacent_settlements) >= 2:
+
+                            curent_settlement_magics_total = 0  # 当前聚落魔力点之和
+                            curent_settlement_building_nums = 0 # 当前聚落建筑数量
+                            # 遍历所有控制地块，获取其上建筑形成聚落的最少所需要的建筑数
+                            city_min_needed_building_nums = 4
+                            # 判断建城所需最少的总魔力点数
+                            city_min_needed_magics_nums = 7
+
+                            # 遍历所有控制地块
+                            for controlled_pos in self.game_state.players[player_id].controlled_map_ids:
+                                # 获取控制地库的根节点
+                                controlled_pos_root, _ = self.game_state.map_board_state.find_settlement_root(
+                                    self.game_state.players[player_id].settlements_and_cities,
+                                    controlled_pos
+                                )
+                                # 如果该控制地块的根节点在相邻聚落集合中
+                                if controlled_pos_root in adjacent_settlements:
+                                    cur_i,cur_j = controlled_pos
+                                    # 则获取该建筑对应魔力点
+                                    building_id, num_side_building = self.game_state.map_board_state.map_grid[cur_i][cur_j][2:4]
+                                    magics_num = self.game_state.map_board_state.building_magic[building_id] + num_side_building
+                                    # 累加计算该聚落魔力点总数
+                                    curent_settlement_magics_total += magics_num
+                                    # 累加计算该聚落建筑总数
+                                    curent_settlement_building_nums += 1 + num_side_building
+                                    # 计算建城最低所需建筑数
+                                    match building_id:
+                                        case 5: # 聚落中有大学允许最低3个建筑建城
+                                            if city_min_needed_building_nums > 3:
+                                                city_min_needed_building_nums = 3 
+                                        case 7: # 聚落中有纪念碑允许最低2个建筑建城
+                                            if city_min_needed_building_nums > 2:
+                                                city_min_needed_building_nums = 2
+
+                            # 判断当前聚落是否满足建城条件
+                            if (
+                                # 判断当前聚落魔力点数和是否大于等于最低建城所需总魔力点数
+                                curent_settlement_magics_total >= city_min_needed_magics_nums
+                                # 判断当前聚落建筑数量是否大于等于最低建城所需建筑数
+                                and curent_settlement_building_nums >= city_min_needed_building_nums
+                            ): 
+                                # 将合法可建城水域地块加入集合中
+                                available_water_pos.append((i,j))
+                    
+                    # 调起选位行动，从合法可建城水域地块中选择一个
+                    if available_water_pos:
+                        if self.game_state.invoke_immediate_aciton(player_id, ('select_position', 'water', available_water_pos)): return 
+                    else:
+                        raise Exception('没有可建城水域地块')
+                    
+                    # 待合并聚落集合（以跟节点坐标为代表）
+                    to_be_merged_settlements = set()
+                    # 获取选择的地块坐标
+                    i,j = self.game_state.players[player_id].choice_position
+                    # 遍历相邻地块获取待合并聚落的根节点
+                    for dx,dy in direction:
+                        new_i, new_j = i + dx, j + dy
+                        if (
+                            # 边界检查
+                            0 <= new_i <= 8 and 0 <= new_j <= 12
+                            # 排除水域地块
+                            and self.game_state.map_board_state.map_grid[new_i][new_j][0] != 0
+                            # 确保控制者为当前玩家
+                            and self.game_state.map_board_state.map_grid[new_i][new_j][1] == player_id
+                        ): 
+                            # 获取该相邻地块上的建筑的聚落根节点
+                            building_root, building_root_is_city = self.game_state.map_board_state.find_settlement_root(
+                                self.game_state.players[player_id].settlements_and_cities,
+                                (new_i, new_j)
+                            )
+                            # 如果该聚落尚未建城
+                            if building_root_is_city == False:
+                                # 则将根节点加入相邻聚落集合中
+                                to_be_merged_settlements.add(building_root)
+                    # 合并聚落
+                    to_be_merged_settlements = list(to_be_merged_settlements)
+                    if len(to_be_merged_settlements) == 3:
+                        self.game_state.map_board_state.merge_settlement_root(
+                            self.game_state.players[player_id].settlements_and_cities,
+                            to_be_merged_settlements[2],
+                            to_be_merged_settlements[0]
+                        )
+                    self.game_state.map_board_state.merge_settlement_root(
+                        self.game_state.players[player_id].settlements_and_cities,
+                        to_be_merged_settlements[1],
+                        to_be_merged_settlements[0]
+                    )
+                    # 获取当前跨越河流合并后多聚落的根节点
+                    current_root = self.game_state.map_board_state.find_settlement_root(
+                        self.game_state.players[player_id].settlements_and_cities,
+                        to_be_merged_settlements[0]
+                    )
+                    # 标记根节点为城市
+                    self.game_state.players[player_id].settlements_and_cities[current_root] = [current_root, True]
+                    # 触发立即行动，选取城片（保证一定存在可选城片）
+                    for city_tile_id in range(1,8):
+                        if self.game_state.all_available_object_dict['city_tile'][city_tile_id].check_get(player_id):                 
+                            if self.game_state.invoke_immediate_aciton(player_id, ('select_city_tile',)): return
+                            break
 
         def execute_immediate_effect(self, executed_player_id):
             '''立即效果: 升2级航海'''
@@ -1153,7 +1430,12 @@ class AllEffectObject:
             ])
             super().execute_income_effect(executed_player_id)
         
-        # TODO 特殊建造立即行动
+        def execute_immediate_effect(self, executed_player_id):
+            '''立即效果: 在任意原生地建造1工会'''
+            self.immediate_effect.extend([
+                ('building', 'build_special_palace_tile_16', 2, False)
+            ])
+            super().execute_immediate_effect(executed_player_id)
 
     class RoundBooster1(RoundBooster):
 
@@ -1210,7 +1492,7 @@ class AllEffectObject:
         additional_action_name = 'additional_action_round_booster_3'
         
         def additional_action(self, mode, player_id, args=tuple()):
-            '''每回合一次附加行动: 获取2轨'''
+            '''每回合一次附加行动: 获取1轨'''
             match mode:
                 case 'check':
                     if (
@@ -1233,7 +1515,7 @@ class AllEffectObject:
                     self.additional_action_is_done[player_id] = True
                     # 获取奖励
                     self.game_state.adjust(player_id, [
-                        ('tracks', 'any', 2)
+                        ('tracks', 'any', 1)
                     ])
 
     class RoundBooster4(RoundBooster):
@@ -2113,7 +2395,7 @@ class AllEffectObject:
         
         def execute_immediate_effect(self, executed_player_id):
             self.immediate_effect.extend([
-                ('tracks', 'any', 2),
+                ('tracks', 'any', 2, False),
             ])
             super().execute_immediate_effect(executed_player_id)
 
@@ -2254,6 +2536,9 @@ class AllEffectObject:
         id = 1
 
         def cost(self, player_id):
+            # 幻术师行动效果特判
+            if self.game_state.players[player_id].faction_id == 4:
+                return [('magics',3,2)], [('magics', 'use', 2)]
             return [('magics',3,3)], [('magics', 'use', 3)]
         
         def execute_immediate_effect(self, executed_player_id):
@@ -2267,6 +2552,9 @@ class AllEffectObject:
         id = 2
         
         def cost(self, player_id):
+            # 幻术师行动效果特判
+            if self.game_state.players[player_id].faction_id == 4:
+                return [('magics',3,2)], [('magics', 'use', 2)]
             return [('magics',3,3)], [('magics', 'use', 3)]
         
         def execute_immediate_effect(self, executed_player_id):
@@ -2280,6 +2568,9 @@ class AllEffectObject:
         id = 3
         
         def cost(self, player_id):
+            # 幻术师行动效果特判
+            if self.game_state.players[player_id].faction_id == 4:
+                return [('magics',3,3)], [('magics', 'use', 3)]
             return [('magics',3,4)], [('magics', 'use', 4)]
         
         def execute_immediate_effect(self, executed_player_id):
@@ -2293,6 +2584,9 @@ class AllEffectObject:
         id = 4
         
         def cost(self, player_id):
+            # 幻术师行动效果特判
+            if self.game_state.players[player_id].faction_id == 4:
+                return [('magics',3,3)], [('magics', 'use', 3)]
             return [('magics',3,4)], [('magics', 'use', 4)]
         
         def execute_immediate_effect(self, executed_player_id):
@@ -2306,6 +2600,9 @@ class AllEffectObject:
         id = 5
         
         def cost(self, player_id):
+            # 幻术师行动效果特判
+            if self.game_state.players[player_id].faction_id == 4:
+                return [('magics',3,3)], [('magics', 'use', 3)]
             return [('magics',3,4)], [('magics', 'use', 4)]
         
         def execute_immediate_effect(self, executed_player_id):
@@ -2319,6 +2616,9 @@ class AllEffectObject:
         id = 6
         
         def cost(self, player_id):
+            # 幻术师行动效果特判
+            if self.game_state.players[player_id].faction_id == 4:
+                return [('magics',3,5)], [('magics', 'use', 5)]
             return [('magics',3,6)], [('magics', 'use', 6)]
 
         def execute_immediate_effect(self, executed_player_id):

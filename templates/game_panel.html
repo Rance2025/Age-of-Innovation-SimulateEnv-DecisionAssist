@@ -758,6 +758,7 @@
                 transition: all 0.1s ease;
                 cursor: default;
                 z-index: 0;
+                pointer-events: none;
             }
 
             /* 水域地块使用虚线边框 */
@@ -765,15 +766,6 @@
                 stroke-dasharray: 9, 9; /* 虚线样式：3px实线，3px间隔 */
                 stroke-width: 1.5;
                 stroke: rgba(255, 255, 255, 0.2);
-            }
-
-            /* 悬停效果优化 - 添加z-index提升 */
-            .hexagon:hover {
-                stroke: var(--accent) !important;
-                stroke-width: 4 !important;
-                stroke-dasharray: 0 !important;
-                filter: brightness(1.1);
-                /* 移除z-index，在SVG中无效 */
             }
 
             /* 地形颜色类 */
@@ -812,7 +804,69 @@
             .hex-elements:hover {
                 opacity: 1;
             }
+
+            /* 高亮层基础样式 */
+            .highlight-overlay {
+                pointer-events: none;
+                stroke: transparent;
+                stroke-dasharray: 0;
+                stroke-width: 4;
+                fill: transparent;
+                transition: all 0.3s ease;
+            }
+
+            /* 高亮激活状态 - 紫色边框和填充 */
+            .highlight-overlay.active {
+                stroke: #9c27b0;
+                stroke-dasharray: 12, 6;
+                stroke-width: 4;
+                fill: rgba(156, 39, 176, 0.2);
+                /* filter: brightness(1.15); */
+            }
+
+            /* 高亮层悬停状态 - 蓝色边框（更高优先级） */
+            .highlight-overlay.hover {
+                stroke: var(--accent) !important;  /* 蓝色 */
+                stroke-width: 4 !important;
+            }
+
+            /* 确保悬停状态覆盖激活状态 */
+            .highlight-overlay.active.hover {
+                /* stroke-dasharray: 0; */
+                stroke: var(--accent) !important;  /* 悬停时强制蓝色 */
+            }
+
+            /* 悬停叠加层样式保持不变 */
+            .hover-overlay {
+                pointer-events: all;
+                cursor: default;
+                stroke: transparent;
+                stroke-width: 4;
+                transition: all 0.1s ease;
+            }
+
+            .hover-overlay:hover {
+                stroke: var(--accent);
+                stroke-width: 4;
+                /* filter: brightness(1.1); */
+            }
             
+            /* 悬停叠加层的悬停状态 */
+            .hover-overlay.hover-active {
+                stroke: var(--accent);
+                stroke-width: 4;
+                /* filter: brightness(1.1); */
+            }
+
+            /* 确保叠加层在正确层级 */
+            #hex-hover-layer {
+                z-index: 20;
+            }
+
+            #hex-highlight-layer {
+                z-index: 15;
+            }
+                        
             /* 回合信息卡片 */
             .round-info-status {
                 padding: var(--panel-padding);
@@ -1496,45 +1550,46 @@
                                                   Z
                                                 " fill="#a1a1a1" stroke="rgb(219, 219, 219)" stroke-width="3" />
                                                 
-                                                <!-- 扇形3：湖泊 (102.86° - 154.29°) -->
+                                                <!-- 扇形3：荒地 (102.86° - 154.29°) -->
                                                 <path d="
                                                   M 200 200
                                                   L 375.49 240.05
                                                   A 180 180 0 0 1 278.10 362.17
                                                   Z
-                                                " fill="#35a0d5" stroke="rgb(219, 219, 219)" stroke-width="3" />
+                                                " fill="#cc2828" stroke="rgb(219, 219, 219)" stroke-width="3" />
                                                 
-                                                <!-- 扇形4：荒地 (154.29° - 205.71°) -->
+                                                <!-- 扇形4：沙漠 (154.29° - 205.71°) -->
                                                 <path d="
                                                   M 200 200
                                                   L 278.10 362.17
                                                   A 180 180 0 0 1 121.90 362.17
                                                   Z
-                                                " fill="#cc2828" stroke="rgb(219, 219, 219)" stroke-width="3" />
+                                                " fill="#e8e83d" stroke="rgb(219, 219, 219)" stroke-width="3" />
                                                 
-                                                <!-- 扇形5：沼泽 (205.71° - 257.14°) -->
+                                                <!-- 扇形5：平原 (205.71° - 257.14°) -->
                                                 <path d="
                                                   M 200 200
                                                   L 121.90 362.17
                                                   A 180 180 0 0 1 24.51 240.05
                                                   Z
-                                                " fill="#595959" stroke="rgb(219, 219, 219)" stroke-width="3" />
+                                                " fill="#85491D" stroke="rgb(219, 219, 219)" stroke-width="3" />
                                                 
-                                                <!-- 扇形6：沙漠 (257.14° - 308.57°) -->
+                                                <!-- 扇形6：沼泽 (257.14° - 308.57°) -->
                                                 <path d="
                                                   M 200 200
                                                   L 24.51 240.05
                                                   A 180 180 0 0 1 59.27 87.77
                                                   Z
-                                                " fill="#e8e83d" stroke="rgb(219, 219, 219)" stroke-width="3" />
+                                                " fill="#595959" stroke="rgb(219, 219, 219)" stroke-width="3" />
                                                 
-                                                <!-- 扇形7：平原 (308.57° - 360°) -->
+                                                <!-- 扇形7：湖泊 (308.57° - 360°) -->
                                                 <path d="
                                                   M 200 200
                                                   L 59.27 87.77
                                                   A 180 180 0 0 1 200 20
                                                   Z
-                                                " fill="#85491D" stroke="rgb(219, 219, 219)" stroke-width="3" />
+                                                " fill="#35a0d5" stroke="rgb(219, 219, 219)" stroke-width="3" />
+                                                <!-- #85491D -->
                                                 
                                                 <!-- 内圆（透明填充，白色边框，形成圆环效果） -->
                                                 <circle cx="200" cy="200" r="75" fill="var(--bg-secondary);" stroke="rgb(219, 219, 219)" stroke-width="3" />
@@ -1571,7 +1626,7 @@
                                               <div class="legend-item">
                                                 <div class="color-box" style="background-color: #e8e83d;"></div>
                                                 <span>沙漠</span>
-                                              </div>
+                                              </div>    
                                               
                                               <!-- 第4行 -->
                                               <div class="legend-item">
@@ -1841,6 +1896,10 @@
                         // 回合助推板获取
                         const BonusData = data.data;
                         flipSingleBonusColumn(BonusData.round_booster_index);
+                    } else if ('type' in data && data.type === 'highlight_hex') {
+                        // 高亮可选地块
+                        const HexListData = data.data;
+                        setHexHighlights(HexListData.hex_list);
                     }
                 } catch (err) {
                     console.error("全局状态解析错误:", err);
@@ -2038,7 +2097,137 @@
                 7: "#e8e83d"        // 沙漠 - 黄色
             };
 
-            // 生成六边形地图网格 - 优化居中效果
+            // 新增：创建透明叠加层函数
+            function createHexOverlays() {
+                const svg = document.getElementById('hex-grid-svg');
+                if (!svg) return;
+                
+                // 创建悬停效果层
+                const hoverLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                hoverLayer.setAttribute('id', 'hex-hover-layer');
+                hoverLayer.setAttribute('class', 'hex-overlay-layer');
+                
+                // 创建高亮效果层
+                const highlightLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                highlightLayer.setAttribute('id', 'hex-highlight-layer');
+                highlightLayer.setAttribute('class', 'hex-overlay-layer');
+                
+                // 将新图层添加到SVG中（在文本层之上）
+                const textLayer = document.getElementById('hex-numbers');
+                if (textLayer) {
+                    svg.insertBefore(hoverLayer, textLayer);
+                    svg.insertBefore(highlightLayer, textLayer);
+                } else {
+                    svg.appendChild(hoverLayer);
+                    svg.appendChild(highlightLayer);
+                }
+                
+                console.log('透明叠加层创建完成');
+            }
+
+            // 新增：为每个六边形创建透明叠加层
+            function createIndividualOverlays() {
+                const rows = 9;
+                const cols = 13;
+                const hexSize = 33.5;
+                
+                // 计算六边形的顶点坐标（与主函数相同）
+                function getHexPoints(x, y, size) {
+                    const points = [];
+                    for (let i = 0; i < 6; i++) {
+                        const angle = (Math.PI / 3) * i - Math.PI/6;
+                        const px = x + size * Math.cos(angle);
+                        const py = y + size * Math.sin(angle);
+                        points.push(`${px},${py}`);
+                    }
+                    return points.join(' ');
+                }
+                
+                // 计算起始位置
+                const startX = hexSize;
+                const startY = hexSize + 5;
+                const horizontalSpacing = hexSize * Math.sqrt(3);
+                const verticalSpacing = hexSize * 1.5;
+                
+                const hoverLayer = document.getElementById('hex-hover-layer');
+                const highlightLayer = document.getElementById('hex-highlight-layer');
+                
+                if (!hoverLayer || !highlightLayer) {
+                    console.error('叠加层未找到，请先调用createHexOverlays()');
+                    return;
+                }
+                
+                // 为每个六边形创建叠加层
+                for (let row = 0; row < rows; row++) {
+                    for (let col = 0; col < cols; col++) {
+                        // 偶数行偏移
+                        const xOffset = (row % 2 === 0) ? 0 : horizontalSpacing / 2;
+                        
+                        // 计算中心坐标
+                        const centerX = startX + col * horizontalSpacing + xOffset;
+                        const centerY = startY + row * verticalSpacing;
+                        
+                        // 创建悬停叠加层
+                        const hoverOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                        hoverOverlay.setAttribute('class', 'hex-overlay hover-overlay');
+                        hoverOverlay.setAttribute('id', `hover-${row}-${col}`);
+                        hoverOverlay.setAttribute('data-row', row);
+                        hoverOverlay.setAttribute('data-col', col);
+                        hoverOverlay.setAttribute('points', getHexPoints(centerX, centerY, hexSize));
+                        hoverOverlay.setAttribute('fill', 'transparent');
+                        hoverOverlay.setAttribute('stroke', 'transparent');
+                        hoverOverlay.setAttribute('stroke-width', '2');
+                        
+                        // 修改后的悬停事件处理 - 使用 CSS 类替代直接属性操作
+                        hoverOverlay.addEventListener('mouseover', function() {
+                            const row = this.getAttribute('data-row');
+                            const col = this.getAttribute('data-col');
+                            
+                            // 1. 为悬停叠加层添加悬停类（通过 CSS 控制样式）
+                            this.classList.add('hover-active');
+                            
+                            // 2. 为对应的高亮叠加层添加悬停类
+                            const highlightOverlay = document.getElementById(`highlight-${row}-${col}`);
+                            if (highlightOverlay) {
+                                highlightOverlay.classList.add('hover');
+                            }
+                        });
+
+                        hoverOverlay.addEventListener('mouseout', function() {
+                            const row = this.getAttribute('data-row');
+                            const col = this.getAttribute('data-col');
+                            
+                            // 1. 移除悬停叠加层的悬停类
+                            this.classList.remove('hover-active');
+                            
+                            // 2. 移除对应高亮叠加层的悬停类
+                            const highlightOverlay = document.getElementById(`highlight-${row}-${col}`);
+                            if (highlightOverlay) {
+                                highlightOverlay.classList.remove('hover');
+                            }
+                        });
+                        
+                        // 创建高亮叠加层
+                        const highlightOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                        highlightOverlay.setAttribute('class', 'hex-overlay highlight-overlay');
+                        highlightOverlay.setAttribute('id', `highlight-${row}-${col}`);
+                        highlightOverlay.setAttribute('data-row', row);
+                        highlightOverlay.setAttribute('data-col', col);
+                        highlightOverlay.setAttribute('points', getHexPoints(centerX, centerY, hexSize));
+                        highlightOverlay.setAttribute('fill', 'transparent');
+                        highlightOverlay.setAttribute('stroke', 'transparent');
+                        highlightOverlay.setAttribute('stroke-width', '2');
+                        
+                        // 添加到对应图层
+                        hoverLayer.appendChild(hoverOverlay);
+                        highlightLayer.appendChild(highlightOverlay);
+                    }
+                }
+                
+                console.log('个体叠加层创建完成');
+            }
+
+            // 修改：生成六边形地图网格 - 添加叠加层支持
             function generateHexMap() {
                 const svg = document.getElementById('hex-grid-svg');
                 if (!svg) return;
@@ -2082,7 +2271,6 @@
                 svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
                 
                 // 计算起始位置 - 精确居中算法
-                // 由于preserveAspectRatio="xMidYMid meet"会自动居中，我们从(0,0)开始绘制
                 const startX = hexSize;
                 const startY = hexSize + 5;
                 
@@ -2119,28 +2307,6 @@
                         hexagon.setAttribute('fill', TERRAIN_COLORS[0]);
                         hexagon.classList.add('terrain-water');
                         
-                        // 添加悬停事件，实现置顶效果
-                        hexagon.addEventListener('mouseover', function() {
-                            // 将当前六边形移动到SVG元素的最后，确保它在最上层
-                            svg.appendChild(this);
-                            
-                            // 同时移动对应的文本标签，确保文本也在最上层
-                            const textId = `text-${hexId}`;
-                            const textElement = document.getElementById(textId);
-                            if (textElement) {
-                                svg.appendChild(textElement);
-                            }
-                            // 确保建筑元素层始终在最顶层
-                            const elementsLayer = document.getElementById('hex-elements');
-                            if (elementsLayer) {
-                                this.parentNode.appendChild(elementsLayer);
-                            }
-                        });
-                        
-                        hexagon.addEventListener('mouseout', function() {
-                            this.classList.remove('hovered');
-                        });
-                        
                         // 创建编号文本
                         const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                         text.setAttribute('class', 'hex-number');
@@ -2159,10 +2325,18 @@
                 svg.appendChild(gridGroup);
 
                 // 在生成六边形后，将元素层添加到SVG
-                svg.appendChild(elementsLayer); // 元素层在六边形之上
+                svg.appendChild(elementsLayer);
+                
+                // 创建透明叠加层
+                createHexOverlays();
+                
+                // 为每个六边形创建叠加层
+                createIndividualOverlays();
                 
                 // 应用初始地形
                 applyInitialTerrain();
+                
+                console.log('六边形地图生成完成，包含透明叠加层');
             }
             
             // 应用初始地形
@@ -2186,6 +2360,56 @@
                 }
             }
 
+            // 修改：单一高亮接口函数 - 使用叠加层实现
+            function setHexHighlights(hexList) {
+                // 清除所有现有高亮和悬停状态
+                document.querySelectorAll('.highlight-overlay.active, .highlight-overlay.hover').forEach(overlay => {
+                    overlay.classList.remove('active', 'hover');
+                });
+                
+                // 如果传入空数组或无效值，则只清除高亮
+                if (!hexList || hexList.length === 0) {
+                    console.log('已清除所有地块高亮');
+                    return true;
+                }
+                
+                // 验证参数必须是数组
+                if (!Array.isArray(hexList)) {
+                    console.error('参数必须是数组');
+                    return false;
+                }
+                
+                // 应用新的高亮
+                hexList.forEach(coord => {
+                    // 验证坐标格式
+                    if (!Array.isArray(coord) || coord.length !== 2) {
+                        console.error('坐标格式错误，应为 [行, 列] 格式');
+                        return;
+                    }
+                    
+                    const [row, col] = coord;
+                    
+                    // 验证坐标范围
+                    if (row < 0 || row > 8 || col < 0 || col > 12) {
+                        console.error(`坐标 [${row}, ${col}] 超出范围，行: 0-8, 列: 0-12`);
+                        return;
+                    }
+                    
+                    // 获取对应的高亮叠加层
+                    const highlightOverlay = document.getElementById(`highlight-${row}-${col}`);
+                    if (highlightOverlay) {
+                        // 只添加 active 类，不添加 hover 类
+                        highlightOverlay.classList.add('active');
+                        console.log(`高亮地块: ${String.fromCharCode(65 + row)}${col + 1} (${row}, ${col})`);
+                    } else {
+                        console.error(`未找到坐标 [${row}, ${col}] 对应的高亮叠加层`);
+                    }
+                });
+                
+                console.log(`成功高亮 ${hexList.length} 个地块`);
+                return true;
+            }
+            
             // 设置地形函数
             function setHexTerrain(row, col, terrainType) {
                 const hex = document.querySelector(`.hexagon[data-row="${row}"][data-col="${col}"]`);
@@ -2376,25 +2600,6 @@
                     }
                 };
             });
-
-            // 添加调试函数
-            function debugTooltip() {
-                const trigger = document.getElementById('terrain-tooltip-trigger');
-                const tooltip = document.getElementById('terrain-tooltip');
-                
-                console.group('地形图例调试信息');
-                console.log('触发器元素:', trigger);
-                console.log('弹窗元素:', tooltip);
-                console.log('弹窗显示状态:', tooltip?.classList.contains('show'));
-                console.log('弹窗计算样式:', tooltip ? window.getComputedStyle(tooltip) : '未找到');
-                console.groupEnd();
-                
-                // 手动测试显示/隐藏
-                if (tooltip) {
-                    tooltip.classList.toggle('show');
-                    console.log('手动切换弹窗状态');
-                }
-            }
             
             // 回合到网格位置的映射
             const ROUND_POSITIONS = {
@@ -2560,6 +2765,7 @@
             
             // 2. 设置第6回合的叠加奖励图片
             // 修改设置第6回合的叠加奖励图片函数
+            
             function setFinalRoundBonus(x) {
                 // 验证参数
                 if (x < 13 || x > 16) {

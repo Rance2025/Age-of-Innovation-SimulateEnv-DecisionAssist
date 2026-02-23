@@ -7,7 +7,7 @@ import copy
 
 class GameStateBase:
     """游戏状态类"""
-    class GameSetup: # TODO 轮次计分的限制性规定判定
+    class GameSetup:
         """游戏初始设置类"""
         def __init__(self, num_players: int, mode: tuple):
             self.num_players = num_players
@@ -54,7 +54,7 @@ class GameStateBase:
                     self.perform_input_initial_setup()
                 case _:
                     raise ValueError('Invalid mode')
-                 
+        
         def perform_random_initial_setup(self):
             """执行随机初始设置步骤"""
             self.seedid = int(time.strftime("%S%H%M", time.localtime()))
@@ -76,7 +76,8 @@ class GameStateBase:
             
             # 5. 选取6个轮次计分板块并随机排序
             self.round_scoring_order = random.sample(self.all_round_scoring, 6)
-            random.shuffle(self.round_scoring_order)
+            while not self.round_scoring_order_is_legal(self.round_scoring_order):
+                random.shuffle(self.round_scoring_order)
             for i in range(6):
                 io.set_round_scoring(i+1,self.round_scoring_order[i])
 
@@ -148,6 +149,9 @@ class GameStateBase:
                         min(round_scoring_order) < 1 or max(round_scoring_order) > 12):
                         return False, "轮次计分板块必须是包含6个不重复的1-12之间整数的列表"
                     
+                    if self.round_scoring_order_is_legal(round_scoring_order) == False:
+                        return False, "轮次计分板不符合同学科前五回合内不能出现三次的限制性规定或8号板位于第五第六回合"
+                    
                     # 6. 检查最终计分板块
                     final_scoring = args[5]
                     if not isinstance(final_scoring, int) or final_scoring < 1 or final_scoring > 4:
@@ -197,12 +201,16 @@ class GameStateBase:
             
             # 4. 选取人数+3个回合助推板作为可选项
             self.selected_round_boosters = args[3]
+            io.set_bonus_columns(self.selected_round_boosters)
             
             # 5. 选取6个轮次计分板块并随机排序
             self.round_scoring_order = args[4]
+            for i in range(6):
+                io.set_round_scoring(i+1,self.round_scoring_order[i])
 
             # 6. 随机选取1个最终计分板块
             self.final_scoring = args[5]
+            io.set_final_round_bonus(self.final_scoring)
 
             # 7. 对共12块能力板块随机排序
             self.ability_tiles_order = args[6]
@@ -243,13 +251,16 @@ class GameStateBase:
             if len(set(inp)) != self.num_players + 3 or min(inp) < 1 or max(inp) > 10:
                 raise ValueError('无效的回合助推板')
             self.selected_round_boosters = sorted(inp)
+            io.set_bonus_columns(self.selected_round_boosters)
 
-            # 5. 选取6个轮次计分板块并随机排序
+            # 5. 按第1-6轮顺序输入6个轮次计分板块
             scoring_input = io.get_input("请按顺序输入6个轮次计分板块编号(1-12)，用空格分割:")
             inp = list(map(int, scoring_input.split()))
-            if len(set(inp)) != 6 or min(inp) < 1 or max(inp) > 12:
+            if len(set(inp)) != 6 or min(inp) < 1 or max(inp) > 12 or self.round_scoring_order_is_legal(inp):
                 raise ValueError('无效的轮次计分板块')
             self.round_scoring_order = inp
+            for i in range(6):
+                io.set_round_scoring(i+1,self.round_scoring_order[i])
 
             # 6. 随机选取1个最终计分板块
             final_input = io.get_input("请输入1个最终计分板块编号(1-4):")
@@ -257,6 +268,7 @@ class GameStateBase:
             if inp not in self.all_final_scoring:
                 raise ValueError('无效的最终计分板块')
             self.final_scoring = inp
+            io.set_final_round_bonus(self.final_scoring)
 
             # 7. 对共12块能力板块随机排序
             ability_input = io.get_input("请按顺序输入12个能力板块编号(1-12)，用空格分割:")
@@ -279,6 +291,15 @@ class GameStateBase:
             if len(set(inp)) != 3 or min(inp) < 1 or max(inp) > 6:
                 raise ValueError('无效的书本行动板块')
             self.selected_book_actions = sorted(inp)  
+
+        def round_scoring_order_is_legal(self, round_scoring_order) -> bool:
+            """返回轮次计分顺序是否合法"""
+            if 8 in round_scoring_order and round_scoring_order.index(8) >= 4:  # 8号轮次计分板块不能位于第5和第6轮次
+                return False
+            # 检查任意同轨道三板块不能在前五轮中同时出现
+            if any(all(i in round_scoring_order[:5] for i in same_track_tile_ids) for same_track_tile_ids in [[2,5,7],[1,3,12],[8,10,11],[4,6,9]]):
+                return False
+            return True
 
         def __str__(self):
             """返回设置结果的字符串表示"""
@@ -381,6 +402,7 @@ class GameStateBase:
             self.main_action_is_done = False # 主要行动是否完成
             self.ispass = False              # 是否已跳过
             self.choice_position = tuple()   # 玩家选择地图坐标记录
+            self.choice_track = ''           # 玩家选择轨道类型记录
 
             self.income_effect_list: list[Callable[[int],None]] = []        # 收入阶段效果列表 
             self.pass_effect_list: list[Callable[[int],None]] = []          # 略过动作效果列表
@@ -623,7 +645,39 @@ class GameStateBase:
                 ((6, 3), (7, 4)): -1,
                 ((7, 2), (8, 4)): -1,
             }
-    
+
+        def find_settlement_root(self, settlements_and_cities, pos: tuple[int,int]):
+            # 路径压缩优化
+            stack = []
+            current = pos
+            # 找到根节点
+            while settlements_and_cities[current][0] != current:
+                stack.append(current)
+                current = settlements_and_cities[current][0]
+            root = current
+            root_is_city = settlements_and_cities[root][1]
+            
+            # 路径压缩：将所有节点直接指向根节点
+            for node in stack:
+                settlements_and_cities[node] = [root, root_is_city]
+            return root, root_is_city
+        
+        def merge_settlement_root(self, settlements_and_cities, pos_a: tuple[int,int], pos_b: tuple[int,int]):
+            root_a, is_city_a = self.find_settlement_root(settlements_and_cities, pos_a)
+            root_b, is_city_b = self.find_settlement_root(settlements_and_cities, pos_b)
+
+            if root_a == root_b:
+                return root_a, is_city_a  # 已经在同一聚落
+
+            # 新聚落的城市状态
+            new_is_city = is_city_a or is_city_b
+            # 更新a的父节点信息，以b为新父节点
+            settlements_and_cities[root_a] = [root_b, new_is_city]
+            # 更新父节点b的城市状态
+            settlements_and_cities[root_b] = [root_b, new_is_city]
+
+            return root_b, new_is_city
+        
     class DisplayBoardState:
         """展示板状态"""
         def __init__(self,num_players):
@@ -801,39 +855,7 @@ class GameStateBase:
         if pos not in settlements_and_cities:
             settlements_and_cities[pos] = [pos, False]
 
-        def find(pos: tuple[int,int]):
-            # 路径压缩优化
-            stack = []
-            current = pos
-            # 找到根节点
-            while settlements_and_cities[current][0] != current:
-                stack.append(current)
-                current = settlements_and_cities[current][0]
-            root = current
-            root_is_city = settlements_and_cities[root][1]
-            
-            # 路径压缩：将所有节点直接指向根节点
-            for node in stack:
-                settlements_and_cities[node] = [root, root_is_city]
-            return root, root_is_city
-        
-        def merge(pos_a: tuple[int,int], pos_b: tuple[int,int]):
-            root_a, is_city_a = find(pos_a)
-            root_b, is_city_b = find(pos_b)
-
-            if root_a == root_b:
-                return root_a, is_city_a  # 已经在同一聚落
-
-            # 新聚落的城市状态
-            new_is_city = is_city_a or is_city_b
-            # 更新a的父节点信息，以b为新父节点
-            settlements_and_cities[root_a] = [root_b, new_is_city]
-            # 更新父节点b的城市状态
-            settlements_and_cities[root_b] = [root_b, new_is_city]
-
-            return root_b, new_is_city
-
-        current_root, current_is_city = find(pos)
+        current_root, current_is_city = self.map_board_state.find_settlement_root(settlements_and_cities, pos)
 
         match mode:
             # 新建一座桥的情况
@@ -845,7 +867,7 @@ class GameStateBase:
                     # 若桥对侧地块已被己方控制
                     if self.map_board_state.map_grid[i][j][1] == player_id:
                         # 则合并两侧聚落
-                        current_root, current_is_city = merge(pos, temp_pos)
+                        current_root, current_is_city = self.map_board_state.merge_settlement_root(settlements_and_cities, pos, temp_pos)
                         break
                 else:
                     # 即桥对侧不被己方控制，则直接跳出，无需进行后续建城检查，因该聚落魔力点数不会更新
@@ -868,7 +890,7 @@ class GameStateBase:
                             # 判断该桥是否已被己方建造
                             if self.map_board_state.bridges_is_conneted[bridge_key] == player_id:
                                 # 若已建造，则将两侧建筑合并为同一聚落
-                                current_root, current_is_city = merge(corres_pos, pos)
+                                current_root, current_is_city = self.map_board_state.merge_settlement_root(settlements_and_cities, corres_pos, pos)
                                 need_following_check = True
                             
                 direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
@@ -879,12 +901,12 @@ class GameStateBase:
                         # 若相邻建筑为己方
                         if self.map_board_state.map_grid[new_i][new_j][1] == player_id:
                             # 合并并更新当前聚落信息
-                            current_root, current_is_city = merge((new_i, new_j), (i, j))
+                            current_root, current_is_city = self.map_board_state.merge_settlement_root(settlements_and_cities, (new_i, new_j), (i, j))
                             need_following_check = True
                 # 若建立该新建筑后，不存在任何相邻地块（含桥对侧地块，如有）上有己方建筑
                 # 则无需后续建城检查，直接跳出，因为该聚落魔力点数不会更新
                 if need_following_check == False:
-                    return 
+                    return
             case 'upgrade':
                 # 在升级一个建筑地块的情况下
                 # 相邻地块（含有效桥对侧地块）必已经同属一个聚落，则无需更新聚落，直接进行建城检查
@@ -896,10 +918,10 @@ class GameStateBase:
             curent_settlement_building_nums = 0 # 当前聚落建筑数量
 
             # 统计当前聚落的所有建筑
-            # 遍历所有控制地块，获取其上建筑所需聚落
+            # 遍历所有控制地块，获取其上建筑形成聚落的最少所需要的建筑数
             city_min_needed_building_nums = 4
             for building_pos in self.players[player_id].controlled_map_ids:
-                building_root, _ = find(building_pos)
+                building_root, _ = self.map_board_state.find_settlement_root(settlements_and_cities, building_pos)
                 # 若与当前聚落所属同一聚落
                 if building_root == current_root:
                     cur_i, cur_j = building_pos
@@ -919,10 +941,17 @@ class GameStateBase:
                             if city_min_needed_building_nums > 2:
                                 city_min_needed_building_nums = 2 
             
-            # TODO 独特建城条件判断
+            
+            # 判断建城所需最少的总魔力点数
+            city_min_needed_magics_nums = 7
+            # 如果玩家拥有宫殿板块8并以激活，则建城所需最少的总魔力点数变为6
+            if self.players[player_id].palace_tile_id == 8 and self.players[player_id].is_got_palace == True:
+                city_min_needed_magics_nums = 6
+
+            # 判断当前聚落是否满足建城条件
             if (
-                # 判断当前聚落魔力点数和是否大于等于7
-                curent_settlement_magics_total >= 7
+                # 判断当前聚落魔力点数和是否大于等于最低建城所需总魔力点数
+                curent_settlement_magics_total >= city_min_needed_magics_nums
                 # 判断当前聚落建筑数量是否大于等于最低建城所需建筑数
                 and curent_settlement_building_nums >= city_min_needed_building_nums
             ): 
@@ -1113,7 +1142,6 @@ class GameStateBase:
             for player_idx in range(self.num_players)
         }
         
-
     def init_check(self):
 
         def check_money(player_id: int, num: int) -> bool:
@@ -1360,7 +1388,7 @@ class GameStateBase:
                     # 科技板块效果-宫殿
             self.io.update_player_state(player_id, {f'magics_{x}': self.players[player_id].magics[x] for x in range(1, 4)})
 
-        def climb_track(player_id: int, typ: str, num: int):
+        def climb_track(player_id: int, typ: str, num: int, split: bool = True):
 
             if typ != 'any':
                 player = self.players[player_id]
@@ -1420,19 +1448,32 @@ class GameStateBase:
                 if before_climb < 12 <= after_climb:
                     magic_rotation(player_id, 'get', 3)
             else:
-                actual_num = 0
-                # 循环调起选择轨道立即行动n次，每次推进1轨
-                for _ in range(num):
-                    # 遍历检查是否有可推进轨道
+                if split:
+                    actual_num = 0
+                    # 循环调起选择轨道立即行动n次，每次推进1轨
+                    for _ in range(num):
+                        # 遍历检查是否有可推进轨道
+                        for temp_typ in ['bank', 'law', 'engineering', 'medical']:
+                            if self.check(player_id, [('tracks', temp_typ)]):
+                                actual_num += 1
+                                # 如有，则跳出循环，调起立即行动
+                                break
+                        else:
+                            # 如无，则跳出循环，取消后续立即行动调起
+                            break
+                        if self.invoke_immediate_aciton(player_id, ('select_track',)): return
+                else:
+                    actual_num = 0
                     for temp_typ in ['bank', 'law', 'engineering', 'medical']:
                         if self.check(player_id, [('tracks', temp_typ)]):
+                            actual_num = 1
                             # 如有，则跳出循环，调起立即行动
-                            actual_num += 1
                             break
                     else:
-                        # 如无，则跳出循环，取消后续立即行动调起
-                        break
-                    if self.invoke_immediate_aciton(player_id, ('select_track',)): return 
+                        return
+                    if self.invoke_immediate_aciton(player_id, ('select_track',)): return
+                    selected_track_typ = self.players[player_id].choice_track
+                    climb_track(player_id, selected_track_typ, num-1)
 
             # 爬轨行动效果
             self.action_effect(player_id=player_id, climb_track_nums=actual_num)
@@ -1480,8 +1521,8 @@ class GameStateBase:
                 case (
                     'build_normal'|'build_neutral'|
                     'build_setup'|'build_after_shovel'|
-                    'build_special_palace_tile_n'|
-                    'build_special_faction_tile_n'
+                    'build_special_faction_tile_6'|
+                    'build_special_palace_tile_16'
                 ):
                     if mode == 'build_setup':
                         # 立即选择位置
@@ -1498,11 +1539,53 @@ class GameStateBase:
                         # 支付建造工会费用
                         self.adjust(player_id, [('money', 'use', 2), ('ore', 'use', 1)])
 
-                    elif mode == 'build_special_palace_tile_n':
-                        pass
-
-                    elif mode == 'build_special_faction_tile_n':
-                        pass
+                    elif mode == 'build_special_faction_tile_6': # 蜥蜴人派系板块行动效果
+                        max_shovel_times = (
+                            self.players[player_id].resources['ore']
+                            // self.players[player_id].shovel_level
+                        )
+                        # 判断是否存在可建地
+                        for p,q in self.players[player_id].reachable_map_ids:
+                            terrain, controller = self.map_board_state.map_grid[p][q][:2]
+                            # 如有则选择可建地并跳出判断
+                            if (
+                                self.players[player_id].terrain_id_need_shovel_times[terrain] <= max_shovel_times
+                                and controller == -1    
+                            ):
+                                if self.invoke_immediate_aciton(
+                                    player_id, 
+                                    ('select_position', 'reachable', ('build', max_shovel_times))
+                                ): return 
+                                i,j = self.players[player_id].choice_position
+                                cur_terrain = self.map_board_state.map_grid[i][j][0]
+                                need_shovel_times = self.players[player_id].terrain_id_need_shovel_times[cur_terrain]
+                                # 支付铲地费用
+                                self.adjust(
+                                    player_id, 
+                                    [
+                                        ('ore', 'use', need_shovel_times * self.players[player_id].shovel_level),
+                                        ('land', need_shovel_times),
+                                    ],
+                                )
+                                break
+                    
+                    elif mode == 'build_special_palace_tile_16': # 宫殿板块16的立即行动效果
+                        # 遍历查找是否存在可建原生地
+                        for p,q in [(x,y) for x in range(9) for y in range(13)]:
+                            terrain, controller = self.map_board_state.map_grid[p][q][:2]
+                            # 如果存在无控制者的原生地，则调起选择地块位置行动后跳出，若无则返回
+                            if (
+                                terrain == self.players[player_id].planning_card_id 
+                                and controller == -1
+                            ):
+                                if self.invoke_immediate_aciton(
+                                    player_id, 
+                                    ('select_position', 'anywhere', set([self.players[player_id].planning_card_id]))
+                                ): return 
+                                break
+                                    
+                        # 获取选择的位置
+                        i,j = self.players[player_id].choice_position
 
                     else: # build_normal | build_neutral
                         # 最大可铲次数 = 玩家拥有矿数 // 铲子等级
@@ -1634,6 +1717,8 @@ class GameStateBase:
                                             self.all_available_object_dict['palace_tile'][cur_player_palace_tile_id].activate(player_id)
                                         # 升级为学院时
                                         case 4:
+                                            self.map_board_state.map_grid[i][j][2:] = to_build_id, pre_side_building_num, is_neutral
+                                            panel_update((i,j))
                                             # 支付升级费用 并 立即获取一个能力板块
                                             self.adjust(player_id, [
                                                 ('money', 'use', 5),
@@ -1642,6 +1727,8 @@ class GameStateBase:
                                             ])
                                         # 升级为大学时
                                         case 5:
+                                            self.map_board_state.map_grid[i][j][2:] = to_build_id, pre_side_building_num, is_neutral
+                                            panel_update((i,j))
                                             # 支付升级费用 并 立即获取一个能力板块
                                             self.adjust(player_id, [
                                                 ('money', 'use', 8), 
@@ -1663,7 +1750,8 @@ class GameStateBase:
                                 self.players[player_id].buildings[pre_building_id] += 1
                             else:
                                 self.map_board_state.map_grid[i][j][2:] = pre_building_id, 1, pre_is_neutral
-                            panel_update((i,j))
+                            if not (mode == 'upgrade' and to_build_id in [4,5]):
+                                panel_update((i,j))
                             self.players[player_id].buildings[to_build_id] -= 1
                             # 定义检查模式为升级
                             check_mode = 'upgrade'
@@ -1785,7 +1873,6 @@ class GameStateBase:
                 self.action_effect(player_id=player_id, improve_navigation_or_shovel=True)
 
             self.io.update_player_state(player_id, {'navigation_level': self.players[player_id].navigation_level})
-
 
         def improve_shovel(player_id: int):
             # 判断是否可升级
@@ -2041,11 +2128,14 @@ class GameStateBase:
         elif shovel_times and self.players[player_id].faction_id == 3:
             reward.append(('money', 'get', 2* shovel_times))
         elif get_city_tile and self.players[player_id].faction_id == 6:
-            pass # TODO 鼹鼠派系行动效果
+            if self.check(player_id, [('spade',)]):
+                reward.append(('spade', 1, False))
+            if self.check(player_id, [('building', 1)]):
+                reward.append(('building','build_special_faction_tile_6', 1, False))
         elif building_id == 1 and is_riverside and self.players[player_id].faction_id == 9:
             reward.append(('score', 'get', 'board', 2))
         elif get_ability_tile_typ and self.players[player_id].faction_id == 11:
             reward.append(('book', 'get', get_ability_tile_typ, 1))
 
-        # 获取奖励
+        # ============== 获取奖励 ==============
         self.adjust(player_id=player_id, list_to_be_adjusted=reward)

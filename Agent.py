@@ -86,10 +86,12 @@ class AgentBase:
                     self.game_args['action_history'].append((self.player_id, typ, action_id))
                     # 执行该行动
                     self.action_system.execute_action(typ, action_id)
-                
-
+                    
             case 'target':
                 action_id = args
+                # 记录该行动
+                self.game_args['action_history'].append((self.player_id, typ, action_id))
+                # 执行该行动
                 self.action_system.execute_action(typ, action_id) 
 
             case 'random':
@@ -101,6 +103,9 @@ class AgentBase:
                     action_id = 65
                 else:
                     action_id = random.choice(available_action_ids)
+                # 记录该行动
+                self.game_args['action_history'].append((self.player_id, typ, action_id))
+                # 执行该行动
                 self.action_system.execute_action(typ, action_id)
 
             case _:

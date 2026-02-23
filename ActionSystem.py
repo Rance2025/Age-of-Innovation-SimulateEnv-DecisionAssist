@@ -805,6 +805,7 @@ class ActionSystem:
         def select_track_action(args):
 
             self.game_state.adjust(self.player_id, [('tracks', args, 1)])
+            self.player.choice_track = args
         
         def check_select_position_action(mode, args = tuple()) -> list:
 
@@ -823,6 +824,18 @@ class ActionSystem:
                 [0,60,61,0,62,63,64,65,66,67,68,69,0],
                 [70,71,72,0,73,74,75,76,77,78,79,80,81]
                 ]
+            # 水域坐标-行动id反查表（对于宫殿板块14的特别支持）
+            water_pos_to_action_id = [
+                [0, 303, 0, 0, 0, 0, 0, 304, 0, 0, 0, 0, 305],
+                [0, 306, 307, 0, 0, 0, 0, 308, 0, 0, 0, 309, 0], 
+                [0, 0, 0, 310, 0, 0, 0, 311, 312, 0, 313, 314, 0], 
+                [0, 0, 0, 315, 0, 0, 316, 0, 317, 318, 0, 0, 0], 
+                [0, 0, 0, 0, 319, 320, 321, 0, 0, 0, 0, 0, 0], 
+                [0, 322, 323, 324, 0, 0, 325, 0, 0, 326, 0, 0, 0], 
+                [0, 327, 0, 0, 328, 0, 0, 329, 330, 331, 332, 333, 334], 
+                [335, 0, 0, 336, 0, 0, 0, 0, 0, 0, 0, 0, 337], 
+                [0, 0, 0, 338, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            ]
             
             match mode:
                 case 'anywhere': 
@@ -895,13 +908,23 @@ class ActionSystem:
                                 case [_, _, _, 0, _]:
                                     action_id = 83 + pos_to_action_id[i][j]
                                     available_action_ids_list.append(action_id)
+                case 'water': # 对于宫殿板块14特殊选位的支持
+                    for i,j in args: # args是所有可选水域地块坐标
+                        action_id =  water_pos_to_action_id[i][j]
+                        available_action_ids_list.append(action_id)
                 case _:
                     pass
-            return available_action_ids_list
+            
+            # 可视化-高亮可选地块
+            self.game_state.io.highlight_hex(list(map(lambda x: self.all_detailed_actions[x]['args'],available_action_ids_list)))
+
+            return sorted(available_action_ids_list)
 
         def select_position_action(args):
 
             self.player.choice_position = args
+            # 可视化-取消高亮可选地块
+            self.game_state.io.highlight_hex([])
 
         def check_gain_magics_action(actual_num) -> list:
             

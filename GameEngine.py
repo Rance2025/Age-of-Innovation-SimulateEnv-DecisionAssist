@@ -8,6 +8,7 @@ class GameEngine:
         self.game_args = game_args                                     # 游戏参数
         self.num_players = game_args['num_players']                    # 玩家数量
         self.action_history = game_args['action_history']              # 行动记录
+        self.simulation_path = game_args['simulation_path']            # 模拟路径
         self.web_io = game_args['web_io']                              # 网页IO
         self.game_state = self.create_game_state()                     # 游戏状态
         self.game_state.effect_object()                                # 效果板块
@@ -59,8 +60,8 @@ class GameEngine:
                 self.agents[player_id].need_estimate = True
                 self.agents[player_id].action_turn(typ, args)
             case 'simulate':
-                if self.action_history:
-                    action_player_id, action_typ, action_id = self.action_history.pop(0)
+                if self.simulation_path:
+                    action_player_id, action_typ, action_id = self.simulation_path.pop(0)
                     assert action_player_id == player_id
                     assert action_typ == typ
                     self.agents[player_id].action_step('target', typ, action_id)
@@ -76,8 +77,8 @@ class GameEngine:
                 if self.next_immediate_action:
                     return (True, *self.next_immediate_action)
                 
-                if self.action_history:
-                    action_player_id, action_typ, action_id = self.action_history.pop(0)
+                if self.simulation_path:
+                    action_player_id, action_typ, action_id = self.simulation_path.pop(0)
                     assert action_player_id == player_id
                     assert action_typ == typ
                     self.agents[player_id].action_step('target', typ, action_id)
@@ -142,7 +143,7 @@ class GameEngine:
             self.web_io.update_global_status("初始阶段效果结算")
             for player_idx in self.game_state.pass_order:
                 cur_player_setup_list = self.game_state.players[player_idx].setup_effect_list
-                if cur_player_setup_list:
+                while cur_player_setup_list:
                     cur_player_setup_list.pop(0)(player_idx)
                     if self.next_immediate_action:
                         return (True, *self.next_immediate_action)
@@ -196,8 +197,10 @@ class GameEngine:
                         return (True, *self.next_immediate_action)
                 
             self.game_state.current_player_order = self.game_state.pass_order.copy()
-
-            self.web_io.round_update(self.game_state.round)
+            
+            if self.game_state.round != 6:
+                self.web_io.round_update(self.game_state.round)
+                
             return (False,)
         
         self.current_round_init_player_order = []  # 当前轮初始玩家行动顺序
@@ -229,7 +232,9 @@ class GameEngine:
             'setup_mode': 'target',
             'setup_tile_args' : self.game_args['setup_tile_args'],
             'setup_player_order_args': self.game_args['setup_player_order_args'].copy(),
-            'action_history': self.game_args['action_history'].copy() + action_history_appendix.copy(),
+            'action_history': [],
+            'simulation_path': self.game_args['action_history'].copy() + action_history_appendix.copy(),
+            'path_length': len(self.game_args['action_history']) + len(action_history_appendix),
             'action_mode': 'reproduce',
             'web_io': Silence_IO(),
         }
@@ -246,7 +251,9 @@ class GameEngine:
             'setup_mode': 'target',
             'setup_tile_args' : self.game_args['setup_tile_args'],
             'setup_player_order_args': self.game_args['setup_player_order_args'].copy(),
-            'action_history': self.game_args['action_history'].copy() + action_history_appendix.copy(),
+            'action_history': [],
+            'simulation_path': self.game_args['action_history'].copy() + action_history_appendix.copy(),
+            'path_length': len(self.game_args['action_history']) + len(action_history_appendix),
             'action_mode': 'simulate',
             'web_io': Silence_IO(),
         }

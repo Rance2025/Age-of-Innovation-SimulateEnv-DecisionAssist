@@ -138,7 +138,7 @@ class GamePanel:
         except Exception as e:
             return str(e), 500
         
-    # ===== 4个核心接口 =====
+    # ===== 核心接口 =====
     def get_input(self, prompt="> "):
         """1. 获取用户输入"""
         #self.output(0, prompt)
@@ -367,7 +367,7 @@ class GamePanel:
                 'round_booster_index': setup_round_booster_ids.index(round_booster_id),
             }
         }
-        print(setup_round_booster_ids.index(round_booster_id))
+        
         # 发送到前端
         self.queues['global_status'].put(json.dumps(get_booster_data))
         return True
@@ -387,9 +387,27 @@ class GamePanel:
                 'round_booster_index': setup_round_booster_ids.index(round_booster_id),
             }
         }
-        print(setup_round_booster_ids.index(round_booster_id))
+
         # 发送到前端
         self.queues['global_status'].put(json.dumps(get_booster_data))
+        return True
+
+    def highlight_hex(self, hex_list):
+        """
+        高亮可选地块
+        hex_list: 可选地块列表
+        """
+        
+        # 准备发送到前端的数据
+        hex_list_data = {
+            'type': 'highlight_hex',
+            'data': {
+                'hex_list': hex_list,
+            }
+        }
+
+        # 发送到前端
+        self.queues['global_status'].put(json.dumps(hex_list_data))
         return True
 
 class Silence_IO:
@@ -397,7 +415,7 @@ class Silence_IO:
         pass
     def output(self, channel, message, color=None):
         pass
-    def update_player_states(self, player_id, field, value):
+    def update_player_state(self, player_id, updates):
         pass
     def update_global_status(self, message):
         pass
@@ -416,6 +434,8 @@ class Silence_IO:
     def get_round_bonus(self, setup_round_booster_ids, round_booster_id):
         pass
     def return_round_bonus(self, setup_round_booster_ids, round_booster_id):
+        pass
+    def highlight_hex(self, hex_list):
         pass
 
 # 测试代码
@@ -459,7 +479,11 @@ if __name__ == "__main__":
             
     # except KeyboardInterrupt:
     #     print("\n=== 测试结束 ===")
+    p,q = 0,0
     while True:
+        p = (p+2)%9
+        q = (q+3)%13
+        panel.highlight_hex([(p,q),((2*p)%9,(2*q)%13)])
         panel.update_player_state(1, {
             'money': 150,
             'ore': 75,
@@ -479,6 +503,7 @@ if __name__ == "__main__":
             'score': 30
         })
         panel.update_building(0, 0, 1, 2, 'replace')
+        panel.set_round_scoring(3,5)
         panel.set_final_round_bonus(2)
         panel.round_update(5)
         time.sleep(3)
