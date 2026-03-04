@@ -8,7 +8,7 @@ class ActionSystem:
         self.game_state = game_state                                                    # 游戏状态
         self.player_id = player_id                                                      # 当前玩家ID
         self.player = game_state.players[player_id]                                     # 当前玩家
-        self.all_detailed_actions = DetailedAction().all_detailed_actions               # 所有具体行动         
+        self.all_detailed_actions = self.game_state.all_detailed_actions                # 所有具体行动         
         self.all_available_object_dict = self.game_state.all_available_object_dict      # 效果板块索引
         self.action_dict = self.create_action_dict()                                    # 创建主行动字典
         self.immediate_action_dict = self.create_immediate_action_dict()                # 创建立即行动字典
@@ -49,7 +49,7 @@ class ActionSystem:
         available_action_ids_list = []
 
         # 更新可抵达地块坐标
-        self.game_state.update_reachable_map_ids_set(self.player_id)
+        self.game_state.update_reachable_map_ids_set(self.player_id, mode='exclude_controlled')
 
         match mode:
             case 'normal':
@@ -541,6 +541,7 @@ class ActionSystem:
             # 设置主行动已执行
             self.player.main_action_is_done = True
 
+            # 参数长度大于1，则未铲后建造行动，反之为仅铲行动
             if len(args) > 1:
                 # 获取铲子和建筑参数
                 max_shovel_times, *build_args = args
@@ -872,9 +873,9 @@ class ActionSystem:
                     if to_upgrade_building_id != 8:
                         # 遍历控制列表
                         for i,j in self.player.controlled_map_ids:
-                            cur_building_id = self.game_state.map_board_state.map_grid[i][j][2]
+                            cur_building_id, _, cur_building_is_neutral = self.game_state.map_board_state.map_grid[i][j][2:]
                             # 当被遍历到的控制地块上的当前建筑对象为需升级建筑时
-                            if cur_building_id == to_upgrade_building_id:
+                            if cur_building_id == to_upgrade_building_id and cur_building_is_neutral == False:
                                 # 如果需升级建筑为车间
                                 if to_upgrade_building_id == 1:
                                     # 判断可否支持无邻居建造
@@ -912,6 +913,49 @@ class ActionSystem:
                     for i,j in args: # args是所有可选水域地块坐标
                         action_id =  water_pos_to_action_id[i][j]
                         available_action_ids_list.append(action_id)
+                case 'non_adjacent': # 对于鼹鼠派系的隧道和宫殿板块9的飞行的特别支持
+
+                    distance, shovel_mode, shovel_times = args
+
+                    # 创建跨一地块范围坐标集合（未排除已被控制与水域地块）
+                    available_map_ids = set()
+
+                    # 向集合中添加跨越1地块的坐标
+                    for i,j in self.player.controlled_map_ids:
+                        two_direction = [(-2,-1),(-2,0),(-2,1),(-1,i%2-2),(-1,i%2+1),(0,-2),(0,2),(1,i%2-2),(1,i%2+1),(2,-1),(2,0),(2,1)]
+                        available_map_ids |= {(i+dx,j+dy) for dx,dy in two_direction if 0 <= i+dx <= 8 and 0 <= j+dy <= 12}
+
+                    if distance == 3:
+                        # 向集合中添加跨越2地块的坐标
+                        for i,j in self.player.controlled_map_ids:
+                            three_direction = [(-3,i%2-2),(-3,i%2-1),(-3,i%2),(-3,i%2+1),(-2,-2),(-2,1),(-1,i%2-3),(-1,i%2+2),(0,-3),(0,3),(1,i%2-3),(1,i%2+2),(2,-2),(2,1),(3,i%2-2),(3,i%2-1),(3,i%2),(3,i%2+1)]
+                            available_map_ids |= {(i+dx,j+dy) for dx,dy in three_direction if 0 <= i+dx <= 8 and 0 <= j+dy <= 12}
+                            
+                    # 从集合中排除与现有建筑直接相邻的坐标
+                    for i,j in self.player.controlled_map_ids:
+                        one_direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
+                        available_map_ids -= {(i+dx,j+dy) for dx,dy in one_direction if 0 <= i+dx <= 8 and 0 <= j+dy <= 12}
+                    
+                    # 遍历跨越1或2地块的坐标集合，将其中可选地块加入合法行动列表
+                    for i,j in available_map_ids:
+                        # 获取当前地块地形和控制者
+                        terrain, controller = self.game_state.map_board_state.map_grid[i][j][:2]
+                        # 排除水域与已有控制者的地块
+                        if terrain != 0 and controller == -1:
+                            if (
+                                (
+                                    # 建造模式下，保留需铲次数小于等于可铲次数的地块
+                                    shovel_mode == 'build' 
+                                    and self.player.terrain_id_need_shovel_times[terrain] <= shovel_times
+                                )
+                                or (
+                                    # 铲模式下，保留需铲次数大于等于可铲次数的地块
+                                    shovel_mode == 'shovel' 
+                                    and self.player.terrain_id_need_shovel_times[terrain] >= shovel_times
+                                )
+                            ):
+                                action_id = 83 + pos_to_action_id[i][j]
+                                available_action_ids_list.append(action_id)
                 case _:
                     pass
             
@@ -1035,8 +1079,40 @@ class ActionSystem:
             if pos:
                 # 更新聚落
                 self.game_state.city_establishment_check(self.player_id, 'bridge', pos, bridge_key)
+                # 更新可抵地块
+                self.game_state.update_reachable_map_ids_set(self.player_id, pos)
             else:
                 raise ValueError(f'未获取到桥梁已连接建筑一侧地块坐标')
+
+        def check_select_tunneling_or_flight_in_spade() -> list:
+            available_action_ids = [346]
+            if (
+                self.player.faction_id == 7
+                and self.player.resources['ore'] >= 1
+            ):
+                available_action_ids.append(347)
+            if (
+                self.player.palace_tile_id == 9
+                and self.player.is_got_palace == True
+                and self.player.resources['meeples'] >= 1
+            ):
+                available_action_ids.append(348)
+
+            return available_action_ids
+        
+        def select_tunneling_or_flight_in_spade(args):
+            if args == 'tunneling':
+                self.game_state.adjust(
+                    self.player_id,
+                    [('ore', 'use', 1),('score', 'get', 'board', 4),]
+                )
+            elif args == 'flight':
+                self.game_state.adjust(
+                    self.player_id,
+                    [('meeple', 'use', 1),('score', 'get', 'board', 5),]
+                )
+            elif args == 'normal':
+                pass
 
         check_immediate_action_dict: dict[str, Callable] = {
             'select_book': check_select_book_action,
@@ -1047,6 +1123,7 @@ class ActionSystem:
             'select_ability_tile': check_select_ability_tile_action,
             'build_workshop': check_build_workshop_action,
             'build_bridge': check_build_bridge_aciton,
+            'select_tunneling_or_flight_in_spade': check_select_tunneling_or_flight_in_spade,
         }
 
         execute_immediate_action_dict: dict[str, Callable] = {
@@ -1058,6 +1135,7 @@ class ActionSystem:
             'select_ability_tile': select_ability_tile_action,
             'build_workshop': build_workshop_action,
             'build_bridge': build_bridge_aciton,
+            'select_tunneling_or_flight_in_spade': select_tunneling_or_flight_in_spade,
         }
 
         def immediate_action_dict(mode: str, name: str) -> Callable:

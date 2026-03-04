@@ -183,9 +183,9 @@ class DetailedAction:
             167: {'action': 'setup_build', 'args': ('build_setup', 6, True),  'description': '全图原生地选择建造一个中立的塔楼'},
             
             168: {'action': 'shovel_and_build', 'args': (0, 'build_normal', 1, False), 'description': '在原生地上建造一个车间'},
-            169: {'action': 'shovel_and_build', 'args': (1, 'build_normal', 1, False), 'description': '将一个地块铲成原生地（如需，最大支持一铲）并建造一个车间'},
-            170: {'action': 'shovel_and_build', 'args': (2, 'build_normal', 1, False), 'description': '将一个地块铲成原生地（如需，最大支持二铲）并建造一个车间'},
-            171: {'action': 'shovel_and_build', 'args': (3, 'build_normal', 1, False), 'description': '将一个地块铲成原生地（如需，最大支持三铲）并建造一个车间'},
+            169: {'action': 'shovel_and_build', 'args': (1, 'build_normal', 1, False), 'description': '将一个地块铲成原生地（如需，最大支持一铲）并建造车间'},
+            170: {'action': 'shovel_and_build', 'args': (2, 'build_normal', 1, False), 'description': '将一个地块铲成原生地（如需，最大支持二铲）并建造车间'},
+            171: {'action': 'shovel_and_build', 'args': (3, 'build_normal', 1, False), 'description': '将一个地块铲成原生地（如需，最大支持三铲）并建造车间'},
             172: {'action': 'shovel_and_build', 'args': (1,), 'description': '在一个可抵地块上铲一下但不建造'},
             173: {'action': 'shovel_and_build', 'args': (2,), 'description': '在一个可抵地块上铲两下但不建造'},
             174: {'action': 'shovel_and_build', 'args': (3,), 'description': '在一个可抵地块上铲三下但不建造'},
@@ -323,7 +323,7 @@ class DetailedAction:
             296: {'action': 'additional_action_round_booster_3',        'args': None, 'description': '每回合一次附加行动（回合助推板3 -> 1轨）'},
             297: {'action': 'additional_action_round_booster_5',        'args': None, 'description': '每回合一次附加行动（回合助推板5 -> 1铲）'},
             298: {'action': 'additional_action_round_booster_8',        'args': None, 'description': '每回合一次附加行动（回合助推板8 -> 1桥）'},
-            399: {'action': 'additional_action_science_tile_1',         'args': None, 'description': '每回合一次附加行动（高科板块（鬼使神差） -> 1铲）'},
+            299: {'action': 'additional_action_science_tile_1',         'args': None, 'description': '每回合一次附加行动（高科板块（鬼使神差） -> 1铲）'},
             300: {'action': 'additional_action_science_tile_3',         'args': None, 'description': '每回合一次附加行动（高科板块（教授） -> 1米宝 + 3分）'},
 
             301: {'action': 'additional_action_ability_tile_6', 'args': None, 'description': '附加行动（能力板块6 -> 建造1个侧楼）'},
@@ -365,4 +365,24 @@ class DetailedAction:
             336: {'action': 'select_position', 'args': (7, 3),    'description': '跨越水域H4建立城市'},
             337: {'action': 'select_position', 'args': (7, 12),   'description': '跨越水域H13建立城市'},
             338: {'action': 'select_position', 'args': (8, 3),    'description': '跨越水域I4建立城市'},
+
+            339: {'action': 'additional_action_moles_faction', 'args': (0, 'build_after_tunneling', 1, False), 'description': '附加行动（鼹鼠派系 -> 支付1矿 + 跨越一地块在原生地上建造车间 + 4分）'},
+            340: {'action': 'additional_action_moles_faction', 'args': (1, 'build_after_tunneling', 1, False), 'description': '附加行动（鼹鼠派系 -> 支付1矿 + 跨越一地块将其铲成原生地（如需，最大支持一铲）并建造车间 + 4分）'},
+            341: {'action': 'additional_action_moles_faction', 'args': (2, 'build_after_tunneling', 1, False), 'description': '附加行动（鼹鼠派系 -> 支付1矿 + 跨越一地块将其铲成原生地（如需，最大支持二铲）并建造车间 + 4分）'},
+            342: {'action': 'additional_action_moles_faction', 'args': (3, 'build_after_tunneling', 1, False), 'description': '附加行动（鼹鼠派系 -> 支付1矿 + 跨越一地块将其铲成原生地（如需，最大支持三铲）并建造车间 + 4分）'},
+            343: {'action': 'additional_action_moles_faction', 'args': (1,), 'description': '附加行动（鼹鼠派系 -> 支付1矿 + 跨越一地块铲一下但不建造 + 4分）'},
+            344: {'action': 'additional_action_moles_faction', 'args': (2,), 'description': '附加行动（鼹鼠派系 -> 支付1矿 + 跨越一地块铲两下但不建造 + 4分）'},
+            345: {'action': 'additional_action_moles_faction', 'args': (3,), 'description': '附加行动（鼹鼠派系 -> 支付1矿 + 跨越一地块铲三下但不建造 + 4分）'},
+
+            346: {'action': 'select_tunneling_or_flight_in_spade', 'args': 'normal',   'description': '附加立即行动（鼹鼠派系/宫殿板块9 -> 在常规范围内使用铲）'},
+            347: {'action': 'select_tunneling_or_flight_in_spade', 'args': 'tunneling', 'description': '附加立即行动（鼹鼠派系 -> 支付1矿 + 跨越一地块使用铲 + 4分）'},
+            348: {'action': 'select_tunneling_or_flight_in_spade', 'args': 'flight',    'description': '附加立即行动（宫殿板块9 -> 支付1米宝 + 跨越一或两地块使用铲 + 5分）'},
+
+            349: {'action': 'additional_action_palace_tile_9', 'args': (0, 'build_after_flight', 1, False), 'description': '附加行动（宫殿板块9 -> 支付1米宝 + 跨越一至两地块在原生地上建造车间 + 5分）'},
+            350: {'action': 'additional_action_palace_tile_9', 'args': (1, 'build_after_flight', 1, False), 'description': '附加行动（宫殿板块9 -> 支付1米宝 + 跨越一至两地块将其铲成原生地（如需，最大支持一铲）并建造车间 + 5分）'},
+            351: {'action': 'additional_action_palace_tile_9', 'args': (2, 'build_after_flight', 1, False), 'description': '附加行动（宫殿板块9 -> 支付1米宝 + 跨越一至两地块将其铲成原生地（如需，最大支持二铲）并建造车间 + 5分）'},
+            352: {'action': 'additional_action_palace_tile_9', 'args': (3, 'build_after_flight', 1, False), 'description': '附加行动（宫殿板块9 -> 支付1米宝 + 跨越一至两地块将其铲成原生地（如需，最大支持三铲）并建造车间 + 5分）'},
+            353: {'action': 'additional_action_palace_tile_9', 'args': (1,), 'description': '附加行动（宫殿板块9 -> 支付1米宝 + 跨越一至两地块铲一下但不建造 + 5分）'},
+            354: {'action': 'additional_action_palace_tile_9', 'args': (2,), 'description': '附加行动（宫殿板块9 -> 支付1米宝 + 跨越一至两地块铲两下但不建造 + 5分）'},
+            355: {'action': 'additional_action_palace_tile_9', 'args': (3,), 'description': '附加行动（宫殿板块9 -> 支付1米宝 + 跨越一至两地块铲三下但不建造 + 5分）'},
         }

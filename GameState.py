@@ -1,18 +1,19 @@
 import random
 import time
 from typing import Callable
-from web_io import GamePanel
-from collections import Counter, defaultdict, deque
-import copy
+from web_io import GamePanel, Silence_IO
+from collections import defaultdict, deque
+from DetailedAction import DetailedAction
 
 class GameStateBase:
     """游戏状态类"""
     class GameSetup:
         """游戏初始设置类"""
-        def __init__(self, num_players: int, mode: tuple):
+        def __init__(self, num_players: int, mode: tuple, io: GamePanel|Silence_IO):
             self.num_players = num_players
             self.mode = mode
             self.seedid = 7
+            self.io = io
             
             # 所有可用组件
             self.all_factions = list(range(1, 13))       # 共12派系
@@ -72,18 +73,19 @@ class GameStateBase:
             
             # 4. 选取人数+3个回合助推板作为可选项
             self.selected_round_boosters = sorted(random.sample(self.all_round_boosters, self.num_players + 3))
-            io.set_bonus_columns(self.selected_round_boosters)
+            self.io.set_bonus_columns(self.selected_round_boosters)
             
             # 5. 选取6个轮次计分板块并随机排序
             self.round_scoring_order = random.sample(self.all_round_scoring, 6)
             while not self.round_scoring_order_is_legal(self.round_scoring_order):
+                self.round_scoring_order = random.sample(self.all_round_scoring, 6)
                 random.shuffle(self.round_scoring_order)
             for i in range(6):
-                io.set_round_scoring(i+1,self.round_scoring_order[i])
+                self.io.set_round_scoring(i+1,self.round_scoring_order[i])
 
             # 6. 随机选取1个最终计分板块
             self.final_scoring = random.choice(self.all_final_scoring)
-            io.set_final_round_bonus(self.final_scoring)
+            self.io.set_final_round_bonus(self.final_scoring)
 
             # 7. 对共12块能力板块随机排序
             self.ability_tiles_order = random.sample(self.all_ability_tiles, 12)
@@ -201,16 +203,16 @@ class GameStateBase:
             
             # 4. 选取人数+3个回合助推板作为可选项
             self.selected_round_boosters = args[3]
-            io.set_bonus_columns(self.selected_round_boosters)
+            self.io.set_bonus_columns(self.selected_round_boosters)
             
             # 5. 选取6个轮次计分板块并随机排序
             self.round_scoring_order = args[4]
             for i in range(6):
-                io.set_round_scoring(i+1,self.round_scoring_order[i])
+                self.io.set_round_scoring(i+1,self.round_scoring_order[i])
 
             # 6. 随机选取1个最终计分板块
             self.final_scoring = args[5]
-            io.set_final_round_bonus(self.final_scoring)
+            self.io.set_final_round_bonus(self.final_scoring)
 
             # 7. 对共12块能力板块随机排序
             self.ability_tiles_order = args[6]
@@ -225,53 +227,53 @@ class GameStateBase:
             """执行所有初始设置步骤"""
 
             # 1. 选择被排除的那张规划卡
-            excluded_planning_card = int(io.get_input("请输入要排除的规划卡编号(1-7):"))
+            excluded_planning_card = int(self.io.get_input("请输入要排除的规划卡编号(1-7):"))
             if excluded_planning_card not in self.all_planning_cards:
                 raise ValueError("无效的规划卡编号")
             self.selected_planning_cards = self.all_planning_cards.copy()
             self.selected_planning_cards.remove(excluded_planning_card)
 
             # 2. 选择人数+1的派系板块
-            faction_input = io.get_input(f"请输入{self.num_players+1}个派系板块编号(1-12)，用空格分割:")
+            faction_input = self.io.get_input(f"请输入{self.num_players+1}个派系板块编号(1-12)，用空格分割:")
             inp = list(map(int, faction_input.split()))
             if len(set(inp)) != self.num_players + 1 or min(inp) < 1 or max(inp) > 12:
                 raise ValueError('无效的派系板块')
             self.selected_factions = sorted(inp)
 
             # 3. 选取人数+1个宫殿板块作为可选项
-            palace_input = io.get_input(f"请输入{self.num_players+1}个宫殿板块编号(1-16)，用空格分割:")
+            palace_input = self.io.get_input(f"请输入{self.num_players+1}个宫殿板块编号(1-16)，用空格分割:")
             inp = list(map(int, palace_input.split()))
             if len(set(inp)) != self.num_players + 1 or min(inp) < 1 or max(inp) > 16:
                 raise ValueError('无效的宫殿板块')
             self.selected_palace_tiles = sorted(inp)
 
             # 4. 选取人数+3个回合助推板作为可选项
-            booster_input = io.get_input(f"请输入{self.num_players+3}个回合助推板编号(1-10)，用空格分割:")
+            booster_input = self.io.get_input(f"请输入{self.num_players+3}个回合助推板编号(1-10)，用空格分割:")
             inp = list(map(int, booster_input.split()))
             if len(set(inp)) != self.num_players + 3 or min(inp) < 1 or max(inp) > 10:
                 raise ValueError('无效的回合助推板')
             self.selected_round_boosters = sorted(inp)
-            io.set_bonus_columns(self.selected_round_boosters)
+            self.io.set_bonus_columns(self.selected_round_boosters)
 
             # 5. 按第1-6轮顺序输入6个轮次计分板块
-            scoring_input = io.get_input("请按顺序输入6个轮次计分板块编号(1-12)，用空格分割:")
+            scoring_input = self.io.get_input("请按顺序输入6个轮次计分板块编号(1-12)，用空格分割:")
             inp = list(map(int, scoring_input.split()))
             if len(set(inp)) != 6 or min(inp) < 1 or max(inp) > 12 or self.round_scoring_order_is_legal(inp):
                 raise ValueError('无效的轮次计分板块')
             self.round_scoring_order = inp
             for i in range(6):
-                io.set_round_scoring(i+1,self.round_scoring_order[i])
+                self.io.set_round_scoring(i+1,self.round_scoring_order[i])
 
             # 6. 随机选取1个最终计分板块
-            final_input = io.get_input("请输入1个最终计分板块编号(1-4):")
+            final_input = self.io.get_input("请输入1个最终计分板块编号(1-4):")
             inp = int(final_input)
             if inp not in self.all_final_scoring:
                 raise ValueError('无效的最终计分板块')
             self.final_scoring = inp
-            io.set_final_round_bonus(self.final_scoring)
+            self.io.set_final_round_bonus(self.final_scoring)
 
             # 7. 对共12块能力板块随机排序
-            ability_input = io.get_input("请按顺序输入12个能力板块编号(1-12)，用空格分割:")
+            ability_input = self.io.get_input("请按顺序输入12个能力板块编号(1-12)，用空格分割:")
             inp = list(map(int, ability_input.split()))
             if len(set(inp)) != 12 or min(inp) < 1 or max(inp) > 12:
                 raise ValueError('无效的能力板块')
@@ -279,14 +281,14 @@ class GameStateBase:
 
             # 8. 选取2+人数*2的科学板块并随机排序
             science_count = 2 + self.num_players * 2
-            science_input = io.get_input(f"请按顺序输入{science_count}个科学板块编号(1-18)，用空格分割:")
+            science_input = self.io.get_input(f"请按顺序输入{science_count}个科学板块编号(1-18)，用空格分割:")
             inp = list(map(int, science_input.split()))
             if len(set(inp)) != science_count or min(inp) < 1 or max(inp) > 18:
                 raise ValueError('无效的科学板块')
             self.science_tiles_order = inp
 
             # 9. 选取3个书本行动
-            book_input = io.get_input("请输入3个书本行动板块编号(1-6)，用空格分割:")
+            book_input = self.io.get_input("请输入3个书本行动板块编号(1-6)，用空格分割:")
             inp = list(map(int, book_input.split()))
             if len(set(inp)) != 3 or min(inp) < 1 or max(inp) > 6:
                 raise ValueError('无效的书本行动板块')
@@ -721,11 +723,9 @@ class GameStateBase:
     def __init__(self, game_args: dict, num_players: int = 3):
         if num_players:
             self.num_players = num_players                                                                          # 玩家数量
-            self.game_args = game_args
-            global io
-            io = game_args['web_io']                                                                                # 网页IO接口
-            self.io = io
-            self.setup = __class__.GameSetup(num_players, (game_args['setup_mode'],game_args['setup_tile_args']))   # 游戏初始状态设置
+            self.game_args = game_args                                                                              # 本局游戏参数
+            self.io: GamePanel|Silence_IO = game_args['web_io']                                                     # 网页IO接口     
+            self.setup = __class__.GameSetup(num_players, (game_args['setup_mode'],game_args['setup_tile_args']), self.io)   # 游戏初始状态设置
             self.players:list[__class__.PlayerState] = [__class__.PlayerState(i) for i in range(num_players)]       # 玩家状态
             self.map_board_state = __class__.MapBoardState()                                                        # 地图状态
             self.display_board_state = __class__.DisplayBoardState(num_players)                                     # 展示板状态
@@ -734,7 +734,7 @@ class GameStateBase:
                 case 'random':
                     self.init_player_order = random.sample(list(range(num_players)),num_players)
                 case 'input':
-                    self.init_player_order = [int(i)-1 for i in io.get_input(f"请输入初始玩家顺位（1-{num_players}）: ").split()]
+                    self.init_player_order = [int(i)-1 for i in self.io.get_input(f"请输入初始玩家顺位（1-{num_players}）: ").split()]
                     assert (
                         len(self.init_player_order) == num_players 
                         and min(self.init_player_order) > 0 
@@ -747,79 +747,217 @@ class GameStateBase:
             self.setup_choice_is_completed = False                                                                  # 初始选择是否完成
             self.check = self.init_check()                                                                          # 初始化检查函数
             self.adjust = self.init_adjust()                                                                        # 初始化调整函数
+            self.all_detailed_actions = DetailedAction().all_detailed_actions                                       # 所有具体行动
 
     def invoke_immediate_aciton(self, player_id: int, args: tuple):
         return
     
-    def update_reachable_map_ids_set(self, player_id: int, update_pos: tuple = tuple()):
+    def update_reachable_map_ids_set(self, player_id: int, update_pos: tuple = tuple(), mode: str = 'normal'):
         """更新可抵达的坐标列表"""
 
-        def update_reachable_map_ids(pos: tuple[int, int], navigation_distance: int = 1, visited: set = set()):
-            
-            # 如果已经访问过这个位置，直接返回
-            if pos in visited:
-                return
-    
-            # 标记当前位置为已访问
-            visited.add(pos)
+        player = self.players[player_id]
 
+        # 移除原可抵达地块坐标集合中已被控制的
+        for player_idx in range(self.num_players):
+            player.reachable_map_ids -= self.players[player_idx].controlled_map_ids
+
+        if mode == 'exclude_controlled':
+            return 
+
+        def update_reachable_map_ids_rely_on_only_one_controlled_pos(pos: tuple[int, int], current_navigation_level: int) -> set:
+            cur_pos_reachable_map_ids = set()
+            navigation_reachable_map_ids_dict = {
+                1:[], # 一航水域
+                2:[], # 二航水域
+                3:[], # 三航水域
+                4:[], # 四航水域
+            }
+            
+            # 先判定直接相邻的地块中的可抵地块
+            i,j = pos
+            direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
+            for dx,dy in direction:
+                new_i, new_j = i + dx, j + dy
+                if (
+                    # 在合法边界内
+                    0 <= new_i <= 8 and 0 <= new_j <= 12
+                    # 没有被任何玩家控制
+                    and self.map_board_state.map_grid[new_i][new_j][1] == -1
+                ):
+                    # 如果是非水域地块，则直接加入当前地块的可抵地块集合中
+                    if self.map_board_state.map_grid[new_i][new_j][0] != 0 :
+                        cur_pos_reachable_map_ids.add((new_i,new_j))
+                    # 如果该地块是水域，则需根据航行等级进一步判定
+                    elif current_navigation_level >= 1:
+                        navigation_reachable_map_ids_dict[1].append((new_i,new_j))
+            
+            # 进一步进行航行判定，检索所有可航抵水域地块
+            if current_navigation_level >= 2:
+                # 遍历所有可航行距离
+                for navigation_distance in range(2,current_navigation_level+1):
+                    # 如果无上一航行距离可抵的水域，则意味着所有航行可抵水域均已找到，直接跳出循环
+                    if not navigation_reachable_map_ids_dict[navigation_distance-1]:
+                        break
+                    # 若有，则遍历上一距离可航抵水域的所有直接相邻地块
+                    for i,j in navigation_reachable_map_ids_dict[navigation_distance-1]:
+                        direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
+                        for dx,dy in direction:
+                            new_i, new_j = i + dx, j + dy
+                            if (
+                                # 在合法边界内
+                                0 <= new_i <= 8 and 0 <= new_j <= 12
+                                # 是水域地块
+                                and self.map_board_state.map_grid[new_i][new_j][0] == 0
+                                # 并且该地块不属于任何更近距离的可航抵水域
+                                and all((new_i,new_j) not in navigation_reachable_map_ids_dict[t] for t in range(navigation_distance-1,0,-1))
+                            ):
+                                # 则将其加入当前航行距离的可航抵水域
+                                navigation_reachable_map_ids_dict[navigation_distance].append((new_i,new_j))
+
+            # 依据可航抵水域，判定可抵地块
+            if current_navigation_level >= 1: 
+                # 获取所有可航抵水域列表
+                all_available_navigation_reachable_water_map_ids = [
+                    (i,j) for t in range(1,5) for i,j in navigation_reachable_map_ids_dict[t] 
+                ]
+                # 则遍历所有可航抵水域的直接相邻地块
+                for i,j in all_available_navigation_reachable_water_map_ids:
+                    direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
+                    for dx,dy in direction:
+                        new_i, new_j = i + dx, j + dy
+                        if (
+                            # 在合法边界内
+                            0 <= new_i <= 8 and 0 <= new_j <= 12
+                            # 非水域地块
+                            and self.map_board_state.map_grid[new_i][new_j][0] != 0
+                            # 没有被任何玩家控制
+                            and self.map_board_state.map_grid[new_i][new_j][1] == -1
+                        ):
+                            # 则将其加入当前检测地块的可抵地块集合中
+                            cur_pos_reachable_map_ids.add((new_i,new_j))
+                
+            # 依据相邻桥梁连接，判定可抵地块
             # 判断该地块是否是可建桥位两侧中的一测
             if pos in self.map_board_state.enable_bridge_pos_dict:
                 # 如是，则遍历其对侧地块
                 for corres_pos in self.map_board_state.enable_bridge_pos_dict[pos]:
                     (i,j),(p,q) = pos, corres_pos
-                    # 判断对侧地块是否已被其他玩家占领
+                    # 判断对侧地块是否已被任一玩家占领
                     if self.map_board_state.map_grid[p][q][1] in (-1, player_id):
-                        # 若未被其他玩家占领，则排序两侧地块坐标，生成桥键
+                        # 若未被任一玩家占领，则排序两侧地块坐标，生成桥键
                         if i > p or (i == p and q > j):
                             bridge_key = ((p,q),(i,j))
                         else:
                             bridge_key = ((i,j),(p,q))
                         # 根据桥键查询该桥位是否已被该玩家连接
                         if self.map_board_state.bridges_is_conneted[bridge_key] == player_id:
-                            # 如已被连接，则将对侧地块加入可抵地块集合中
-                            player.reachable_map_ids.add((p,q))
+                            # 如已被连接，则将对侧地块加入当前检测地块的可抵地块集合中
+                            cur_pos_reachable_map_ids.add((p,q))
 
-            i,j = pos
-            direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
-
-            for dx,dy in direction:
-                new_i, new_j = i + dx, j + dy
-                if (
-                    # 在合法边界内
-                    0 <= new_i <= 8 and 0 <= new_j <= 12
-                    # 没有被其他玩家控制
-                    and self.map_board_state.map_grid[new_i][new_j][1] == -1
-                ):
+            return cur_pos_reachable_map_ids
+        
+        def update_reachable_map_ids_rely_on_all_controlled_pos(current_navigation_level: int) -> set:
+            all_reachable_map_ids = set()
+            navigation_reachable_map_ids_dict = {
+                1:[], # 一航水域
+                2:[], # 二航水域
+                3:[], # 三航水域
+                4:[], # 四航水域
+            }
+            
+            # 先遍历所有控制地块，判定直接相邻的地块中的可抵地块
+            for i,j in player.controlled_map_ids:
+                direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
+                for dx,dy in direction:
+                    new_i, new_j = i + dx, j + dy
                     if (
-                        # 如果该地块不是水域
-                        self.map_board_state.map_grid[new_i][new_j][0] != 0
+                        # 在合法边界内
+                        0 <= new_i <= 8 and 0 <= new_j <= 12
+                        # 没有被任何玩家控制
+                        and self.map_board_state.map_grid[new_i][new_j][1] == -1
                     ):
-                        # 添加该地块到可抵达集合中
-                        player.reachable_map_ids.add((new_i,new_j))
-                    elif (
-                        # 如果该玩家有航行能力
-                        current_navigation_level >= navigation_distance
-                    ):
-                        # 递归查找可抵达地块
-                        update_reachable_map_ids((new_i,new_j), navigation_distance+1, visited)
+                        # 如果是非水域地块，则直接加入当前地块的可抵地块集合中
+                        if self.map_board_state.map_grid[new_i][new_j][0] != 0 :
+                            all_reachable_map_ids.add((new_i,new_j))
+                        # 如果该地块是水域，则需根据航行等级进一步判定
+                        elif current_navigation_level >= 1:
+                            navigation_reachable_map_ids_dict[1].append((new_i,new_j))
+            
+            # 进一步进行航行判定，检索所有可航抵水域地块
+            if current_navigation_level >= 2:
+                # 遍历所有可航行距离
+                for navigation_distance in range(2,current_navigation_level+1):
+                    # 如果无上一航行距离可抵的水域，则意味着所有航行可抵水域均已找到，直接跳出循环
+                    if not navigation_reachable_map_ids_dict[navigation_distance-1]:
+                        break
+                    # 若有，则遍历上一距离可航抵水域的所有直接相邻地块
+                    for i,j in navigation_reachable_map_ids_dict[navigation_distance-1]:
+                        direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
+                        for dx,dy in direction:
+                            new_i, new_j = i + dx, j + dy
+                            if (
+                                # 在合法边界内
+                                0 <= new_i <= 8 and 0 <= new_j <= 12
+                                # 是水域地块
+                                and self.map_board_state.map_grid[new_i][new_j][0] == 0
+                                # 并且该地块不属于任何更近距离的可航抵水域
+                                and all((new_i,new_j) not in navigation_reachable_map_ids_dict[t] for t in range(navigation_distance-1,0,-1))
+                            ):
+                                # 则将其加入当前航行距离的可航抵水域
+                                navigation_reachable_map_ids_dict[navigation_distance].append((new_i,new_j))
 
-        player = self.players[player_id]
-        current_navigation_level = player.navigation_level + 1 if player.temp_navigation else 0
+            # 依据可航抵水域，判定可抵地块
+            if current_navigation_level >= 1: 
+                # 获取所有可航抵水域列表
+                all_available_navigation_reachable_water_map_ids = [
+                    (i,j) for t in range(1,5) for i,j in navigation_reachable_map_ids_dict[t] 
+                ]
+                # 则遍历所有可航抵水域的直接相邻地块
+                for i,j in all_available_navigation_reachable_water_map_ids:
+                    direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
+                    for dx,dy in direction:
+                        new_i, new_j = i + dx, j + dy
+                        if (
+                            # 在合法边界内
+                            0 <= new_i <= 8 and 0 <= new_j <= 12
+                            # 非水域地块
+                            and self.map_board_state.map_grid[new_i][new_j][0] != 0
+                            # 没有被任何玩家控制
+                            and self.map_board_state.map_grid[new_i][new_j][1] == -1
+                        ):
+                            # 则将其加入当前检测地块的可抵地块集合中
+                            all_reachable_map_ids.add((new_i,new_j))
+                
+            # 依据相邻桥梁连接，判定可抵地块
+            # 判断该地块是否是可建桥位两侧中的一测
+            for pos in player.controlled_map_ids:
+                if pos in self.map_board_state.enable_bridge_pos_dict:
+                    # 如是，则遍历其对侧地块
+                    for corres_pos in self.map_board_state.enable_bridge_pos_dict[pos]:
+                        (i,j),(p,q) = pos, corres_pos
+                        # 判断对侧地块是否已被任一玩家占领
+                        if self.map_board_state.map_grid[p][q][1] in (-1, player_id):
+                            # 若未被任一玩家占领，则排序两侧地块坐标，生成桥键
+                            if i > p or (i == p and q > j):
+                                bridge_key = ((p,q),(i,j))
+                            else:
+                                bridge_key = ((i,j),(p,q))
+                            # 根据桥键查询该桥位是否已被该玩家连接
+                            if self.map_board_state.bridges_is_conneted[bridge_key] == player_id:
+                                # 如已被连接，则将对侧地块加入当前检测地块的可抵地块集合中
+                                all_reachable_map_ids.add((p,q))
 
-        # 移除原可抵达地块坐标集合中已被控制的
-        for pos in player.reachable_map_ids.copy():
-            i,j = pos
-            if self.map_board_state.map_grid[i][j][1] != -1:
-                player.reachable_map_ids.remove(pos)
+            return all_reachable_map_ids
+        
+        # 获取当前玩家最大可航行距离
+        current_navigation_level = player.navigation_level + 1 if player.temp_navigation else player.navigation_level
 
         # 如有指定更新的控制坐标，则以该坐标为原点进行查找
         if update_pos:
-            update_reachable_map_ids(update_pos)
+            player.reachable_map_ids |= update_reachable_map_ids_rely_on_only_one_controlled_pos(update_pos, current_navigation_level)
         else:
-            # 如无，则遍历控制列表添加（如有新增）新的可抵达地块坐标进入集合
-            for pos in player.controlled_map_ids:
-                update_reachable_map_ids(pos)
+            # 如无，则更新整个可抵地块集合
+            player.reachable_map_ids = update_reachable_map_ids_rely_on_all_controlled_pos(current_navigation_level)
 
     def absorb_magics_check(self, player_id: int, pos: tuple[int, int]):
         
@@ -965,114 +1103,157 @@ class GameStateBase:
         
     def calculate_players_total_score(self):
 
-        def search_reachable_settlements(player_id: int, pos: tuple[int, int], navigation_distance: int = 1, visited: set = set(), all_reachable_pos: set = set()):
+        def find_reachable_pos_set_rely_on_chain_root(chains_root: tuple) -> set:
+            need_check_controlled_pos_set = chains_controlled[chains_root]
+            all_reachable_map_ids = set()
+            navigation_reachable_map_ids_dict = {
+                1:[], # 一航水域
+                2:[], # 二航水域
+                3:[], # 三航水域
+                4:[], # 四航水域
+            }
             
-            # 如果已经访问过这个位置，直接返回
-            if pos in visited:
-                return
-    
-            # 标记当前位置为已访问
-            visited.add(pos)
-
-            i,j = pos
-            direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
-
-            for dx,dy in direction:
-                new_i, new_j = i + dx, j + dy
-                if (
-                    # 在合法边界内
-                    0 <= new_i <= 8 and 0 <= new_j <= 12
-                ):
+            # 先遍历所有控制地块，判定相邻的地块中的可抵相连地块(含跨越地块)
+            for i,j in need_check_controlled_pos_set:
+                direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
+                # 如果持有鼹鼠派系或者宫殿板块9，则扩展跨越1格地块至方向中
+                if player.faction_id == 7 or player.palace_tile_id == 9:
+                    direction.extend([(-2,-1),(-2,0),(-2,1),(-1,i%2-2),(-1,i%2+1),(0,-2),(0,2),(1,i%2-2),(1,i%2+1),(2,-1),(2,0),(2,1)])
+                # 如果持有宫殿板块9，则扩展跨越2格地块至方向中
+                if player.palace_tile_id == 9:
+                    direction.extend([(-3,i%2-2),(-3,i%2-1),(-3,i%2),(-3,i%2+1),(-2,-2),(-2,1),(-1,i%2-3),(-1,i%2+2),(0,-3),(0,3),(1,i%2-3),(1,i%2+2),(2,-2),(2,1),(3,i%2-2),(3,i%2-1),(3,i%2),(3,i%2+1)])
+                for dx,dy in direction:
+                    new_i, new_j = i + dx, j + dy
                     if (
-                        # 如果该地块是水域
-                        self.map_board_state.map_grid[new_i][new_j][0] == 0
-                        # 航行距离未超过最大航行能力
-                        and navigation_distance <= self.players[player_id].navigation_level
+                        # 在合法边界内
+                        0 <= new_i <= 8 and 0 <= new_j <= 12
+                        # 被该玩家自身控制
+                        and self.map_board_state.map_grid[new_i][new_j][1] == player_id
                     ):
-                        search_reachable_settlements(player_id, (new_i,new_j), navigation_distance+1, visited, all_reachable_pos)
-                    else:
-                        all_reachable_pos.add((new_i,new_j))
+                        # 如果是非水域地块，则直接加入当前地块的可抵地块集合中
+                        if self.map_board_state.map_grid[new_i][new_j][0] != 0 :
+                            all_reachable_map_ids.add((new_i,new_j))
+                        # 如果该地块是水域，则需根据航行等级进一步判定
+                        elif player.navigation_level >= 1:
+                            navigation_reachable_map_ids_dict[1].append((new_i,new_j))
+            
+            # 进一步进行航行判定，检索所有可航抵水域地块
+            if player.navigation_level >= 2:
+                # 遍历所有可航行距离
+                for navigation_distance in range(2,player.navigation_level+1):
+                    # 如果无上一航行距离可抵的水域，则意味着所有航行可抵水域均已找到，直接跳出循环
+                    if not navigation_reachable_map_ids_dict[navigation_distance-1]:
+                        break
+                    # 若有，则遍历上一距离可航抵水域的所有直接相邻地块
+                    for i,j in navigation_reachable_map_ids_dict[navigation_distance-1]:
+                        direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
+                        for dx,dy in direction:
+                            new_i, new_j = i + dx, j + dy
+                            if (
+                                # 在合法边界内
+                                0 <= new_i <= 8 and 0 <= new_j <= 12
+                                # 是水域地块
+                                and self.map_board_state.map_grid[new_i][new_j][0] == 0
+                                # 并且该地块不属于任何更近距离的可航抵水域
+                                and all((new_i,new_j) not in navigation_reachable_map_ids_dict[t] for t in range(navigation_distance-1,0,-1))
+                            ):
+                                # 则将其加入当前航行距离的可航抵水域
+                                navigation_reachable_map_ids_dict[navigation_distance].append((new_i,new_j))
 
-        def find_all_settlement_clusters(settlement_dict):
+            # 依据可航抵水域，判定可抵地块
+            if player.navigation_level >= 1: 
+                # 获取所有可航抵水域列表
+                all_available_navigation_reachable_water_map_ids = [
+                    (i,j) for t in range(1,5) for i,j in navigation_reachable_map_ids_dict[t] 
+                ]
+                # 则遍历所有可航抵水域的直接相邻地块
+                for i,j in all_available_navigation_reachable_water_map_ids:
+                    direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
+                    for dx,dy in direction:
+                        new_i, new_j = i + dx, j + dy
+                        if (
+                            # 在合法边界内
+                            0 <= new_i <= 8 and 0 <= new_j <= 12
+                            # 非水域地块
+                            and self.map_board_state.map_grid[new_i][new_j][0] != 0
+                            # 被该玩家自身控制
+                            and self.map_board_state.map_grid[new_i][new_j][1] == player_id
+                        ):
+                            # 则将其加入当前检测地块的可抵地块集合中
+                            all_reachable_map_ids.add((new_i,new_j))
 
-            # 收集所有聚落ID
-            all_settlements = set()
-            for src, dests in settlement_dict.items():
-                all_settlements.add(src)
-                all_settlements.update(dests)
-            
-            # 构建双向连接图
-            graph = {}
-            for settlement in all_settlements:
-                graph[settlement] = set()
-            
-            for src, dests in settlement_dict.items():
-                for dest in dests:
-                    graph[src].add(dest)
-                    graph[dest].add(src)  # 双向连接
-            
-            # 使用BFS找到所有连通分量
-            visited = set()
-            all_clusters = []
-            
-            for settlement in sorted(all_settlements):  # 按ID排序处理
-                if settlement not in visited:
-                    # 新的连通分量
-                    cluster = []
-                    queue = deque([settlement])
-                    visited.add(settlement)
-                    
-                    while queue:
-                        node = queue.popleft()
-                        cluster.append(node)
-                        
-                        for neighbor in graph[node]:
-                            if neighbor not in visited:
-                                visited.add(neighbor)
-                                queue.append(neighbor)
-                    
-                    # 将当前分量添加到结果中
-                    all_clusters.append(sorted(cluster))
-            
-            return all_clusters
-
+            return all_reachable_map_ids
+        
         # 计算各玩家大链分数
         all_players_largest_chain_num = {i:0 for i in range(self.num_players)}
 
         for player_id in range(self.num_players):
 
             player = self.players[player_id]
-            chains = defaultdict(set)
-            root_index = []
-            can_achieve_settlement = defaultdict(set)
-            for controlled_pos, root_info in player.settlements_and_cities.items():
-                if root_info[0] not in root_index:
-                    root_index.append(root_info[0])
-                chains[root_index.index(root_info[0])].add(controlled_pos)
+            chains_controlled:dict[tuple,set[tuple]] = {}
+            chains_reachable:dict[tuple,set[tuple]] = {}
 
-            for settlement_id, controlled_pos_set in chains.items():
-                temp_check_set = set()
-                for tmp_settlement_id, tmp_controlled_pos_set in chains.items():
-                    if tmp_settlement_id > settlement_id:
-                        temp_check_set |= tmp_controlled_pos_set
-                
-                for pos in controlled_pos_set:
-                    all_reachable_pos = set()
-                    search_reachable_settlements(player_id, pos, all_reachable_pos=all_reachable_pos)
-                    reachable_check_pos_set = all_reachable_pos & temp_check_set
-                    for can_reach_pos in reachable_check_pos_set:
-                        can_reach_pos_root = player.settlements_and_cities[can_reach_pos][0]
-                        can_achieve_settlement[settlement_id].add(root_index.index(can_reach_pos_root))
+            # 建立根坐标与控制坐标对应字典
+            for controlled_pos in player.settlements_and_cities.keys():
+                root, _ = self.map_board_state.find_settlement_root(player.settlements_and_cities,controlled_pos)
+                if root not in chains_controlled:
+                    chains_controlled[root] = set()
+                chains_controlled[root].add(controlled_pos)
 
-            all_clusters = find_all_settlement_clusters(can_achieve_settlement)
-            largest_clusters = 0
-            for cluster in all_clusters:
-                building_num = 0
-                for settlement_id in cluster:
-                    building_num += len(chains[settlement_id])
-                if building_num > largest_clusters:
-                    largest_clusters = building_num
-            all_players_largest_chain_num[player_id] = largest_clusters
+            # 建立根坐标与可抵控制坐标对应字典
+            for root in chains_controlled.keys():
+                chains_reachable[root] = find_reachable_pos_set_rely_on_chain_root(root)
+            
+            # 生成所有根坐标对列表
+            root_list = list(chains_controlled.keys())
+            all_root_pair = []
+            for i in range(len(root_list)-1):
+                for j in range(i+1,len(root_list)):
+                    all_root_pair.append(
+                        (root_list[i],root_list[j])
+                    )
+            
+            # 生成所有互联的根坐标对列表
+            chained_root_pairs_list = []
+            for r1, r2 in all_root_pair:
+                if chains_controlled[r1] & chains_reachable[r2]:
+                    chained_root_pairs_list.append((r1,r2))
+
+            # 生成所有互联的根坐标集群列表
+            chained_root_clusters_list = []
+            for a, b in chained_root_pairs_list:
+                merged = False
+                for comp in chained_root_clusters_list:
+                    if a in comp or b in comp:
+                        comp.add(a)
+                        comp.add(b)
+                        merged = True
+                        break
+                if not merged:
+                    chained_root_clusters_list.append({a, b})
+            while True:
+                changed = False
+                for i in range(len(chained_root_clusters_list)):
+                    for j in range(i+1, len(chained_root_clusters_list)):
+                        if chained_root_clusters_list[i] & chained_root_clusters_list[j]:  # 如果有交集
+                            chained_root_clusters_list[i] |= chained_root_clusters_list[j]  # 合并
+                            chained_root_clusters_list.pop(j)
+                            changed = True
+                            break
+                    if changed:
+                        break
+                if not changed:
+                    break
+
+            # 遍历每一个互联的根坐标集群，寻找最大的控制坐标链（大链）
+            largest_chained_controlled_pos_num = 0
+            for cluster in chained_root_clusters_list:
+                current_root_pos_num = 0
+                for controlled_root in cluster:
+                    current_root_pos_num += len(chains_controlled[controlled_root])
+                if current_root_pos_num > largest_chained_controlled_pos_num:
+                    largest_chained_controlled_pos_num = current_root_pos_num
+            all_players_largest_chain_num[player_id] = largest_chained_controlled_pos_num
 
         sorted_largest_chain_players = sorted(all_players_largest_chain_num.items(), key=lambda x:x[1], reverse=True)
         chain_score = [18,12,6]
@@ -1122,23 +1303,20 @@ class GameStateBase:
                     self.players[player_id].magics[2]//2,
                 ]
             ) // 5
-        #     print(self.players[player_id].resources,self.players[player_id].magics)
-        # print({
-        #     player_idx:[
-        #         self.players[player_idx].boardscore,
-        #         self.players[player_idx].chainscore,
-        #         self.players[player_idx].trackscore,
-        #         self.players[player_idx].resourcescore
-        #     ]
-        #     for player_idx in range(self.num_players)
-        # })
+            
         return {
-            player_idx: sum([
-                self.players[player_idx].boardscore,
-                self.players[player_idx].chainscore,
-                self.players[player_idx].trackscore,
-                self.players[player_idx].resourcescore
-            ])
+            player_idx: {
+                'total': sum([
+                    self.players[player_idx].boardscore,
+                    self.players[player_idx].chainscore,
+                    self.players[player_idx].trackscore,
+                    self.players[player_idx].resourcescore
+                ]),
+                'board': self.players[player_idx].boardscore,
+                'chain': self.players[player_idx].chainscore,
+                'track': self.players[player_idx].trackscore,
+                'resource': self.players[player_idx].resourcescore,
+            }
             for player_idx in range(self.num_players)
         }
         
@@ -1245,9 +1423,12 @@ class GameStateBase:
         def check_shovel(player_id: int) -> bool:
             # 判断是否存在可铲地（至少一铲）
             for i,j in self.players[player_id].reachable_map_ids:
-                terrain = self.map_board_state.map_grid[i][j][0]
+                terrain, controller = self.map_board_state.map_grid[i][j][:2]
                 # 如有则跳出是否可铲判断
-                if self.players[player_id].terrain_id_need_shovel_times[terrain] >= 1:
+                if (
+                    controller == -1
+                    and self.players[player_id].terrain_id_need_shovel_times[terrain] >= 1
+                ):
                     return True
             return False
                  
@@ -1522,7 +1703,9 @@ class GameStateBase:
                     'build_normal'|'build_neutral'|
                     'build_setup'|'build_after_shovel'|
                     'build_special_faction_tile_6'|
-                    'build_special_palace_tile_16'
+                    'build_special_palace_tile_16'|
+                    'build_after_tunneling'|
+                    'build_after_flight'
                 ):
                     if mode == 'build_setup':
                         # 立即选择位置
@@ -1568,6 +1751,8 @@ class GameStateBase:
                                     ],
                                 )
                                 break
+                        else:
+                            return
                     
                     elif mode == 'build_special_palace_tile_16': # 宫殿板块16的立即行动效果
                         # 遍历查找是否存在可建原生地
@@ -1583,34 +1768,93 @@ class GameStateBase:
                                     ('select_position', 'anywhere', set([self.players[player_id].planning_card_id]))
                                 ): return 
                                 break
+                        else:
+                            return
                                     
                         # 获取选择的位置
                         i,j = self.players[player_id].choice_position
 
-                    else: # build_normal | build_neutral
+                    else: # build_normal | build_neutral | build_after_flight | build_after_tunneling
+                        
                         # 最大可铲次数 = 玩家拥有矿数 // 铲子等级
-                        if mode == 'build_normal':
+                        if mode == 'build_normal' or mode == 'build_after_flight' or mode == 'build_after_tunneling':
                             max_shovel_times = (
                                 (self.players[player_id].resources['ore'] - 1)
                                 // self.players[player_id].shovel_level
                             )
-                        else:
+                        elif mode == 'build_neutral':
                             max_shovel_times = (
                                 self.players[player_id].resources['ore']
                                 // self.players[player_id].shovel_level
                             )
-                        # 判断是否存在可建地
-                        for p,q in self.players[player_id].reachable_map_ids:
+
+                        # 根据模式确定检查范围
+                        if mode == 'build_normal' or mode == 'build_neutral':
+                            need_check_range = self.players[player_id].reachable_map_ids
+                        
+                        elif mode == 'build_after_tunneling': # 对于鼹鼠派系的特殊支持
+                            
+                            # 创建跨一地块范围坐标集合（未排除已被控制与水域地块）
+                            available_map_ids = set()
+                            
+                            # 向集合中添加跨越1地块的坐标
+                            for i,j in self.players[player_id].controlled_map_ids:
+                                two_direction = [(-2,-1),(-2,0),(-2,1),(-1,i%2-2),(-1,i%2+1),(0,-2),(0,2),(1,i%2-2),(1,i%2+1),(2,-1),(2,0),(2,1)]
+                                available_map_ids |= {(i+dx,j+dy) for dx,dy in two_direction if 0 <= i+dx <= 8 and 0 <= j+dy <= 12}
+                                    
+                            # 从集合中排除与现有建筑直接相邻的坐标
+                            for i,j in self.players[player_id].controlled_map_ids:
+                                one_direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
+                                available_map_ids -= {(i+dx,j+dy) for dx,dy in one_direction if 0 <= i+dx <= 8 and 0 <= j+dy <= 12}
+
+                            need_check_range = list(available_map_ids)
+
+                        elif mode == 'build_after_flight':  # 对于宫殿板块14的特殊支持
+
+                            # 创建跨一地块范围坐标集合（未排除已被控制与水域地块）
+                            available_map_ids = set()
+                            
+                            # 向集合中添加跨越1地块的坐标
+                            for i,j in self.players[player_id].controlled_map_ids:
+                                two_direction = [(-2,-1),(-2,0),(-2,1),(-1,i%2-2),(-1,i%2+1),(0,-2),(0,2),(1,i%2-2),(1,i%2+1),(2,-1),(2,0),(2,1)]
+                                available_map_ids |= {(i+dx,j+dy) for dx,dy in two_direction if 0 <= i+dx <= 8 and 0 <= j+dy <= 12}
+
+                            # 向集合中添加跨越2地块的坐标
+                            for i,j in self.players[player_id].controlled_map_ids:
+                                three_direction = [(-3,i%2-2),(-3,i%2-1),(-3,i%2),(-3,i%2+1),(-2,-2),(-2,1),(-1,i%2-3),(-1,i%2+2),(0,-3),(0,3),(1,i%2-3),(1,i%2+2),(2,-2),(2,1),(3,i%2-2),(3,i%2-1),(3,i%2),(3,i%2+1)]
+                                available_map_ids |= {(i+dx,j+dy) for dx,dy in three_direction if 0 <= i+dx <= 8 and 0 <= j+dy <= 12}
+                                    
+                            # 从集合中排除与现有建筑直接相邻的坐标
+                            for i,j in self.players[player_id].controlled_map_ids:
+                                one_direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
+                                available_map_ids -= {(i+dx,j+dy) for dx,dy in one_direction if 0 <= i+dx <= 8 and 0 <= j+dy <= 12}
+
+                            need_check_range = list(available_map_ids)
+
+                        # 判断在需检查范围内是否存在可建地
+                        for p,q in need_check_range:
                             terrain, controller = self.map_board_state.map_grid[p][q][:2]
-                            # 如有则选择可建地并跳出判断
                             if (
-                                self.players[player_id].terrain_id_need_shovel_times[terrain] <= max_shovel_times
+                                terrain != 0
+                                and self.players[player_id].terrain_id_need_shovel_times[terrain] <= max_shovel_times
                                 and controller == -1    
                             ):
-                                if self.invoke_immediate_aciton(
-                                    player_id, 
-                                    ('select_position', 'reachable', ('build', max_shovel_times))
-                                ): return 
+                                if mode == 'build_normal' or mode == 'build_neutral':
+                                    if self.invoke_immediate_aciton(
+                                        player_id, 
+                                        ('select_position', 'reachable', ('build', max_shovel_times))
+                                    ): return
+                                elif mode == 'build_after_flight':
+                                    if self.invoke_immediate_aciton(
+                                        player_id, 
+                                        ('select_position', 'non_adjacent', (3, 'build', max_shovel_times))
+                                    ): return
+                                elif mode == 'build_after_tunneling':
+                                    if self.invoke_immediate_aciton(
+                                        player_id, 
+                                        ('select_position', 'non_adjacent', (2, 'build', max_shovel_times))
+                                    ): return 
+
                                 i,j = self.players[player_id].choice_position
                                 cur_terrain = self.map_board_state.map_grid[i][j][0]
                                 need_shovel_times = self.players[player_id].terrain_id_need_shovel_times[cur_terrain]
@@ -1622,12 +1866,12 @@ class GameStateBase:
                                         ('land', need_shovel_times),
                                     ],
                                 )
-                                if mode == 'build_normal':
+                                if mode == 'build_normal' or mode == 'build_after_flight' or mode == 'build_after_tunneling':
                                     # 支付建造工会费用
                                     self.adjust(player_id, [('money', 'use', 2), ('ore', 'use', 1)])
                                 break
                         else:
-                            if mode == 'build_normal':
+                            if mode == 'build_normal' or mode == 'build_after_flight' or mode == 'build_after_tunneling':
                                 raise ValueError(f'无可建地')
                             elif mode == 'build_neutral':
                                 # print(f'中立建造无可建地')
@@ -1761,7 +2005,7 @@ class GameStateBase:
                 case _:
                     raise ValueError(f'不存在{mode}建筑效果')
             
-            # 初始阶段的建造不触发行动效果
+            # 触发行动效果（初始阶段的建造不触发）
             if mode != 'build_setup':
                 is_edge = False
                 is_riverside = False
@@ -1789,6 +2033,7 @@ class GameStateBase:
             if not (mode == 'build_annex' or mode == 'build_setup'):
                 # 执行吸取魔力立即行动（如有）
                 self.absorb_magics_check(player_id, (i,j))
+            
             # 更新聚落及检查城市建立
             self.city_establishment_check(player_id,check_mode,(i,j))
 
@@ -1796,25 +2041,108 @@ class GameStateBase:
             # 调起建桥立即行动（保证一定可建）
             if self.check(player_id, [('bridge',)]):
                 self.players[player_id].resources['all_bridges'] -= 1
-                if self.invoke_immediate_aciton(player_id, ('build_bridge',)): return 
-             
+                if self.invoke_immediate_aciton(player_id, ('build_bridge',)): return
+
         def shovel(player_id: int, shovel_times: int, can_build_after_shovel: bool = True):
             # 初始化第一铲地标记和位置
             first_shovel = True
             first_pos = tuple()
             # 当仍然存在剩余铲数时
             while shovel_times > 0:
+                # 如果玩家持有鼹鼠派系或者宫殿板块9，则第一铲地需要判断是否使用其特殊行动，实现跨越1至2地块
+                need_check_range = self.players[player_id].reachable_map_ids
+                choice = 'normal'
+                if (
+                    # 仅第一铲地时可以使用飞行或隧道
+                    first_shovel == True
+                    # 仅当可以铲后建造时，才可使用飞行或隧道
+                    and can_build_after_shovel == True
+                    and (
+                        # 满足使用隧道的条件
+                        (
+                            self.players[player_id].faction_id == 7
+                            and self.players[player_id].resources['ore'] >= 1
+                        )
+                        # 或满足使用飞行的条件 
+                        or (
+                            self.players[player_id].palace_tile_id == 9
+                            and self.players[player_id].is_got_palace == True
+                            and self.players[player_id].resources['meeples'] >= 1
+                        )
+                    )
+                ):
+                    if self.invoke_immediate_aciton(player_id, ('select_tunneling_or_flight_in_spade',)): return 
+                    
+                    match self.game_args['action_history'][-1]:
+                        case (player_id, 'immediate', 346):
+                            pass
+                        
+                        case (player_id, 'immediate', 347):
+                            # 创建跨一地块范围坐标集合（未排除已被控制与水域地块）
+                            available_map_ids = set()
+
+                            # 向集合中添加跨越1地块的坐标
+                            for i,j in self.players[player_id].controlled_map_ids:
+                                two_direction = [(-2,-1),(-2,0),(-2,1),(-1,i%2-2),(-1,i%2+1),(0,-2),(0,2),(1,i%2-2),(1,i%2+1),(2,-1),(2,0),(2,1)]
+                                available_map_ids |= {(i+dx,j+dy) for dx,dy in two_direction if 0 <= i+dx <= 8 and 0 <= j+dy <= 12}
+                                    
+                            # 从集合中排除与现有建筑直接相邻的坐标
+                            for i,j in self.players[player_id].controlled_map_ids:
+                                one_direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
+                                available_map_ids -= {(i+dx,j+dy) for dx,dy in one_direction if 0 <= i+dx <= 8 and 0 <= j+dy <= 12}
+
+                            need_check_range = list(available_map_ids)
+                            choice = 'tunneling'
+
+                        case (player_id, 'immediate', 348):
+                            # 创建跨一地块范围坐标集合（未排除已被控制与水域地块）
+                            available_map_ids = set()
+
+                            # 向集合中添加跨越1地块的坐标
+                            for i,j in self.players[player_id].controlled_map_ids:
+                                two_direction = [(-2,-1),(-2,0),(-2,1),(-1,i%2-2),(-1,i%2+1),(0,-2),(0,2),(1,i%2-2),(1,i%2+1),(2,-1),(2,0),(2,1)]
+                                available_map_ids |= {(i+dx,j+dy) for dx,dy in two_direction if 0 <= i+dx <= 8 and 0 <= j+dy <= 12}
+
+                            # 向集合中添加跨越2地块的坐标
+                            for i,j in self.players[player_id].controlled_map_ids:
+                                three_direction = [(-3,i%2-2),(-3,i%2-1),(-3,i%2),(-3,i%2+1),(-2,-2),(-2,1),(-1,i%2-3),(-1,i%2+2),(0,-3),(0,3),(1,i%2-3),(1,i%2+2),(2,-2),(2,1),(3,i%2-2),(3,i%2-1),(3,i%2),(3,i%2+1)]
+                                available_map_ids |= {(i+dx,j+dy) for dx,dy in three_direction if 0 <= i+dx <= 8 and 0 <= j+dy <= 12}
+                                    
+                            # 从集合中排除与现有建筑直接相邻的坐标
+                            for i,j in self.players[player_id].controlled_map_ids:
+                                one_direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
+                                available_map_ids -= {(i+dx,j+dy) for dx,dy in one_direction if 0 <= i+dx <= 8 and 0 <= j+dy <= 12}
+
+                            need_check_range = list(available_map_ids)
+                            choice = 'flight'
+
+                        case _:
+                            raise ValueError('选择隧道或飞行失败')
+
                 # 判断是否存在可铲地（至少一铲）
-                for i,j in self.players[player_id].reachable_map_ids:
-                    terrain = self.map_board_state.map_grid[i][j][0]
+                for i,j in need_check_range:
+                    terrain, controller = self.map_board_state.map_grid[i][j][:2]
                     # 如有则跳出是否可铲判断
-                    if self.players[player_id].terrain_id_need_shovel_times[terrain] >= 1:
+                    if (
+                        controller == -1
+                        and terrain != 0
+                        and self.players[player_id].terrain_id_need_shovel_times[terrain] >= 1
+                    ):
                         break
                 else:
                     # 未跳出，则代表无可铲地块，则跳出铲行动
                     break
-                # 选择可铲位置（保证一定存在可铲地）
-                if self.invoke_immediate_aciton(player_id, ('select_position', 'reachable', ('shovel', 1))): return 
+
+                if choice == 'normal':
+                    # 选择可铲位置（保证一定存在可铲地）
+                    if self.invoke_immediate_aciton(player_id, ('select_position', 'reachable', ('shovel', 1))): return 
+                elif choice == 'tunneling':
+                    # 选择可铲位置（保证一定存在可铲地）
+                    if self.invoke_immediate_aciton(player_id, ('select_position','non_adjacent',(2,'shovel',1))): return
+                elif choice == 'flight':
+                    # 选择可铲位置（保证一定存在可铲地）
+                    if self.invoke_immediate_aciton(player_id, ('select_position','non_adjacent',(3,'shovel',1))): return
+                
                 # 记录一铲地坐标
                 if first_shovel:
                     first_pos = self.players[player_id].choice_position
@@ -1846,7 +2174,7 @@ class GameStateBase:
                     self.players[player_id].choice_position = first_pos
                     if self.invoke_immediate_aciton(player_id,('build_workshop',)): return 
 
-        def improve_navigation(player_id):
+        def improve_navigation(player_id: int):
             # 判断是否可升级
             if self.players[player_id].navigation_level < 3:
                 # 执行提升航行等级动作
@@ -1872,7 +2200,11 @@ class GameStateBase:
                 # 升级航行行动效果触发
                 self.action_effect(player_id=player_id, improve_navigation_or_shovel=True)
 
-            self.io.update_player_state(player_id, {'navigation_level': self.players[player_id].navigation_level})
+                # 更新数据面板
+                self.io.update_player_state(player_id, {'navigation_level': self.players[player_id].navigation_level})
+
+                # 更新可抵地块
+                self.update_reachable_map_ids_set(player_id)
 
         def improve_shovel(player_id: int):
             # 判断是否可升级

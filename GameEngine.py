@@ -14,6 +14,8 @@ class GameEngine:
         self.game_state.effect_object()                                # 效果板块
         self.agents = self.create_agents()                             # 代理系统
         self.next_immediate_action = []
+        self.simulate_idx = 0                                          # 当前模拟行动id序号
+        self.simulate_path_length = game_args['path_length']           # 模拟行动id序列长度
     
     def create_game_state(self):
         """创建游戏状态"""
@@ -60,8 +62,9 @@ class GameEngine:
                 self.agents[player_id].need_estimate = True
                 self.agents[player_id].action_turn(typ, args)
             case 'simulate':
-                if self.simulation_path:
-                    action_player_id, action_typ, action_id = self.simulation_path.pop(0)
+                if self.simulate_idx < self.simulate_path_length:
+                    action_player_id, action_typ, action_id = self.simulation_path[self.simulate_idx]
+                    self.simulate_idx += 1
                     assert action_player_id == player_id
                     assert action_typ == typ
                     self.agents[player_id].action_step('target', typ, action_id)
@@ -77,8 +80,9 @@ class GameEngine:
                 if self.next_immediate_action:
                     return (True, *self.next_immediate_action)
                 
-                if self.simulation_path:
-                    action_player_id, action_typ, action_id = self.simulation_path.pop(0)
+                if self.simulate_idx < self.simulate_path_length:
+                    action_player_id, action_typ, action_id = self.simulation_path[self.simulate_idx]
+                    self.simulate_idx += 1
                     assert action_player_id == player_id
                     assert action_typ == typ
                     self.agents[player_id].action_step('target', typ, action_id)
@@ -221,9 +225,8 @@ class GameEngine:
                 return data
 
         # print("\n=== 终局结算阶段 ===\n")
-        rank = sorted(self.game_state.calculate_players_total_score().items(),key=lambda x:x[1],reverse=True)
+        return self.game_state.calculate_players_total_score()
         
-        return tuple(map(lambda x:x[1],rank))
         return (None,None)
 
     def reproduce(self, action_history_appendix: list):

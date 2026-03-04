@@ -1,10 +1,7 @@
 from ActionSystem import ActionSystem
 from DetailedAction import DetailedAction
 import random
-import time
-import copy
 from web_io import GamePanel, Silence_IO
-from typing import Union
 
 class AgentBase:
 
@@ -13,7 +10,7 @@ class AgentBase:
         self.game_state = game_state
         self.player = self.game_state.players[player_id]
         self.action_system = ActionSystem(game_state, player_id)
-        self.web_io: Union[GamePanel,Silence_IO] = game_args['web_io']
+        self.web_io: GamePanel|Silence_IO = game_args['web_io']
         self.all_detailed_actions = DetailedAction().all_detailed_actions
         self.game_args = game_args
         self.need_estimate = False
@@ -66,26 +63,36 @@ class AgentBase:
                     7: 'yellow',
                 }
                 self.web_io.output(0,res_str,color=color_dict[self.player.planning_card_id])
-                action_id = self.web_io.get_input()
-                if action_id:
-                    action_id = int(action_id)
-                    self.web_io.output(self.player_id + 1, readable_action_ids[action_id], color='blue' if typ == 'normal' else 'celeste')
-                    print(f'玩家{self.player_id + 1}执行了{readable_action_ids[action_id]}')
-                    # 记录该行动
-                    self.game_args['action_history'].append((self.player_id, typ, action_id))
-                    # 执行该行动
-                    self.action_system.execute_action(typ, action_id)
-                else:
-                    if 65 in available_action_ids:
-                        action_id = 65
-                    else:
-                        action_id = random.choice(available_action_ids)
-                    self.web_io.output(self.player_id + 1, readable_action_ids[action_id], color='blue' if typ == 'normal' else 'celeste')
-                    print(f'玩家{self.player_id + 1}执行了{readable_action_ids[action_id]}')
-                    # 记录该行动
-                    self.game_args['action_history'].append((self.player_id, typ, action_id))
-                    # 执行该行动
-                    self.action_system.execute_action(typ, action_id)
+                while True:
+                    try:
+                        action_id = self.web_io.get_input()
+                        # 当有输入时，则按输入行动执行
+                        if action_id:
+                            action_id = int(action_id)
+                            self.web_io.output(self.player_id + 1, readable_action_ids[action_id], color='blue' if typ == 'normal' else 'celeste')
+                            print(f'玩家{self.player_id + 1}执行了{readable_action_ids[action_id]}')
+                            # 记录该行动
+                            self.game_args['action_history'].append((self.player_id, typ, action_id))
+                            # 执行该行动
+                            self.action_system.execute_action(typ, action_id)
+                        # 当无输入时，则随机选择一个行动（若65：跳过在其中，则直接选择这个）
+                        else:
+                            if 65 in available_action_ids:
+                                action_id = 65
+                            else:
+                                action_id = random.choice(available_action_ids)
+                            self.web_io.output(self.player_id + 1, readable_action_ids[action_id], color='blue' if typ == 'normal' else 'celeste')
+                            print(f'玩家{self.player_id + 1}执行了{readable_action_ids[action_id]}')
+                            # 记录该行动
+                            self.game_args['action_history'].append((self.player_id, typ, action_id))
+                            # 执行该行动
+                            self.action_system.execute_action(typ, action_id)
+                        
+                        # 跳出循环
+                        break
+
+                    except (KeyError, ValueError):
+                        pass
                     
             case 'target':
                 action_id = args

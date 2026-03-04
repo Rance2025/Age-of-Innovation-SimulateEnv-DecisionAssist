@@ -65,7 +65,7 @@ class AllEffectObject:
             pass
         
         # 当获取时
-        def get(self, got_player_id):
+        def get(self, got_player_id:int):
             # 记录该板块的拥有者
             self.owner_list.append(got_player_id)
             # 支付该板块费用
@@ -82,7 +82,7 @@ class AllEffectObject:
             self.game_state.players[got_player_id].additional_actions_dict[self.additional_action_name] = self.additional_action
 
         # 当激活时
-        def activate(self, executed_player_id):    
+        def activate(self, executed_player_id):
             pass
         # 当回合结束时
         def round_end(self):
@@ -612,13 +612,11 @@ class AllEffectObject:
             ])
             super().execute_immediate_effect(executed_player_id)
         
-        '''行动效果: 当执行地形改造并/或建造车间时, 可支付1矿跨越一个地形执行 (终局计分视为可抵达,即使无剩余矿), 并获得4版面分数'''
-        # TODO 鼹鼠 附加可用行动
         additional_action_name = 'additional_action_moles_faction'
         
         def additional_action(self, mode, player_id, args=tuple()):
-            '''附加行动: 支付1矿跨越一个地形执行地形改造和/或建造车间并获得4分'''
-            '''通过添加一个快速行动：支付1矿并拓宽可抵地块列表来实现，并在检测到该地块被选中时收回范围，获得4分'''
+            '''附加行动: 支付1矿跨越一个地块执行地形改造和/或建造车间并获得4分'''
+            '''附加可用行动: 支付1矿, 建造1座桥梁, 连接两侧建筑, 视为相邻''' # TODO 鼹鼠 附加可用行动
             match mode:
                 case 'check':
                     if (
@@ -627,11 +625,25 @@ class AllEffectObject:
                         # 判断主要行动是否未完成
                         and self.game_state.players[player_id].main_action_is_done == False
                     ):  
-                        # 所有可用行动id: 302
+                        # 所有可用行动id: 339-345
+                        available_action_ids_list = []
+                        # 遍历查找最大支持铲i下再建造车间的花销（隧道费用+铲地费用+建房费用），得到i
+                        max_shovel_times_for_build = 3
+                        for i in range(4):
+                            if not self.game_state.check(player_id, [('money',2), ('ore',2+i*self.game_state.players[player_id].shovel_level),('building',1)]):
+                                max_shovel_times_for_build = i-1
+                                break
+                        # 遍历查找最大支持铲i下单不建造的花销（隧道费用+铲地费用），得到i
+                        max_shovel_times_for_only_shovel = 3
+                        for i in range(1,4):
+                            if not self.game_state.check(player_id, [('ore', 1+i*self.game_state.players[player_id].shovel_level)]):
+                                max_shovel_times_for_only_shovel = i-1
+                                break
+              
+                        # 创建可抵达范围内需要x铲才能成为原生地的地形是否存在的字典
+                        reachable_terrain_need_shovel_times_typs = {i: False for i in range(4)}
 
-                        
-                        
-
+                        # 创建跨一地块范围坐标集合（未排除已被控制与水域地块）
                         available_map_ids = set()
                         for i,j in self.game_state.players[player_id].controlled_map_ids:
                             two_direction = [(-2,-1),(-2,0),(-2,1),(-1,i%2-2),(-1,i%2+1),(0,-2),(0,2),(1,i%2-2),(1,i%2+1),(2,-1),(2,0),(2,1)]
@@ -639,8 +651,34 @@ class AllEffectObject:
                         for i,j in self.game_state.players[player_id].controlled_map_ids:
                             one_direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
                             available_map_ids -= {(i+dx,j+dy) for dx,dy in one_direction if 0 <= i+dx <= 8 and 0 <= j+dy <= 12}
-                        return []
-                        
+
+                        # 遍历跨一地块范围坐标集合，确定存在几铲地类型
+                        for i,j in available_map_ids:
+                            # 获取当前地块地形和控制者
+                            terrain, controller = self.game_state.map_board_state.map_grid[i][j][:2]
+                            # 排除水域与已有控制者的地块
+                            if terrain != 0 and controller == -1:
+                                # 将需要x铲才能成为原生地的地形标记为存在
+                                reachable_terrain_need_shovel_times_typs[self.game_state.players[player_id].terrain_id_need_shovel_times[terrain]] = True
+
+                        # 如果合法范围地块中铲成原生地所需的最小次数 小于等于 最大可支持建造车间前铲的次数，则允许该行动：跨越一地块铲成原生地（如需）并建造一个车间
+                        for temp_max_shovel_times_for_build in range(max_shovel_times_for_build,-1,-1):
+                            if reachable_terrain_need_shovel_times_typs[temp_max_shovel_times_for_build] == True:
+                                available_action_ids_list.append(339 + temp_max_shovel_times_for_build)
+                                break
+
+                        # 合法范围地块中铲成原生地所需的最大次数 与 最大可支持不建造仅铲的次数 的两者小值 是最大可铲次数
+                        # 则允许行动：跨越一地块铲 1~最大可铲次数 下但不建造（若最大可铲次数为0，则无可用行动）
+                        for temp_shovel_times_for_only_shovel in range(1, max_shovel_times_for_only_shovel+1):
+                            if any(
+                                reachable_terrain_need_shovel_times_typs[t] == True
+                                for t in range(temp_shovel_times_for_only_shovel, 4)
+                            ):
+                                action_id = 342 + temp_shovel_times_for_only_shovel
+                                available_action_ids_list.append(action_id)
+
+                        # 返回可用行动id列表
+                        return available_action_ids_list    
                     else:
                         return []
                     
@@ -648,13 +686,22 @@ class AllEffectObject:
 
                     # 设置主行动已执行
                     self.game_state.players[player_id].main_action_is_done = True
-                    # 获取奖励
-                    self.game_state.adjust(player_id, [('building', 'get', 'any', 1)])
+                     # 参数长度大于1，则未铲后建造行动，反之为仅铲行动
+                    if len(args) > 1:
+                        # 获取铲子和建筑参数
+                        max_shovel_times, *build_args = args
+                        # 支付1矿，执行建造行动，并获得4分
+                        self.game_state.adjust(player_id, [('ore','use',1),('building',*build_args),('score','get','board',4)])
+                    else:
+                        # 获取铲子参数
+                        shovel_times = args[0]
+                        # 立即选择位置
+                        if self.game_state.invoke_immediate_aciton(player_id, ('select_position','non_adjacent',(2,'shovel',shovel_times))):return 
+                        # 支付1矿，执行铲子行动，并获得4分
+                        self.game_state.adjust(player_id, [('ore','use',1),('land', shovel_times),('score','get','board',4)])
 
+            '''特殊效果: 终局计分将跨越1地块视为可抵达,即使无剩余矿''' # TODO 鼹鼠特殊终局结算效果
         
-        '''附加可用行动: 支付1矿, 建造1座桥梁, 连接两侧建筑, 视为相邻'''
-        # TODO 鼹鼠 附加可用行动
-
     class MonksFaction(Faction):
 
         id = 8
@@ -810,6 +857,8 @@ class AllEffectObject:
                         and self.game_state.players[player_id].main_action_is_done == False
                         # 判断每回合一次附加行动是否未执行
                         and self.additional_action_is_done[player_id] ==  False
+                        # 检查其宫殿板块是否已激活
+                        and self.game_state.players[player_id].is_got_palace == True
                     ):
                         return [290]
                     else:
@@ -840,6 +889,8 @@ class AllEffectObject:
                         and self.game_state.players[player_id].main_action_is_done == False
                         # 判断每回合一次附加行动是否未执行
                         and self.additional_action_is_done[player_id] ==  False
+                        # 检查其宫殿板块是否已激活
+                        and self.game_state.players[player_id].is_got_palace == True
                     ):
                         return [291]
                     else:
@@ -882,6 +933,8 @@ class AllEffectObject:
                         and self.game_state.players[player_id].buildings[2] > 0
                         # 检查是否有学院已被建造
                         and self.game_state.players[player_id].buildings[4] < 3
+                        # 检查其宫殿板块是否已激活
+                        and self.game_state.players[player_id].is_got_palace == True
                     ):
                         return [292]
                     else:
@@ -930,6 +983,8 @@ class AllEffectObject:
                         and self.game_state.players[player_id].buildings[2] > 0
                         # 检查是否有车间已被建造
                         and self.game_state.players[player_id].buildings[1] < 9
+                        # 检查其宫殿板块是否已激活
+                        and self.game_state.players[player_id].is_got_palace == True
                     ):
                         return [293]
                     else:
@@ -989,6 +1044,8 @@ class AllEffectObject:
                         and self.game_state.players[player_id].main_action_is_done == False
                         # 检测该玩家每回合一次的附加行动是否已执行
                         and self.additional_action_is_done[player_id] == False
+                        # 检查其宫殿板块是否已激活
+                        and self.game_state.players[player_id].is_got_palace == True
                     ):
                         return [294]
                     else:
@@ -1051,8 +1108,102 @@ class AllEffectObject:
             ])
             super().execute_income_effect(executed_player_id)
 
-        # TODO 涉及选择位置行动
-        # TODO 涉及最终聚落结算    
+
+        additional_action_name = 'additional_action_palace_tile_9'
+        
+        def additional_action(self, mode, player_id, args=tuple()):
+            '''附加行动: 支付1米宝跨越一至两个地块执行地形改造和/或建造车间并获得5分'''
+            match mode:
+                case 'check':
+                    if (
+                        # 判断不处于初始阶段
+                        self.game_state.round != 0
+                        # 判断主要行动是否未完成
+                        and self.game_state.players[player_id].main_action_is_done == False
+                        # 检查是否能支付飞行的1米宝费用
+                        and self.game_state.check(player_id, [('meeple','self',1)])
+                        # 检查其宫殿板块是否已激活
+                        and self.game_state.players[player_id].is_got_palace == True
+                    ):  
+                        # 所有可用行动id: 349-355
+                        available_action_ids_list = []
+                        # 遍历查找最大支持铲i下再建造车间的花销（铲地费用+建房费用），得到i
+                        max_shovel_times_for_build = 3
+                        for i in range(4):
+                            if not self.game_state.check(player_id, [('money',2), ('ore',1+i*self.game_state.players[player_id].shovel_level),('building',1)]):
+                                max_shovel_times_for_build = i-1
+                                break
+                        # 遍历查找最大支持铲i下单不建造的花销（铲地费用），得到i
+                        max_shovel_times_for_only_shovel = 3
+                        for i in range(1,4):
+                            if not self.game_state.check(player_id, [('ore', i*self.game_state.players[player_id].shovel_level)]):
+                                max_shovel_times_for_only_shovel = i-1
+                                break
+              
+                        # 创建可抵达范围内需要x铲才能成为原生地的地形是否存在的字典
+                        reachable_terrain_need_shovel_times_typs = {i: False for i in range(4)}
+
+                        # 创建跨一地块范围坐标集合（未排除已被控制与水域地块）
+                        available_map_ids = set()
+                        for i,j in self.game_state.players[player_id].controlled_map_ids:
+                            two_direction = [(-2,-1),(-2,0),(-2,1),(-1,i%2-2),(-1,i%2+1),(0,-2),(0,2),(1,i%2-2),(1,i%2+1),(2,-1),(2,0),(2,1)]
+                            available_map_ids |= {(i+dx,j+dy) for dx,dy in two_direction if 0 <= i+dx <= 8 and 0 <= j+dy <= 12}
+                        for i,j in self.game_state.players[player_id].controlled_map_ids:
+                            three_direction = [(-3,i%2-2),(-3,i%2-1),(-3,i%2),(-3,i%2+1),(-2,-2),(-2,1),(-1,i%2-3),(-1,i%2+2),(0,-3),(0,3),(1,i%2-3),(1,i%2+2),(2,-2),(2,1),(3,i%2-2),(3,i%2-1),(3,i%2),(3,i%2+1)]
+                            available_map_ids |= {(i+dx,j+dy) for dx,dy in three_direction if 0 <= i+dx <= 8 and 0 <= j+dy <= 12}
+                        for i,j in self.game_state.players[player_id].controlled_map_ids:
+                            one_direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
+                            available_map_ids -= {(i+dx,j+dy) for dx,dy in one_direction if 0 <= i+dx <= 8 and 0 <= j+dy <= 12}
+
+                        # 遍历跨一地块范围坐标集合，确定存在几铲地类型
+                        for i,j in available_map_ids:
+                            # 获取当前地块地形和控制者
+                            terrain, controller = self.game_state.map_board_state.map_grid[i][j][:2]
+                            # 排除水域与已有控制者的地块
+                            if terrain != 0 and controller == -1:
+                                # 将需要x铲才能成为原生地的地形标记为存在
+                                reachable_terrain_need_shovel_times_typs[self.game_state.players[player_id].terrain_id_need_shovel_times[terrain]] = True
+
+                        # 如果合法范围地块中铲成原生地所需的最小次数 小于等于 最大可支持建造车间前铲的次数，则允许该行动：跨越一地块铲成原生地（如需）并建造一个车间
+                        for temp_max_shovel_times_for_build in range(max_shovel_times_for_build,-1,-1):
+                            if reachable_terrain_need_shovel_times_typs[temp_max_shovel_times_for_build] == True:
+                                available_action_ids_list.append(349 + temp_max_shovel_times_for_build)
+                                break
+
+                        # 合法范围地块中铲成原生地所需的最大次数 与 最大可支持不建造仅铲的次数 的两者小值 是最大可铲次数
+                        # 则允许行动：跨越一地块铲 1~最大可铲次数 下但不建造（若最大可铲次数为0，则无可用行动）
+                        for temp_shovel_times_for_only_shovel in range(1, max_shovel_times_for_only_shovel+1):
+                            if any(
+                                reachable_terrain_need_shovel_times_typs[t] == True
+                                for t in range(temp_shovel_times_for_only_shovel, 4)
+                            ):
+                                action_id = 352 + temp_shovel_times_for_only_shovel
+                                available_action_ids_list.append(action_id)
+
+                        # 返回可用行动id列表
+                        return available_action_ids_list    
+                    else:
+                        return []
+                    
+                case 'execute':
+
+                    # 设置主行动已执行
+                    self.game_state.players[player_id].main_action_is_done = True
+                     # 参数长度大于1，则未铲后建造行动，反之为仅铲行动
+                    if len(args) > 1:
+                        # 获取铲子和建筑参数
+                        max_shovel_times, *build_args = args
+                        # 支付1米宝，执行建造行动，并获得5分
+                        self.game_state.adjust(player_id, [('meeple','use',1),('building',*build_args),('score','get','board',5)])
+                    else:
+                        # 获取铲子参数
+                        shovel_times = args[0]
+                        # 立即选择位置
+                        if self.game_state.invoke_immediate_aciton(player_id, ('select_position','non_adjacent',(3,'shovel',shovel_times))):return 
+                        # 支付1米宝，执行铲子行动，并获得5分
+                        self.game_state.adjust(player_id, [('meeple','use',1),('land', shovel_times),('score','get','board',5)])
+
+            '''特殊效果: 终局计分将跨越2地块以为视为可抵达,即使无剩余米宝''' # TODO 宫殿板块9特殊终局结算效果
 
     class PalaceTile10(PalaceTile):
 
@@ -1122,6 +1273,8 @@ class AllEffectObject:
                         and self.game_state.players[player_id].main_action_is_done == False
                         # 判断每回合一次附加行动是否未执行
                         and self.additional_action_is_done[player_id] ==  False
+                        # 检查其宫殿板块是否已激活
+                        and self.game_state.players[player_id].is_got_palace == True
                     ):
                         return [295]
                     else:
@@ -1162,6 +1315,8 @@ class AllEffectObject:
                     if (
                         # 判断不处于初始阶段
                         self.game_state.round != 0
+                        # 检查其宫殿板块是否已激活
+                        and self.game_state.players[player_id].is_got_palace == True
                     ):
                         # 获取所有水域地块
                         all_water_pos = [
@@ -1341,6 +1496,7 @@ class AllEffectObject:
                     # 获取选择的地块坐标
                     i,j = self.game_state.players[player_id].choice_position
                     # 遍历相邻地块获取待合并聚落的根节点
+                    direction = [(-1,i%2-1),(-1,i%2),(0,-1),(0,1),(1,i%2-1),(1,i%2)]
                     for dx,dy in direction:
                         new_i, new_j = i + dx, j + dy
                         if (
@@ -1368,16 +1524,28 @@ class AllEffectObject:
                             to_be_merged_settlements[2],
                             to_be_merged_settlements[0]
                         )
-                    self.game_state.map_board_state.merge_settlement_root(
-                        self.game_state.players[player_id].settlements_and_cities,
-                        to_be_merged_settlements[1],
-                        to_be_merged_settlements[0]
-                    )
+                        self.game_state.map_board_state.merge_settlement_root(
+                            self.game_state.players[player_id].settlements_and_cities,
+                            to_be_merged_settlements[1],
+                            to_be_merged_settlements[0]
+                        )
+                    elif len(to_be_merged_settlements) == 2:
+                        self.game_state.map_board_state.merge_settlement_root(
+                            self.game_state.players[player_id].settlements_and_cities,
+                            to_be_merged_settlements[1],
+                            to_be_merged_settlements[0]
+                        )
+                    else:
+                        if len(to_be_merged_settlements) == 1: 
+                            raise Exception('没有可合并的聚落或两岸同属一个聚落')
+                        if len(to_be_merged_settlements) >= 4:
+                            raise Exception('两岸不可能存在4个及以上的聚落')
                     # 获取当前跨越河流合并后多聚落的根节点
-                    current_root = self.game_state.map_board_state.find_settlement_root(
+                    current_root, current_is_city = self.game_state.map_board_state.find_settlement_root(
                         self.game_state.players[player_id].settlements_and_cities,
                         to_be_merged_settlements[0]
                     )
+                    assert current_is_city == False
                     # 标记根节点为城市
                     self.game_state.players[player_id].settlements_and_cities[current_root] = [current_root, True]
                     # 触发立即行动，选取城片（保证一定存在可选城片）

@@ -262,35 +262,55 @@
 # all_players_largest_chain_num = {1:2,3:4,2:2,4:3}
 # print(sorted(all_players_largest_chain_num.items(), key=lambda x:x[1], reverse=True))
 # print([(x,y) for x in range(9) for y in range(13)])
-terrain_grid = [
-    [4,0,3,2,1,6,5,0,3,2,1,7,0],
-    [5,0,0,4,3,4,7,0,4,5,3,0,2],
-    [6,3,2,0,5,1,2,0,0,6,0,0,6],
-    [7,5,6,0,7,6,0,2,0,0,1,5,4],
-    [1,4,1,7,0,0,0,4,5,3,6,7,1],
-    [2,0,0,0,3,5,0,7,1,0,2,3,6],
-    [3,0,1,2,0,4,1,0,0,0,0,0,0],
-    [0,7,3,0,6,2,7,6,2,3,4,2,0],
-    [4,5,6,0,7,5,1,3,4,5,6,7,1]
-]  # 每个元素是地形类型ID 
-water_pos_to_action_id = [
-    [0, 303, 0, 0, 0, 0, 0, 304, 0, 0, 0, 0, 305],
-    [0, 306, 307, 0, 0, 0, 0, 308, 0, 0, 0, 309, 0], 
-    [0, 0, 0, 310, 0, 0, 0, 311, 312, 0, 313, 314, 0], 
-    [0, 0, 0, 315, 0, 0, 316, 0, 317, 318, 0, 0, 0], 
-    [0, 0, 0, 0, 319, 320, 321, 0, 0, 0, 0, 0, 0], 
-    [0, 322, 323, 324, 0, 0, 325, 0, 0, 326, 0, 0, 0], 
-    [0, 327, 0, 0, 328, 0, 0, 329, 330, 331, 332, 333, 334], 
-    [335, 0, 0, 336, 0, 0, 0, 0, 0, 0, 0, 0, 337], 
-    [0, 0, 0, 338, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-]  
-ans = []
-id = 303
-for i in range(9):
-    for j in range(13):
-        action_id = water_pos_to_action_id[i][j]
-        if action_id != 0 :
-            print(f'\t  {action_id}: ', end='')
-            print('{',end='')
-            print(f"'action': 'select_position', 'args': {(i,j)}, \t'description': '跨越水域{chr(ord('A')+i)+str(j+1)}建立城市'",end='')
-            print('},')
+# terrain_grid = [
+#     [4,0,3,2,1,6,5,0,3,2,1,7,0],
+#     [5,0,0,4,3,4,7,0,4,5,3,0,2],
+#     [6,3,2,0,5,1,2,0,0,6,0,0,6],
+#     [7,5,6,0,7,6,0,2,0,0,1,5,4],
+#     [1,4,1,7,0,0,0,4,5,3,6,7,1],
+#     [2,0,0,0,3,5,0,7,1,0,2,3,6],
+#     [3,0,1,2,0,4,1,0,0,0,0,0,0],
+#     [0,7,3,0,6,2,7,6,2,3,4,2,0],
+#     [4,5,6,0,7,5,1,3,4,5,6,7,1]
+# ]  # 每个元素是地形类型ID 
+# water_pos_to_action_id = [
+#     [0, 303, 0, 0, 0, 0, 0, 304, 0, 0, 0, 0, 305],
+#     [0, 306, 307, 0, 0, 0, 0, 308, 0, 0, 0, 309, 0], 
+#     [0, 0, 0, 310, 0, 0, 0, 311, 312, 0, 313, 314, 0], 
+#     [0, 0, 0, 315, 0, 0, 316, 0, 317, 318, 0, 0, 0], 
+#     [0, 0, 0, 0, 319, 320, 321, 0, 0, 0, 0, 0, 0], 
+#     [0, 322, 323, 324, 0, 0, 325, 0, 0, 326, 0, 0, 0], 
+#     [0, 327, 0, 0, 328, 0, 0, 329, 330, 331, 332, 333, 334], 
+#     [335, 0, 0, 336, 0, 0, 0, 0, 0, 0, 0, 0, 337], 
+#     [0, 0, 0, 338, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+# ]  
+# ans = []
+# id = 303
+# for i in range(9):
+#     for j in range(13):
+#         action_id = water_pos_to_action_id[i][j]
+#         if action_id != 0 :
+#             print(f'\t  {action_id}: ', end='')
+#             print('{',end='')
+#             print(f"'action': 'select_position', 'args': {(i,j)}, \t'description': '跨越水域{chr(ord('A')+i)+str(j+1)}建立城市'",end='')
+#             print('},')
+# navigation_reachable_map_ids_dict = {
+#     1:[(2,3)], # 一航水域
+#     2:[], # 二航水域
+#     3:[], # 三航水域
+#     4:[(3,1)], # 四航水域
+# }
+# all_available_navigation_reachable_water_map_ids = [
+#     (i,j) for t in range(1,5) for i,j in navigation_reachable_map_ids_dict[t] 
+# ]
+# print(all_available_navigation_reachable_water_map_ids)
+# print(type(5) == int)
+result_list = [
+    {0: {'total': 111, 'board': 71, 'chain': 18, 'track': 19, 'resource': 3}, 1: {'total': 59, 'board': 26, 'chain': 9, 'track': 22, 'resource': 2}, 2: {'total': 68, 'board': 34, 'chain': 9, 'track': 15, 'resource': 10}},
+    {0: {'total': 111, 'board': 71, 'chain': 18, 'track': 19, 'resource': 3}, 1: {'total': 59, 'board': 26, 'chain': 9, 'track': 22, 'resource': 2}, 2: {'total': 68, 'board': 34, 'chain': 9, 'track': 15, 'resource': 10}},
+    {0: {'total': 111, 'board': 71, 'chain': 18, 'track': 19, 'resource': 3}, 1: {'total': 59, 'board': 26, 'chain': 9, 'track': 22, 'resource': 2}, 2: {'total': 68, 'board': 34, 'chain': 9, 'track': 15, 'resource': 10}}
+]
+def transform(result: dict):
+    return sorted(list(map(lambda x:x['total'], result.values())), reverse=True)[0]
+arr = list(map(transform, result_list))
+print(arr)
