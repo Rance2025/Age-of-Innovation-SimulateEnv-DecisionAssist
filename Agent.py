@@ -2,6 +2,7 @@ from ActionSystem import ActionSystem
 from DetailedAction import DetailedAction
 import random
 from web_io import GamePanel, Silence_IO
+from AIAssistant import ai_assistant
 
 class AgentBase:
 
@@ -14,34 +15,99 @@ class AgentBase:
         self.all_detailed_actions = DetailedAction().all_detailed_actions
         self.game_args = game_args
         self.need_estimate = False
+        self.action_mode = self.game_args['action_mode'][player_id]
+        self.simulation_path = self.game_args['simulation_path']
+        self.AI_selection_action_ids = []
 
     def action_turn(self, typ: str, args: tuple = tuple()):
+
+        # 匹配行动类型（常规 / 立即）
         match typ:
+
+            # 常规行动
             case 'normal':
-                if self.need_estimate and self.game_args['need_estimate']:
-                    self.need_estimate = False
-                    self.estimate()
+                
+                # 玩家先执行一常规行动
+                data = self.action_stragety(self.action_mode, typ='normal', args=args)
+                if data[0]:
+                    return data
+
+                # 当玩家仍有下一常规行动时
+                while self.action_system.is_next_action_exist():
+                    # 则继续执行一个常规行动
+                    data = self.action_stragety(self.action_mode, typ='normal', args=args)
+                    if data[0]:
+                        return data
                     
-                # 当前玩家执行一个行动
-                self.action_step(mode='input',typ='normal', args=tuple())
+                # 否则重置当前行动状态为每轮初始状态
+                self.action_system.reset_action_state()
 
-                # 如果当前玩家当前轮中仍可继续行动
-                if self.action_system.is_next_action_exist():
-                    # 则递归让该玩家继续行动
-                    self.action_turn('normal')
-                else:
-                    # 否则重置当前行动状态为每轮初始状态
-                    self.action_system.reset_action_state()
-
+            # 立即行动
             case 'immediate':
-                if self.need_estimate and self.game_args['need_estimate']:
-                    self.need_estimate = False
-                    self.estimate()
-                    
-                self.action_step(mode='input',typ='immediate', args=args)
-            
-            case _ :
+                # 玩家执行一立即行动
+                data = self.action_stragety(self.action_mode, typ='immediate', args=args)
+                if data[0]:
+                    return data
+                
+            # 其他非法行动
+            case _:
+
+                # 报错
                 raise ValueError(f"非法动作模式: {typ}")
+        
+        return (False,)
+    
+    def action_stragety(self, action_mode:str, typ:str, args: tuple=tuple()):
+
+        # 匹配行动模式（human | random_simulate | reproduce）
+        match action_mode:
+
+            # 若是人类，则手动输入
+            case 'human':
+                self.action_step(mode='input',typ=typ, args=args)
+
+            # 若是随机模拟，则有模拟路径就按路径，无路径就随机选择
+            case 'random_simulate':
+                path_idx = self.game_args['remaining_path_length']
+                if path_idx > 0:
+                    action_player_id, action_typ, action_id = self.simulation_path[-path_idx]
+                    path_idx -= 1
+                    assert action_player_id == self.player_id
+                    assert action_typ == typ
+                    self.action_step('target', typ, action_id)
+                else:
+                    self.action_step('random', typ, args)
+
+            # 若是复现，则按路径模拟完毕立即返回
+            case 'reproduce':
+                if self.game_args['next_immediate_action']:
+                    return (True, *self.game_args['next_immediate_action'])
+                
+                path_idx = self.game_args['remaining_path_length']
+                if path_idx > 0:
+                    action_player_id, action_typ, action_id = self.simulation_path[-path_idx]
+                    path_idx -= 1
+                    assert action_player_id == self.player_id
+                    assert action_typ == typ
+                    self.action_step('target', typ, action_id)
+                else:
+                    return (True, self.player_id, typ, args)
+            # 若是AI ，则由AI提供选择
+            case 'AI_selection_per_step':
+                available_action_ids = self.action_system.get_available_actions(typ, args)
+                readable_action_ids = {id: self.all_detailed_actions[id]['description'] for id in available_action_ids}
+                
+                AI_selection = 0
+
+            case 'AI_selection_per_turn':
+                if self.AI_selection_action_ids:
+                    pass
+                else:
+                    pass
+                    self.AI_selection_action_ids.extend()
+                pass
+                
+        return (False,)
                     
     def action_step(self, mode, typ, args):
         match mode:

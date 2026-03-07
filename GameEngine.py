@@ -1,21 +1,20 @@
 from GameState import GameStateBase
 from Agent import AgentBase
-from web_io import Silence_IO
+from web_io import Silence_IO, GamePanel
 
 class GameEngine:
     """游戏引擎"""
     def __init__(self, game_args: dict):
-        self.game_args = game_args                                     # 游戏参数
-        self.num_players = game_args['num_players']                    # 玩家数量
-        self.action_history = game_args['action_history']              # 行动记录
-        self.simulation_path = game_args['simulation_path']            # 模拟路径
-        self.web_io = game_args['web_io']                              # 网页IO
-        self.game_state = self.create_game_state()                     # 游戏状态
-        self.game_state.effect_object()                                # 效果板块
-        self.agents = self.create_agents()                             # 代理系统
-        self.next_immediate_action = []
-        self.simulate_idx = 0                                          # 当前模拟行动id序号
-        self.simulate_path_length = game_args['path_length']           # 模拟行动id序列长度
+        self.game_args = game_args                                              # 游戏参数
+        self.num_players = game_args['num_players']                             # 玩家数量
+        self.action_history = game_args['action_history']                       # 行动记录
+        self.simulation_path = game_args['simulation_path']                     # 模拟路径
+        self.web_io: GamePanel | Silence_IO = game_args['web_io']               # 网页IO
+        self.game_state = self.create_game_state()                              # 游戏状态
+        self.game_state.effect_object()                                         # 效果板块
+        self.agents = self.create_agents()                                      # 代理系统
+        self.next_immediate_action = game_args['next_immediate_action'] = []    # 立即行动标记（Reproduce模式下）
+        self.action_mode = game_args['action_mode']                             # 各代理行动模式
     
     def create_game_state(self):
         """创建游戏状态"""
@@ -56,44 +55,9 @@ class GameEngine:
 
         return [Agent(self.game_state,i,self.game_args) for i in range(self.num_players)]
     
-    def action(self, player_id, typ= 'normal', args = tuple()):
-        match self.game_args['action_mode']:
-            case 'input':
-                self.agents[player_id].need_estimate = True
-                self.agents[player_id].action_turn(typ, args)
-            case 'simulate':
-                if self.simulate_idx < self.simulate_path_length:
-                    action_player_id, action_typ, action_id = self.simulation_path[self.simulate_idx]
-                    self.simulate_idx += 1
-                    assert action_player_id == player_id
-                    assert action_typ == typ
-                    self.agents[player_id].action_step('target', typ, action_id)
-                else:
-                    self.agents[player_id].action_step('random', typ, args)
-                    
-                if typ == 'normal':
-                    if self.agents[player_id].action_system.is_next_action_exist():
-                        self.action(player_id, 'normal')
-                    else:
-                        self.agents[player_id].action_system.reset_action_state()
-            case 'reproduce':
-                if self.next_immediate_action:
-                    return (True, *self.next_immediate_action)
-                
-                if self.simulate_idx < self.simulate_path_length:
-                    action_player_id, action_typ, action_id = self.simulation_path[self.simulate_idx]
-                    self.simulate_idx += 1
-                    assert action_player_id == player_id
-                    assert action_typ == typ
-                    self.agents[player_id].action_step('target', typ, action_id)
-                    if typ == 'normal':
-                        if self.agents[player_id].action_system.is_next_action_exist():
-                            self.action(player_id, 'normal')
-                        else:
-                            self.agents[player_id].action_system.reset_action_state()
-                else:
-                    return (True, player_id, typ, args)
-        return (False,)
+    def action(self, player_id:int, typ= 'normal', args = tuple()):
+
+        return self.agents[player_id].action_turn(typ=typ, args=args)
 
     def run_game(self):
         """运行整个游戏"""

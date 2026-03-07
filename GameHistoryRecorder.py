@@ -16,12 +16,13 @@ def save_game_history(game_args, result=None):
         "setup_tile_args": game_args['setup_tile_args'],
         "setup_player_order_args": game_args['setup_player_order_args'],
         "action_mode": game_args['action_mode'],
-        "path_length": game_args['path_length'],
+        "path_length": len(game_args['simulation_path']),
+        "simulation_path": game_args['simulation_path'],
         "action_history": game_args['action_history'],
     }
     
     # 如果有结果，添加  
-    if result:
+    if result:  
         game_record["result"] = result
     
     # 用时间戳创建文件名
