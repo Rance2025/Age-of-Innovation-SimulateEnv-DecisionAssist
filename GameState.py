@@ -411,6 +411,47 @@ class GameStateBase:
             self.setup_effect_list: list[Callable[[int],None]] = []         # 初始设置效果列表
             self.additional_actions_dict: dict[str,Callable] = {}           # 额外行动列表
 
+        def get_resource_str(self):
+            # 资源状态
+            resources_str = "\n".join([
+                f"金钱: {self.resources['money']}",
+                f"矿: {self.resources['ore']}",
+                f"米宝: {self.resources['meeples']}",
+                f"银行书: {self.resources['bank_book']}",
+                f"法律书: {self.resources['law_book']}",
+                f"工程书: {self.resources['engineering_book']}",
+                f"医学书: {self.resources['medical_book']}", 
+            ])
+            return resources_str
+
+        def get_magics_str(self):
+            # 魔力状态
+            magics_str = "\n".join([
+                f"一区魔力: {self.magics[1]}个",
+                f"二区魔力: {self.magics[2]}个",
+                f"三区魔力: {self.magics[3]}个"
+            ])
+            return magics_str
+
+        def get_tracks_str(self):
+            # 科技轨状态
+            tracks_str = "\n".join([
+                f"银行轨: {self.tracks['bank']}级",
+                f"法律轨: {self.tracks['law']}级",
+                f"工程轨: {self.tracks['engineering']}级",
+                f"医学轨: {self.tracks['medical']}级"
+            ])
+            return tracks_str
+        
+        def get_other_str(self):
+            # 其他状态
+            other_str = "\n".join([
+                f"城市（城片）数量: {self.citys_amount}",
+                f"航行等级: 至多跨越{self.navigation_level}格水域",
+                f"铲子等级: {self.shovel_level}矿/铲",
+                f"宫殿解锁: {'是' if self.is_got_palace else '否'}"
+            ])
+
         def __str__(self):
             """玩家状态的中文表示"""
             # 初始状态
@@ -421,19 +462,6 @@ class GameStateBase:
                 f"助推板: {self.booster_ids}"        
             ])
 
-            # 资源状态
-            resources_str = ", ".join([
-                f"金钱: {self.resources['money']}",
-                f"矿石: {self.resources['ore']}",
-                f"银行书: {self.resources['bank_book']}",
-                f"法律书: {self.resources['law_book']}",
-                f"工程书: {self.resources['engineering_book']}",
-                f"医学书: {self.resources['medical_book']}",
-                f"米宝: {self.resources['meeples']}",
-                f"剩余米宝: {self.resources['all_meeples']}",
-                f"剩余桥梁: {self.resources['all_bridges']}"
-            ])
-            
             # 建筑状态
             buildings_str = ", ".join([
                 f"车间: {self.buildings[1]}",
@@ -444,21 +472,6 @@ class GameStateBase:
                 f"塔楼: {self.buildings[6]}",
                 f"山脉: {self.buildings[7]}",
                 f"侧楼: {self.buildings[8]}"
-            ])
-            
-            # 科技轨状态
-            tracks_str = ", ".join([
-                f"银行轨: {self.tracks['bank']}级",
-                f"法律轨: {self.tracks['law']}级",
-                f"工程轨: {self.tracks['engineering']}级",
-                f"医学轨: {self.tracks['medical']}级"
-            ])
-            
-            # 魔力状态
-            magics_str = ", ".join([
-                f"一区魔力: {self.magics[1]}个",
-                f"二区魔力: {self.magics[2]}个",
-                f"三区魔力: {self.magics[3]}个"
             ])
             
             # 坐标状态
@@ -477,22 +490,11 @@ class GameStateBase:
                 f"资源分数: {self.resourcescore}"
             ])
             
-            # 其他状态
-            other_str = ", ".join([
-                f"城市（城片）数量: {self.citys_amount}",
-                f"科技轨超过7级: {self.tracks_over_7_amount}条",
-                f"宫殿解锁: {'是' if self.is_got_palace else '否'}"
-            ])
-            
             return (
                 f"玩家 {self.player_id + 1} 状态:\n"
                 f"初始: {init_str}\n"
-                f"资源: {resources_str}\n"
                 f"建筑: {buildings_str}\n"
-                f"科技: {tracks_str}\n"
-                f"魔力: {magics_str}\n"
                 f"坐标: {coords_str}\n"
-                f"其他: {other_str}\n"
                 f"分数: {scores_str}\n"
             )   
 
@@ -2471,3 +2473,46 @@ class GameStateBase:
 
         # ============== 获取奖励 ==============
         self.adjust(player_id=player_id, list_to_be_adjusted=reward)
+
+    def get_game_state_str(self, player_id:int):
+        
+        if self.round == 0:
+            game_state_str = f"""
+                - 当前轮次：Round {self.round}（属于初始环节）
+            """
+        else:
+            round_scoring_effect_desc = self.all_available_object_dict['round_scoring'][self.setup.round_scoring_order[self.round-1]].get_effect_desc()
+            final_scoring_effect_desc = self.all_available_object_dict['final_scoring'][self.setup.final_scoring].get_effect_desc()
+            faction_name = self.all_available_object_dict['faction'][self.players[player_id].faction_id].get_name()
+            faction_effect_desc = self.all_available_object_dict['faction'][self.players[player_id].faction_id].get_effect_desc()
+            round_booster_name = self.all_available_object_dict['round_booster'][self.players[player_id].booster_ids[-1]].get_name()
+            round_booster_effect_desc = self.all_available_object_dict['round_booster'][self.players[player_id].booster_ids[-1]].get_effect_desc()
+
+            if self.round == 6:
+                game_state_str = f"""
+                    以下是当前轮通用信息：
+                    - 当前轮次：Round {self.round}: 【{round_scoring_effect_desc}】
+                    (其中的回合结束效果请忽略，其已被以下最终轮计分板块的行动效果所覆盖)
+                    - 最终轮计分板块：【{final_scoring_effect_desc}】
+
+                    以下是当前玩家信息：
+                    - 派系：{faction_name}: 【{faction_effect_desc}】
+                    - 持有{round_booster_name}: 【{round_booster_effect_desc}】
+                    - 资源：{self.players[player_id].get_resource_str()}
+                    - 魔力：{self.players[player_id].get_magics_str()}
+                    - 科技轨： {self.players[player_id].get_tracks_str()}
+                """
+            else:
+                game_state_str = f"""
+                    以下是当前轮通用信息：
+                    - 当前轮次：Round {self.round}: 【{round_scoring_effect_desc}】
+
+                    以下是当前玩家信息：
+                    - 派系：{faction_name}: 【{faction_effect_desc}】
+                    - 持有{round_booster_name}: 【{round_booster_effect_desc}】
+                    - 资源：{self.players[player_id].get_resource_str()}
+                    - 魔力：{self.players[player_id].get_magics_str()}
+                    - 科技轨： {self.players[player_id].get_tracks_str()}
+                """
+
+        return game_state_str

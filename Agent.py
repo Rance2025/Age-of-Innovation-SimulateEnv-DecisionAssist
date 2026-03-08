@@ -1,14 +1,15 @@
 from ActionSystem import ActionSystem
+from GameState import GameStateBase
 from DetailedAction import DetailedAction
 import random
 from web_io import GamePanel, Silence_IO
-from AIAssistant import ai_assistant
+from AIAssistant import AIAssistant
 
 class AgentBase:
 
     def __init__(self, game_state, player_id: int, game_args):
         self.player_id = player_id
-        self.game_state = game_state
+        self.game_state: GameStateBase = game_state
         self.player = self.game_state.players[player_id]
         self.action_system = ActionSystem(game_state, player_id)
         self.web_io: GamePanel|Silence_IO = game_args['web_io']
@@ -17,7 +18,8 @@ class AgentBase:
         self.need_estimate = False
         self.action_mode = self.game_args['action_mode'][player_id]
         self.simulation_path = self.game_args['simulation_path']
-        self.AI_selection_action_ids = []
+        if self.action_mode == 'ai_selection_per_step':
+            self.ai_assistant = AIAssistant(player_id)
 
     def action_turn(self, typ: str, args: tuple = tuple()):
 
@@ -92,14 +94,23 @@ class AgentBase:
                     self.action_step('target', typ, action_id)
                 else:
                     return (True, self.player_id, typ, args)
-            # 若是AI ，则由AI提供选择
-            case 'AI_selection_per_step':
+            
+            # 若是AI ，则由AI决定
+            case 'ai_selection_per_step':
                 available_action_ids = self.action_system.get_available_actions(typ, args)
                 readable_action_ids = {id: self.all_detailed_actions[id]['description'] for id in available_action_ids}
-                
-                AI_selection = 0
+                ai_decision = self.ai_assistant.decide(
+                    available_actions = readable_action_ids,
+                    game_state = None,
+                    current_round = self.game_state.round
+                )
+                action_id_decided = ai_decision['action_id']
+                reason_for_decision = ai_decision['reason']
+                confidence = ai_decision['confidence']
+                self.web_io.output(0, f"【置信度：{confidence*100:.0f}%】\n {reason_for_decision}")
+                self.action_step('target',typ, action_id_decided)
 
-            case 'AI_selection_per_turn':
+            case 'ai_selection_per_turn':
                 if self.AI_selection_action_ids:
                     pass
                 else:
@@ -109,10 +120,12 @@ class AgentBase:
                 
         return (False,)
                     
-    def action_step(self, mode, typ, args):
+    def action_step(self, mode, typ, args, web_output = False):
         match mode:
             case 'input':
                 available_action_ids = self.action_system.get_available_actions(typ, args)
+
+                # 显示合法可选行动
                 readable_action_ids = {id: self.all_detailed_actions[id]['description'] for id in available_action_ids}
                 res_str = f'玩家{self.player_id + 1}的可选{typ}行动: \n'
                 for key,value in readable_action_ids.items():
@@ -129,14 +142,16 @@ class AgentBase:
                     7: 'yellow',
                 }
                 self.web_io.output(0,res_str,color=color_dict[self.player.planning_card_id])
+                
                 while True:
                     try:
                         action_id = self.web_io.get_input()
                         # 当有输入时，则按输入行动执行
                         if action_id:
                             action_id = int(action_id)
+                            # 显示该行动
                             self.web_io.output(self.player_id + 1, readable_action_ids[action_id], color='blue' if typ == 'normal' else 'celeste')
-                            print(f'玩家{self.player_id + 1}执行了{readable_action_ids[action_id]}')
+                            # print(f'玩家{self.player_id + 1}执行了{readable_action_ids[action_id]}')
                             # 记录该行动
                             self.game_args['action_history'].append((self.player_id, typ, action_id))
                             # 执行该行动
@@ -147,6 +162,7 @@ class AgentBase:
                                 action_id = 65
                             else:
                                 action_id = random.choice(available_action_ids)
+                            # 显示该行动
                             self.web_io.output(self.player_id + 1, readable_action_ids[action_id], color='blue' if typ == 'normal' else 'celeste')
                             print(f'玩家{self.player_id + 1}执行了{readable_action_ids[action_id]}')
                             # 记录该行动
@@ -162,6 +178,8 @@ class AgentBase:
                     
             case 'target':
                 action_id = args
+                # 显示该行动
+                self.web_io.output(self.player_id + 1, self.all_detailed_actions[action_id]['description'], color='blue' if typ == 'normal' else 'celeste')
                 # 记录该行动
                 self.game_args['action_history'].append((self.player_id, typ, action_id))
                 # 执行该行动
@@ -176,6 +194,8 @@ class AgentBase:
                     action_id = 65
                 else:
                     action_id = random.choice(available_action_ids)
+                # 显示该行动
+                self.web_io.output(self.player_id + 1, self.all_detailed_actions[action_id]['description'], color='blue' if typ == 'normal' else 'celeste')
                 # 记录该行动
                 self.game_args['action_history'].append((self.player_id, typ, action_id))
                 # 执行该行动

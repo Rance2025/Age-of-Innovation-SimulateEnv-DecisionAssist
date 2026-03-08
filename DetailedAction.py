@@ -67,7 +67,7 @@ class DetailedAction:
             58: {'action': 'quick_magics', 'args': 2, 'description': '快速魔力行动: 5魔力 -> 1米宝'},
             59: {'action': 'quick_magics', 'args': 3, 'description': '快速魔力行动: 3魔力 -> 1矿'},
             60: {'action': 'quick_magics', 'args': 4, 'description': '快速魔力行动: 1魔力 -> 1钱'},
-            61: {'action': 'quick_magics', 'args': 5, 'description': '快速魔力行动: 爆魔'},
+            61: {'action': 'quick_magics', 'args': 5, 'description': '快速魔力行动: 爆魔（移除1二区魔力 -> 从二区转动1魔力到三区）'},
             62: {'action': 'quick_magics', 'args': 6, 'description': '快速魔力行动: 1书 -> 1钱'},
             63: {'action': 'quick_magics', 'args': 7, 'description': '快速魔力行动: 1米宝 -> 1矿'},
             64: {'action': 'quick_magics', 'args': 8, 'description': '快速魔力行动: 1矿 -> 1钱'},

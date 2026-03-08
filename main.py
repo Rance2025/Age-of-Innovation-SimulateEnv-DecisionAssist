@@ -2,7 +2,7 @@ from GameEngine import GameEngine
 from web_io import GamePanel, Silence_IO
 
 def main(
-    mode = 'full_human',                # 全局模式（full_human | random_simulate)
+    mode = 'full_human',                # 全局模式（full_human | random_simulate | one_ai_and_other_random_simulate)
     num_players = 3,                    # 玩家数（3 ~ 5)
     setup_mode = 'random',              # 初始设置模式（可选：random | target | input)
 
@@ -217,7 +217,55 @@ def main(
                 returned_data['chart'] = chart
             
             return returned_data
+        
+        case 'one_ai_and_other_random_simulate':
+            # 初步排错
+            match setup_mode:
+                case 'random':
+                    pass
+                case 'target':
+                    if not setup_tile_args:
+                        raise Exception('在完全随机模拟中采用指定初始模式下，效果板块参数为空')
+                    if len(setup_tile_args) != 9:
+                        raise Exception('在完全随机模拟中采用指定初始模式下，效果板块参数长度填写不足')
+                    if (
+                        type(setup_tile_args[0]) != int
+                        or any(type(setup_tile_args[i]) != list for i in range(1,9) if i != 5)
+                        or type(setup_tile_args[5]) != int
+                    ):
+                        raise Exception('在完全随机模拟中采用指定初始模式下，效果板块参数中一个或多个位置的元素类型不合法')
+                    if not setup_player_order_args:
+                        raise Exception('在完全随机模拟中采用指定初始模式下，玩家初始顺序参数为空')
+                    if len(setup_player_order_args) != num_players:
+                        raise Exception('在完全随机模拟中采用指定初始模式下，玩家初始顺序参数长度与玩家数不一致')
+                    if len(set(setup_player_order_args)) != num_players:
+                        raise Exception('在完全随机模拟中采用指定初始模式下，玩家初始顺序参数中存在重复值')
+                    if any(player_idx not in setup_player_order_args for player_idx in range(num_players)):
+                        raise Exception('在完全随机模拟中采用指定初始模式下，玩家初始顺序参数中存在非法值')
+                case _:
+                    raise Exception('在完全随机模拟中采用不合法的初始设置模式（合法模式仅有random和target)')
+            
+            # 初始化网页控制台
+            io = GamePanel(port=5000, player_count=num_players) # 自动启动后台服务
+            io.update_global_status("=== 大创造时代游戏开始 ===")
+            game_args_dict = {
+                'num_players': num_players,
+                'setup_mode': setup_mode,                           # input | random | target 
+                'setup_tile_args' : setup_tile_args,
+                'setup_player_order_args': setup_player_order_args,
+                'action_history': [],
+                'simulation_path': [],
+                'remaining_path_length': 0,
+                'action_mode': ['ai_selection_per_step'] + ['random_simulate'] * (num_players-1),             # human | random_simulate | reproduce | ai_selection_per_step
+                'web_io': io,                                       # Silence_IO() | io,
+                'need_estimate': False,
+            }
+            game_engine = GameEngine(game_args_dict)
+            result = game_engine.run_game()
 
+            from GameHistoryRecorder import save_game_history
+            save_game_history(game_args_dict, result)
+            print(result)
         case _:
             raise ValueError('非法全局模式')
 
@@ -239,5 +287,6 @@ if __name__ == "__main__":
         [2, 4, 6]                                   # 书本行动板块
     )
 
-    main(mode = 'full_human', num_players = 3, setup_mode = 'target', setup_tile_args = setup_tile_args, setup_player_order_args = [2,0,1])
+    # main(mode = 'full_human', num_players = 3, setup_mode = 'target', setup_tile_args = setup_tile_args, setup_player_order_args = [2,0,1])
     # main(mode = 'random_simulate')
+    main(mode = 'one_ai_and_other_random_simulate', num_players = 3, setup_mode = 'random')
