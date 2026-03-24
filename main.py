@@ -266,6 +266,7 @@ def main(
             from GameHistoryRecorder import save_game_history
             save_game_history(game_args_dict, result)
             print(result)
+        
         case _:
             raise ValueError('非法全局模式')
 

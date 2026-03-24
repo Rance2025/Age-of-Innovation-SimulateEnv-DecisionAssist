@@ -491,12 +491,12 @@ class AIAssistant:
             5. 禁止虚构不存在的行动 ID 或规则。
             6. 如果信息不足，可先调用查询工具，但**最后一轮必须输出决策**。
 
-            # 📤 Output Format（工具参数格式）
+            # 📤 Output Format（工具参数格式）（切记一律使用单引号）
             ```json
             {{
-                "action_id": 1,
-                "reason": "当前第 3 轮，Round Score 奖励建造工坊。你已有 2 个相邻工坊可升级，且工具充足（5 Tools）。优先扩张领土为后续城市奠基，同时利用相邻对手建筑获得 Power。工程学科已 4 级，符合 Moles 派系长期战略。",
-                "confidence": 0.85
+                'action_id': 1,
+                'confidence': 0.85,
+                'reason': '当前第 3 轮，Round Score 奖励建造工坊。你已有 2 个相邻工坊可升级，且工具充足（5 Tools）。优先扩张领土为后续城市奠基，同时利用相邻对手建筑获得 Power。工程学科已 4 级，符合 Moles 派系长期战略。'
             }}
         """
 
