@@ -1,3 +1,9 @@
+import sys
+import os
+
+# 添加backend目录到路径
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'backend'))
+
 from GameEngine import GameEngine
 from web_io import GamePanel, Silence_IO
 
@@ -50,7 +56,7 @@ def main(
                     raise Exception('在全人类模式中采用不合法的初始设置模式（合法模式仅有input、random和target)')
                 
             # 初始化网页控制台
-            io = GamePanel(port=5000, player_count=num_players) # 自动启动后台服务
+            io = GamePanel(port=5001, player_count=num_players) # 自动启动后台服务
             io.update_global_status("=== 大创造时代游戏开始 ===")
             game_args_dict = {
                 'num_players': num_players,
@@ -246,7 +252,7 @@ def main(
                     raise Exception('在完全随机模拟中采用不合法的初始设置模式（合法模式仅有random和target)')
             
             # 初始化网页控制台
-            io = GamePanel(port=5000, player_count=num_players) # 自动启动后台服务
+            io = GamePanel(port=5001, player_count=num_players) # 自动启动后台服务
             io.update_global_status("=== 大创造时代游戏开始 ===")
             game_args_dict = {
                 'num_players': num_players,
