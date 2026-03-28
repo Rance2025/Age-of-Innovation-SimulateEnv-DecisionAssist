@@ -7,6 +7,7 @@ import sys
 import json
 import queue
 import threading
+import logging
 from flask import Flask, render_template, request, Response, send_file, send_from_directory, jsonify
 from flask_cors import CORS
 
@@ -15,6 +16,15 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # 导入数据库模块
 from backend.database import get_db_instance
+
+
+# 配置日志
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger(__name__)
 
 
 class GamePanelAPI:
@@ -90,6 +100,9 @@ class GamePanelAPI:
         self.app.route('/api/games/<int:game_id>', methods=['GET'])(self.get_game)
         self.app.route('/api/games/<int:game_id>', methods=['DELETE'])(self.delete_game)
         self.app.route('/api/games/stats', methods=['GET'])(self.get_game_stats)
+
+        # 游戏启动API
+        self.app.route('/api/game/start', methods=['POST'])(self.start_game)
 
     def index(self):
         """首页"""
@@ -186,6 +199,71 @@ class GamePanelAPI:
             return jsonify(stats)
         except Exception as e:
             return jsonify({'error': str(e)}), 500
+
+    def start_game(self):
+        """接收游戏启动设置并打印"""
+        try:
+            data = request.get_json()
+            if not data:
+                return jsonify({'error': 'No data provided'}), 400
+
+            # 对数据进行排序处理（除了顺序重要的字段）
+            data = self._sort_data_except_order_sensitive(data)
+
+            # 使用 Flask logger 输出日志
+            self.app.logger.info("="*60)
+            self.app.logger.info("收到游戏启动请求")
+            self.app.logger.info("="*60)
+            # 格式化输出，数组保持在一行
+            formatted_json = json.dumps(data, indent=2, ensure_ascii=False)
+            # 将多行数组压缩为一行（只匹配JSON数组：[数字, 数字, ...] 或 ["字符串", ...]）
+            import re
+            def compact_array(match):
+                content = match.group(0).replace('\n', '').replace('  ', ' ')
+                # 去除多余空格
+                while '  ' in content:
+                    content = content.replace('  ', ' ')
+                return content
+            # 只匹配包含数字、字符串、空格、逗号的JSON数组（以[开头，]结尾）
+            formatted_json = re.sub(r'\[[\s\d,\[\]"\']{10,}?\]', compact_array, formatted_json, flags=re.DOTALL)
+            # 将 players 数组中的每个对象压缩到一行
+            def compact_player(match):
+                content = match.group(0).replace('\n', '').replace('  ', ' ')
+                while '  ' in content:
+                    content = content.replace('  ', ' ')
+                return content
+            formatted_json = re.sub(r'\{\s*"type":\s*"[^"]+",\s*"args":\s*"[^"]+"\s*\}', compact_player, formatted_json, flags=re.DOTALL)
+            for line in formatted_json.split('\n'):
+                if line.strip():  # 跳过空行
+                    self.app.logger.info(line)
+            self.app.logger.info("="*60)
+
+            return jsonify({
+                'status': 'success',
+                'message': 'Game settings received',
+                'data': data
+            }), 200
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+    def _sort_data_except_order_sensitive(self, data):
+        """对数据进行排序，但保留顺序敏感字段的原始顺序"""
+        if not isinstance(data, dict):
+            return data
+
+        # 顺序敏感的字段（不排序）
+        order_sensitive_fields = {'round_scoring', 'ability_tiles', 'science_tiles'}
+
+        # 处理 init_settings.setup_tiles 中的列表
+        if 'init_settings' in data and isinstance(data['init_settings'], dict):
+            init_settings = data['init_settings']
+            if 'setup_tiles' in init_settings and isinstance(init_settings['setup_tiles'], dict):
+                setup_tiles = init_settings['setup_tiles']
+                for key, value in setup_tiles.items():
+                    if isinstance(value, list) and key not in order_sensitive_fields:
+                        setup_tiles[key] = sorted(value)
+
+        return data
 
     def stream_data(self, stream_type):
         """数据流处理"""

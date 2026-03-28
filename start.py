@@ -10,19 +10,32 @@ import atexit
 
 # 全局进程列表
 processes = []
+_cleanup_done = False
 
 def cleanup():
     """清理所有子进程"""
+    global _cleanup_done
+    if _cleanup_done:
+        return
+    _cleanup_done = True
+
     print("\n正在停止所有服务...")
     for p in processes:
         try:
             if sys.platform == 'win32':
-                p.terminate()
+                # 强制终止进程树，确保端口被释放
+                import ctypes
+                kernel32 = ctypes.windll.kernel32
+                handle = kernel32.OpenProcess(1, False, p.pid)
+                kernel32.TerminateProcess(handle, -1)
+                kernel32.CloseHandle(handle)
             else:
                 os.killpg(os.getpgid(p.pid), signal.SIGTERM)
         except:
             pass
     print("服务已停止")
+    # 等待端口释放
+    time.sleep(1)
 
 def start_backend(host='127.0.0.1', port=5001, player_count=3):
     """启动后端服务"""
@@ -45,7 +58,7 @@ api.run(debug=False, use_reloader=False)
     ]
 
     if sys.platform == 'win32':
-        process = subprocess.Popen(cmd, env=env, creationflags=subprocess.CREATE_NO_WINDOW)
+        process = subprocess.Popen(cmd, env=env, stdout=sys.stdout, stderr=sys.stderr)
     else:
         process = subprocess.Popen(cmd, env=env, preexec_fn=os.setsid)
 
@@ -74,7 +87,7 @@ def start_frontend(host='127.0.0.1', port=5050):
     env = os.environ.copy()
 
     if sys.platform == 'win32':
-        process = subprocess.Popen(cmd, cwd=frontend_dir, env=env, shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
+        process = subprocess.Popen(cmd, cwd=frontend_dir, env=env, shell=True, stdout=sys.stdout, stderr=sys.stderr)
     else:
         process = subprocess.Popen(cmd, cwd=frontend_dir, env=env, shell=True, preexec_fn=os.setsid)
 
@@ -126,6 +139,7 @@ def main():
             time.sleep(1)
     except KeyboardInterrupt:
         print("\n\n收到停止信号...")
+        cleanup()
         sys.exit(0)
 
 if __name__ == "__main__":

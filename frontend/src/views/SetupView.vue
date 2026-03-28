@@ -266,59 +266,12 @@
 
     <!-- 自定义游戏模式配置弹窗 -->
     <Modal v-model="showCustomModeModal" title="自定义游戏配置">
-      <div class="custom-mode-options">
-        <div class="custom-option">
-          <div class="custom-option-label">回合数</div>
-          <div class="custom-option-input">
-            <button
-              v-for="round in [4, 5, 6]"
-              :key="round"
-              type="button"
-              class="custom-option-btn"
-              :class="{ active: customSettings.rounds === round }"
-              @click="customSettings.rounds = round"
-            >
-              {{ round }}轮
-            </button>
-          </div>
-        </div>
-        <div class="custom-option">
-          <div class="custom-option-label">初始资源倍率</div>
-          <div class="custom-option-input">
-            <button
-              v-for="rate in [0.5, 1, 1.5, 2]"
-              :key="rate"
-              type="button"
-              class="custom-option-btn"
-              :class="{ active: customSettings.resourceRate === rate }"
-              @click="customSettings.resourceRate = rate"
-            >
-              {{ rate }}x
-            </button>
-          </div>
-        </div>
-        <div class="custom-option">
-          <div class="custom-option-label">计分板类型</div>
-          <div class="custom-option-input">
-            <button
-              v-for="type in ['标准', '随机', '自定义']"
-              :key="type"
-              type="button"
-              class="custom-option-btn"
-              :class="{ active: customSettings.scoringType === type }"
-              @click="customSettings.scoringType = type"
-            >
-              {{ type }}
-            </button>
-          </div>
-        </div>
+      <div class="todo-placeholder">
+        <p>TODO: 自定义游戏配置功能待实现</p>
       </div>
       <template #footer>
         <button type="button" class="btn btn-secondary" @click="showCustomModeModal = false">
-          取消
-        </button>
-        <button type="button" class="btn btn-primary" @click="saveCustomSettings">
-          保存
+          关闭
         </button>
       </template>
     </Modal>
@@ -330,25 +283,13 @@
       size="small"
       @close="closeStrategyModal"
     >
-      <div class="strategy-options">
-        <div
-          v-for="strategy in aiStrategies"
-          :key="strategy.value"
-          class="strategy-option"
-          :class="{ active: form.players[showStrategyModal]?.strategy === strategy.value }"
-          @click="selectStrategy(strategy.value)"
-        >
-          <div class="strategy-icon"><i :class="strategy.icon"></i></div>
-          <div class="strategy-info">
-            <div class="strategy-name">{{ strategy.name }}</div>
-            <div class="strategy-desc">{{ strategy.desc }}</div>
-          </div>
-        </div>
+      <div class="todo-placeholder">
+        <p>TODO: AI策略选择功能待实现</p>
       </div>
     </Modal>
 
     <!-- 初始板块弹窗 -->
-    <Modal v-model="showInitModal" title="初始板块配置">
+    <Modal v-model="showInitModal" title="初始板块配置" class="init-modal">
       <div class="init-modal-layout">
         <!-- 左侧导航 -->
         <div class="init-nav">
@@ -434,7 +375,7 @@
             <div v-if="!initNavRandom.factions" class="factions-config">
               <p class="factions-hint">
                 <i class="fas fa-info-circle"></i>
-                <span>请选择 {{ requiredFactionCount }} 个派系参与本局游戏（已选 {{ selectedFactions.length }} 个）</span>
+                <span>请选择 {{ requiredFactionCount }} 个派系参与本局游戏（已选 {{ selectedFactions.length }} / {{ requiredFactionCount }} 个）</span>
               </p>
               <div class="factions-grid">
                 <!-- 第一行：3个 -->
@@ -514,7 +455,7 @@
             <div v-if="!initNavRandom.palace" class="palace-config">
               <p class="palace-hint">
                 <i class="fas fa-info-circle"></i>
-                <span>请选择 {{ requiredPalaceCount }} 个宫殿板块参与本局游戏（已选 {{ selectedPalaces.length }} 个）</span>
+                <span>请选择 {{ requiredPalaceCount }} 个宫殿板块参与本局游戏（已选 {{ selectedPalaces.length }} / {{ requiredPalaceCount }} 个）</span>
               </p>
               <div class="palace-grid">
                 <!-- 第一行：4个 -->
@@ -527,6 +468,7 @@
                     @click="togglePalaceSelection(index)"
                   >
                     <div class="palace-card-image" :style="getPalaceCardStyle(index)"></div>
+                    <div class="palace-card-label">{{ getPalaceBackendCode(index) }}</div>
                     <div v-if="selectedPalaces.includes(index)" class="palace-card-check">
                       <i class="fas fa-check"></i>
                     </div>
@@ -542,6 +484,7 @@
                     @click="togglePalaceSelection(index)"
                   >
                     <div class="palace-card-image" :style="getPalaceCardStyle(index)"></div>
+                    <div class="palace-card-label">{{ getPalaceBackendCode(index) }}</div>
                     <div v-if="selectedPalaces.includes(index)" class="palace-card-check">
                       <i class="fas fa-check"></i>
                     </div>
@@ -557,6 +500,7 @@
                     @click="togglePalaceSelection(index)"
                   >
                     <div class="palace-card-image" :style="getPalaceCardStyle(index)"></div>
+                    <div class="palace-card-label">{{ getPalaceBackendCode(index) }}</div>
                     <div v-if="selectedPalaces.includes(index)" class="palace-card-check">
                       <i class="fas fa-check"></i>
                     </div>
@@ -572,6 +516,7 @@
                     @click="togglePalaceSelection(index)"
                   >
                     <div class="palace-card-image" :style="getPalaceCardStyle(index)"></div>
+                    <div class="palace-card-label">{{ getPalaceBackendCode(index) }}</div>
                     <div v-if="selectedPalaces.includes(index)" class="palace-card-check">
                       <i class="fas fa-check"></i>
                     </div>
@@ -582,6 +527,406 @@
             <div v-else class="init-random-notice">
               <i class="fas fa-shuffle"></i>
               <p>已启用随机设置，宫殿板块将随机分配</p>
+            </div>
+          </div>
+
+          <!-- 回合助推板配置 -->
+          <div v-else-if="activeInitNav === 'roundBoosters'">
+            <div v-if="!initNavRandom.roundBoosters" class="round-boosters-config">
+              <p class="round-boosters-hint">
+                <i class="fas fa-info-circle"></i>
+                <span>请选择 {{ requiredRoundBoosterCount }} 个回合助推板参与本局游戏（已选 {{ selectedRoundBoosters.length }} / {{ requiredRoundBoosterCount }} 个）</span>
+              </p>
+              <div class="round-boosters-grid">
+                <!-- 第一行：5个 -->
+                <div class="round-boosters-row row-5">
+                  <div
+                    v-for="index in [0, 1, 2, 3, 4]"
+                    :key="index"
+                    class="round-booster-card"
+                    :class="{ active: selectedRoundBoosters.includes(index) }"
+                    @click="toggleRoundBoosterSelection(index)"
+                  >
+                    <div class="round-booster-card-image" :style="getRoundBoosterCardStyle(index)"></div>
+                    <div class="round-booster-card-label">{{ getRoundBoosterBackendCode(index) }}</div>
+                    <div v-if="selectedRoundBoosters.includes(index)" class="round-booster-card-check">
+                      <i class="fas fa-check"></i>
+                    </div>
+                  </div>
+                </div>
+                <!-- 第二行：5个 -->
+                <div class="round-boosters-row row-5">
+                  <div
+                    v-for="index in [5, 6, 7, 8, 9]"
+                    :key="index"
+                    class="round-booster-card"
+                    :class="{ active: selectedRoundBoosters.includes(index) }"
+                    @click="toggleRoundBoosterSelection(index)"
+                  >
+                    <div class="round-booster-card-image" :style="getRoundBoosterCardStyle(index)"></div>
+                    <div class="round-booster-card-label">{{ getRoundBoosterBackendCode(index) }}</div>
+                    <div v-if="selectedRoundBoosters.includes(index)" class="round-booster-card-check">
+                      <i class="fas fa-check"></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-else class="init-random-notice">
+              <i class="fas fa-shuffle"></i>
+              <p>已启用随机设置，回合助推板将随机分配</p>
+            </div>
+          </div>
+
+          <!-- 轮次计分板块配置 -->
+          <div v-else-if="activeInitNav === 'roundScoring'">
+            <div v-if="!initNavRandom.roundScoring" class="round-scoring-config">
+              <p class="round-scoring-hint">
+                <i class="fas fa-info-circle"></i>
+                <span>请依次选择第 1 至 6 轮的回合计分板块（已选定前 {{ selectedRoundScoring.length }} 轮）</span>
+              </p>
+              <!-- 判定条件提示 -->
+              <div class="round-scoring-rules">
+                <div class="rule-item" :class="{ satisfied: isRule1Satisfied(), violated: isRule1Violated() }">
+                  <i class="fas" :class="getRule1Icon()"></i>
+                  <span>同一学科的 3 个计分板不能同时出现在前 5 轮</span>
+                </div>
+                <div class="rule-item" :class="{ satisfied: isRule2Satisfied(), violated: isRule2Violated() }">
+                  <i class="fas" :class="getRule2Icon()"></i>
+                  <span>8 号轮次计分板不能出现在后 2 轮</span>
+                </div>
+              </div>
+              <div class="round-scoring-grid">
+                <!-- 第一行：3个 -->
+                <div class="round-scoring-row row-3">
+                  <div
+                    v-for="index in [0, 1, 2]"
+                    :key="index"
+                    class="round-scoring-card"
+                    :class="{ active: selectedRoundScoring.includes(index) }"
+                    @click="toggleRoundScoringSelection(index)"
+                  >
+                    <div class="round-scoring-card-image" :style="getRoundScoringCardStyle(index)"></div>
+                    <div class="round-scoring-card-label">{{ getRoundScoringBackendCode(index) }}</div>
+                    <div v-if="getRoundScoringOrder(index) > 0" class="round-scoring-card-order">
+                      {{ getRoundScoringOrder(index) }}
+                    </div>
+                  </div>
+                </div>
+                <!-- 第二行：3个 -->
+                <div class="round-scoring-row row-3">
+                  <div
+                    v-for="index in [3, 4, 5]"
+                    :key="index"
+                    class="round-scoring-card"
+                    :class="{ active: selectedRoundScoring.includes(index) }"
+                    @click="toggleRoundScoringSelection(index)"
+                  >
+                    <div class="round-scoring-card-image" :style="getRoundScoringCardStyle(index)"></div>
+                    <div class="round-scoring-card-label">{{ getRoundScoringBackendCode(index) }}</div>
+                    <div v-if="getRoundScoringOrder(index) > 0" class="round-scoring-card-order">
+                      {{ getRoundScoringOrder(index) }}
+                    </div>
+                  </div>
+                </div>
+                <!-- 第三行：3个 -->
+                <div class="round-scoring-row row-3">
+                  <div
+                    v-for="index in [6, 7, 8]"
+                    :key="index"
+                    class="round-scoring-card"
+                    :class="{ active: selectedRoundScoring.includes(index) }"
+                    @click="toggleRoundScoringSelection(index)"
+                  >
+                    <div class="round-scoring-card-image" :style="getRoundScoringCardStyle(index)"></div>
+                    <div class="round-scoring-card-label">{{ getRoundScoringBackendCode(index) }}</div>
+                    <div v-if="getRoundScoringOrder(index) > 0" class="round-scoring-card-order">
+                      {{ getRoundScoringOrder(index) }}
+                    </div>
+                  </div>
+                </div>
+                <!-- 第四行：3个 -->
+                <div class="round-scoring-row row-3">
+                  <div
+                    v-for="index in [9, 10, 11]"
+                    :key="index"
+                    class="round-scoring-card"
+                    :class="{ active: selectedRoundScoring.includes(index) }"
+                    @click="toggleRoundScoringSelection(index)"
+                  >
+                    <div class="round-scoring-card-image" :style="getRoundScoringCardStyle(index)"></div>
+                    <div class="round-scoring-card-label">{{ getRoundScoringBackendCode(index) }}</div>
+                    <div v-if="getRoundScoringOrder(index) > 0" class="round-scoring-card-order">
+                      {{ getRoundScoringOrder(index) }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-else class="init-random-notice">
+              <i class="fas fa-shuffle"></i>
+              <p>已启用随机设置，轮次计分板块将随机分配</p>
+            </div>
+          </div>
+
+          <!-- 最终计分板块配置 -->
+          <div v-else-if="activeInitNav === 'finalScoring'">
+            <div v-if="!initNavRandom.finalScoring" class="final-scoring-config">
+              <p class="final-scoring-hint">
+                <i class="fas fa-info-circle"></i>
+                <span>请选择 1 个最终计分板块</span>
+              </p>
+              <div class="final-scoring-grid">
+                <!-- 一行4个 -->
+                <div class="final-scoring-row row-4">
+                  <div
+                    v-for="index in [0, 1, 2, 3]"
+                    :key="index"
+                    class="final-scoring-card"
+                    :class="{ active: selectedFinalScoring === index }"
+                    @click="toggleFinalScoringSelection(index)"
+                  >
+                    <div class="final-scoring-card-image" :style="getFinalScoringCardStyle(index)"></div>
+                    <div class="final-scoring-card-label">{{ getFinalScoringBackendCode(index) }}</div>
+                    <div v-if="selectedFinalScoring === index" class="final-scoring-card-check">
+                      <i class="fas fa-check"></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-else class="init-random-notice">
+              <i class="fas fa-shuffle"></i>
+              <p>已启用随机设置，最终计分板块将随机分配</p>
+            </div>
+          </div>
+
+          <!-- 能力板块配置 -->
+          <div v-else-if="activeInitNav === 'abilities'">
+            <div v-if="!initNavRandom.abilities" class="abilities-config">
+              <p class="abilities-hint">
+                <i class="fas fa-info-circle"></i>
+                <span>请从 12 个能力板块中选择 12 个摆放进上方区域（已摆放 {{ abilityOrder.filter(a => a !== null).length }} / 12 个）</span>
+              </p>
+              <!-- 上方：摆放区域（board图片背景 + 3行4列位置） -->
+              <div class="abilities-board-container">
+                <div class="abilities-board" :style="{ backgroundImage: 'url(/assets/images/ability_tiles_board.jpg)' }">
+                  <div class="abilities-board-grid">
+                    <div
+                      v-for="positionIndex in 12"
+                      :key="positionIndex - 1"
+                      class="ability-board-slot"
+                      :class="{ 'is-occupied': abilityOrder[positionIndex - 1] !== null, 'is-selected': selectedAbilitySlot === positionIndex - 1 }"
+                      @dragover="handleAbilityDragOver($event, positionIndex - 1)"
+                      @drop="handleAbilityDrop($event, positionIndex - 1)"
+                      @click="handleAbilitySlotClick(positionIndex - 1)"
+                    >
+                      <div v-if="abilityOrder[positionIndex - 1] !== null" class="ability-placed-card">
+                        <div
+                          class="ability-card-image"
+                          :style="getAbilityCardStyle(abilityOrder[positionIndex - 1])"
+                          draggable="true"
+                          @dragstart="handleAbilityDragStart($event, abilityOrder[positionIndex - 1], positionIndex - 1)"
+                          @dragend="handleAbilityDragEnd"
+                          @click="removeAbilityFromPosition(positionIndex - 1)"
+                        ></div>
+                      </div>
+                      <span v-else class="ability-slot-number">{{ positionIndex }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <!-- 下方：12个能力板块选择区（2行6列） -->
+              <div class="abilities-selection">
+                <div class="abilities-row">
+                  <div
+                    v-for="index in [0, 1, 2, 3, 4, 5]"
+                    :key="index"
+                    class="ability-card"
+                    :class="{ 'is-placed': abilityOrder.includes(index), 'is-selected': selectedAbilityCard === index }"
+                    draggable="true"
+                    @dragstart="handleAbilityDragStart($event, index)"
+                    @dragend="handleAbilityDragEnd"
+                    @click="handleAbilityCardClick(index)"
+                  >
+                    <div class="ability-card-image" :style="getAbilityCardStyle(index)"></div>
+                    <div class="ability-card-label">{{ getAbilityBackendCode(index) }}</div>
+                  </div>
+                </div>
+                <div class="abilities-row">
+                  <div
+                    v-for="index in [6, 7, 8, 9, 10, 11]"
+                    :key="index"
+                    class="ability-card"
+                    :class="{ 'is-placed': abilityOrder.includes(index), 'is-selected': selectedAbilityCard === index }"
+                    draggable="true"
+                    @dragstart="handleAbilityDragStart($event, index)"
+                    @dragend="handleAbilityDragEnd"
+                    @click="handleAbilityCardClick(index)"
+                  >
+                    <div class="ability-card-image" :style="getAbilityCardStyle(index)"></div>
+                    <div class="ability-card-label">{{ getAbilityBackendCode(index) }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-else class="init-random-notice">
+              <i class="fas fa-shuffle"></i>
+              <p>已启用随机设置，能力板块将随机分配</p>
+            </div>
+          </div>
+
+          <!-- 书行动配置 -->
+          <div v-else-if="activeInitNav === 'bookActions'">
+            <div v-if="!initNavRandom.bookActions" class="book-actions-config">
+              <p class="book-actions-hint">
+                <i class="fas fa-info-circle"></i>
+                <span>请选择 3 个书行动参与本局游戏（已选 {{ selectedBookActions.length }} / 3 个）</span>
+              </p>
+              <div class="book-actions-grid">
+                <!-- 第一行：2个 -->
+                <div class="book-actions-row row-2">
+                  <div
+                    v-for="index in [0, 1]"
+                    :key="index"
+                    class="book-action-card"
+                    :class="{ active: selectedBookActions.includes(index) }"
+                    @click="toggleBookActionSelection(index)"
+                  >
+                    <div class="book-action-card-image" :style="getBookActionCardStyle(index)"></div>
+                    <div class="book-action-card-label">{{ getBookActionBackendCode(index) }}</div>
+                    <div v-if="selectedBookActions.includes(index)" class="book-action-card-check">
+                      <i class="fas fa-check"></i>
+                    </div>
+                  </div>
+                </div>
+                <!-- 第二行：2个 -->
+                <div class="book-actions-row row-2">
+                  <div
+                    v-for="index in [2, 3]"
+                    :key="index"
+                    class="book-action-card"
+                    :class="{ active: selectedBookActions.includes(index) }"
+                    @click="toggleBookActionSelection(index)"
+                  >
+                    <div class="book-action-card-image" :style="getBookActionCardStyle(index)"></div>
+                    <div class="book-action-card-label">{{ getBookActionBackendCode(index) }}</div>
+                    <div v-if="selectedBookActions.includes(index)" class="book-action-card-check">
+                      <i class="fas fa-check"></i>
+                    </div>
+                  </div>
+                </div>
+                <!-- 第三行：2个 -->
+                <div class="book-actions-row row-2">
+                  <div
+                    v-for="index in [4, 5]"
+                    :key="index"
+                    class="book-action-card"
+                    :class="{ active: selectedBookActions.includes(index) }"
+                    @click="toggleBookActionSelection(index)"
+                  >
+                    <div class="book-action-card-image" :style="getBookActionCardStyle(index)"></div>
+                    <div class="book-action-card-label">{{ getBookActionBackendCode(index) }}</div>
+                    <div v-if="selectedBookActions.includes(index)" class="book-action-card-check">
+                      <i class="fas fa-check"></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-else class="init-random-notice">
+              <i class="fas fa-shuffle"></i>
+              <p>已启用随机设置，书行动将随机分配</p>
+            </div>
+          </div>
+
+          <!-- 高科板块配置 -->
+          <div v-else-if="activeInitNav === 'techs'">
+            <div v-if="!initNavRandom.techs" class="techs-config">
+              <p class="techs-hint">
+                <i class="fas fa-info-circle"></i>
+                <span>请从 18 个高科板块中选择 {{ requiredTechCount }} 个摆放进上方区域（已摆放 {{ techOrder.filter(t => t !== null).length }} / {{ requiredTechCount }} 个）</span>
+              </p>
+              <!-- 上方：摆放区域（2+2n个格子） -->
+              <div class="techs-board-container">
+                <div class="techs-board" :class="'techs-board-' + form.playerCount" :style="{ backgroundImage: 'url(/assets/images/science_board_' + form.playerCount + '.jpg.png)' }">
+                  <div class="techs-board-grid">
+                    <div
+                      v-for="positionIndex in requiredTechCount"
+                      :key="positionIndex - 1"
+                      class="tech-board-slot"
+                      :class="{ 'is-occupied': techOrder[positionIndex - 1] !== null, 'is-selected': selectedTechSlot === positionIndex - 1 }"
+                      @dragover="handleTechDragOver($event, positionIndex - 1)"
+                      @drop="handleTechDrop($event, positionIndex - 1)"
+                      @click="handleTechSlotClick(positionIndex - 1)"
+                    >
+                      <div v-if="techOrder[positionIndex - 1] !== null" class="tech-placed-card">
+                        <div
+                          class="tech-card-image"
+                          :style="getTechCardStyle(techOrder[positionIndex - 1])"
+                          draggable="true"
+                          @dragstart="handleTechDragStart($event, techOrder[positionIndex - 1], positionIndex - 1)"
+                          @dragend="handleTechDragEnd"
+                          @click="removeTechFromPosition(positionIndex - 1)"
+                        ></div>
+                      </div>
+                      <span v-else class="tech-slot-number">{{ positionIndex }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <!-- 下方：18个高科板块选择区（3行6列） -->
+              <div class="techs-selection">
+                <div class="techs-row">
+                  <div
+                    v-for="index in [0, 1, 2, 3, 4, 5]"
+                    :key="index"
+                    class="tech-card"
+                    :class="{ 'is-placed': techOrder.includes(index), 'is-selected': selectedTechCard === index }"
+                    draggable="true"
+                    @dragstart="handleTechDragStart($event, index)"
+                    @dragend="handleTechDragEnd"
+                    @click="handleTechCardClick(index)"
+                  >
+                    <div class="tech-card-image" :style="getTechCardStyle(index)"></div>
+                    <div class="tech-card-label">{{ getTechBackendCode(index) }}</div>
+                  </div>
+                </div>
+                <div class="techs-row">
+                  <div
+                    v-for="index in [6, 7, 8, 9, 10, 11]"
+                    :key="index"
+                    class="tech-card"
+                    :class="{ 'is-placed': techOrder.includes(index), 'is-selected': selectedTechCard === index }"
+                    draggable="true"
+                    @dragstart="handleTechDragStart($event, index)"
+                    @dragend="handleTechDragEnd"
+                    @click="handleTechCardClick(index)"
+                  >
+                    <div class="tech-card-image" :style="getTechCardStyle(index)"></div>
+                    <div class="tech-card-label">{{ getTechBackendCode(index) }}</div>
+                  </div>
+                </div>
+                <div class="techs-row">
+                  <div
+                    v-for="index in [12, 13, 14, 15, 16, 17]"
+                    :key="index"
+                    class="tech-card"
+                    :class="{ 'is-placed': techOrder.includes(index), 'is-selected': selectedTechCard === index }"
+                    draggable="true"
+                    @dragstart="handleTechDragStart($event, index)"
+                    @dragend="handleTechDragEnd"
+                    @click="handleTechCardClick(index)"
+                  >
+                    <div class="tech-card-image" :style="getTechCardStyle(index)"></div>
+                    <div class="tech-card-label">{{ getTechBackendCode(index) }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-else class="init-random-notice">
+              <i class="fas fa-shuffle"></i>
+              <p>已启用随机设置，高科板块将随机分配</p>
             </div>
           </div>
 
@@ -628,6 +973,7 @@ const initNavItems = [
   { id: 'planningCards', name: '规划卡', icon: 'fas fa-address-card' },
   { id: 'factions', name: '派系', icon: 'fas fa-users' },
   { id: 'palace', name: '宫殿板块', icon: 'fas fa-building' },
+  { id: 'roundBoosters', name: '回合助推板', icon: 'fas fa-rocket' },
   { id: 'roundScoring', name: '轮次计分', icon: 'fas fa-calendar' },
   { id: 'finalScoring', name: '最终计分', icon: 'fas fa-trophy' },
   { id: 'abilities', name: '能力板块', icon: 'fas fa-magic' },
@@ -659,6 +1005,7 @@ const initNavRandom = reactive({
   planningCards: false,
   factions: false,
   palace: false,
+  roundBoosters: false,
   roundScoring: false,
   finalScoring: false,
   abilities: false,
@@ -689,29 +1036,84 @@ const requiredPalaceCount = computed(() => form.playerCount + 1)
 // 宫殿板块选择是否完成
 const isPalaceComplete = computed(() => selectedPalaces.value.length === requiredPalaceCount.value)
 
+// 选中的轮次计分板块索引数组（有序选择，必须选6个，只取前12张）
+const selectedRoundScoring = ref([])
+
+// 轮次计分板块选择是否完成（必须刚好6个）
+const isRoundScoringComplete = computed(() => selectedRoundScoring.value.length === 6)
+
+// 选中的最终计分板块索引（单选，取第13-16个即索引12-15）
+const selectedFinalScoring = ref(null)
+
+// 最终计分板块选择是否完成
+const isFinalScoringComplete = computed(() => selectedFinalScoring.value !== null)
+
+// 能力板块拖拽排序状态（12个位置，null表示空位，数字0-11表示能力板块索引）
+const abilityOrder = ref(Array(12).fill(null))
+
+// 能力板块选择是否完成（12个全部摆放）
+const isAbilitiesComplete = computed(() => abilityOrder.value.every(pos => pos !== null))
+
+// 高科板块数量（2 + 2 * 玩家数）
+const requiredTechCount = computed(() => 2 + 2 * form.playerCount)
+
+// 高科板块拖拽排序状态（动态数量个位置，null表示空位，数字0-17表示高科板块索引）
+const techOrder = ref(Array(8).fill(null)) // 默认8个位置（3人局）
+
+// 高科板块选择是否完成（所有位置都填满）
+const isTechsComplete = computed(() => techOrder.value.every(pos => pos !== null))
+
+// 选中的书行动索引数组（多选，必须选3个）
+const selectedBookActions = ref([])
+
+// 书行动选择是否完成（必须刚好3个）
+const isBookActionsComplete = computed(() => selectedBookActions.value.length === 3)
+
+// 选中的回合助推板索引数组（多选，数量 = 玩家数 + 3）
+const selectedRoundBoosters = ref([])
+
+// 获取需要选择的回合助推板数量（玩家数量 + 3）
+const requiredRoundBoosterCount = computed(() => form.playerCount + 3)
+
+// 回合助推板选择是否完成
+const isRoundBoostersComplete = computed(() => selectedRoundBoosters.value.length === requiredRoundBoosterCount.value)
+
 // 派系选择是否完成
 const isFactionsComplete = computed(() => selectedFactions.value.length === requiredFactionCount.value)
 
-// 派系名称列表（12个）
+// 派系名称列表（12个）- 按后端编码 1-12 顺序
+// 后端: 1神佑者, 2猫人, 3哥布林, 4幻术师, 5发明家, 6蜥蜴人, 7鼹鼠, 8僧侣, 9航海家, 10奥马尔, 11哲学家, 12通灵师
 const factionNames = [
-  '幻术师', '航海家', '哲学家',
-  '通灵师', '猫人', '鼹鼠',
-  '奥马尔', '哥布林', '发明家',
-  '蜥蜴人', '僧侣', '神佑者'
+  '神佑者', '猫人', '哥布林',
+  '幻术师', '发明家', '蜥蜴人',
+  '鼹鼠', '僧侣', '航海家',
+  '奥马尔', '哲学家', '通灵师'
 ]
 
-// 规划卡名称列表（7个）
-const planningCardNames = ['沙漠', '森林', '沼泽', '荒地', '湖泊', '山脉', '平原']
+// 后端编码到图片索引的映射（后端1-12 -> 图片0-11）
+// 后端: 1神佑者, 2猫人, 3哥布林, 4幻术师, 5发明家, 6蜥蜴人, 7鼹鼠, 8僧侣, 9航海家, 10奥马尔, 11哲学家, 12通灵师
+// 图片顺序: 0幻术师, 1航海家, 2哲学家, 3通灵师, 4猫人, 5鼹鼠, 6奥马尔, 7哥布林, 8发明家, 9蜥蜴人, 10僧侣, 11神佑者
+const factionBackendToImageMap = [11, 4, 7, 0, 8, 9, 5, 10, 1, 6, 2, 3]
+
+// 规划卡名称列表（7个）- 按后端编码 1-7 顺序：平原、沼泽、湖泊、森林、山脉、荒地、沙漠
+const planningCardNames = ['平原', '沼泽', '湖泊', '森林', '山脉', '荒地', '沙漠']
+
+// 后端编码到图片索引的映射（后端1-7 -> 图片0-6）
+// 后端: 1平原, 2沼泽, 3湖泊, 4森林, 5山脉, 6荒地, 7沙漠
+// 图片顺序: 0沙漠, 1森林, 2沼泽, 3荒地, 4湖泊, 5山脉, 6平原
+const planningCardBackendToImageMap = [6, 2, 4, 1, 5, 3, 0]
 
 // 获取规划卡背景样式（7等分切割）
 function getPlanningCardStyle(index) {
   // 7张卡片横向排列，使用精确百分比定位
   // 每张卡片占 100/7 ≈ 14.2857%，中心点在 7.1429%, 21.4286%, 35.7143%...
   const positions = [0, 16.6667, 33.3333, 50, 66.6667, 83.3333, 100]
+  // 将前端显示索引映射到正确的图片位置
+  const imageIndex = planningCardBackendToImageMap[index]
   return {
-    backgroundImage: 'url(/assets/images/terrain_tiles.jpg)',
+    backgroundImage: 'url(/assets/images/planning_cards.jpg)',
     backgroundSize: '700% 100%',
-    backgroundPositionX: `${positions[index]}%`
+    backgroundPositionX: `${positions[imageIndex]}%`
   }
 }
 
@@ -720,10 +1122,12 @@ function getFactionCardStyle(index) {
   // 12张卡片横向排列，使用精确百分比定位
   // 位置点：0%, 9.091%, 18.182%, 27.273%, 36.364%, 45.455%, 54.545%, 63.636%, 72.727%, 81.818%, 90.909%, 100%
   const positions = [0, 9.0909, 18.1818, 27.2727, 36.3636, 45.4545, 54.5455, 63.6364, 72.7273, 81.8182, 90.9091, 100]
+  // 将前端显示索引映射到正确的图片位置
+  const imageIndex = factionBackendToImageMap[index]
   return {
     backgroundImage: 'url(/assets/images/faction_tiles.jpg)',
     backgroundSize: '1200% 100%',
-    backgroundPositionX: `${positions[index]}%`
+    backgroundPositionX: `${positions[imageIndex]}%`
   }
 }
 
@@ -742,6 +1146,10 @@ function toggleFactionSelection(index) {
   }
 }
 
+// 宫殿板块后端编码到图片索引的映射（后端1-16 -> 图片0-15）
+// 宫殿板块后端编码与图片顺序一致：1->0, 2->1, ..., 16->15
+const palaceBackendToImageMap = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+
 // 获取宫殿板块背景样式（18等分切割，只展示前16张）
 function getPalaceCardStyle(index) {
   // 18张卡片横向排列，使用精确百分比定位
@@ -749,11 +1157,18 @@ function getPalaceCardStyle(index) {
   //        47.059%, 52.941%, 58.824%, 64.706%, 70.588%, 76.471%, 82.353%, 88.235%, 94.118%, 100%
   const positions = [0, 5.8824, 11.7647, 17.6471, 23.5294, 29.4118, 35.2941, 41.1765,
                      47.0588, 52.9412, 58.8235, 64.7059, 70.5882, 76.4706, 82.3529, 88.2353, 94.1176, 100]
+  // 将前端显示索引映射到正确的图片位置
+  const imageIndex = palaceBackendToImageMap[index]
   return {
-    backgroundImage: 'url(/assets/images/stronghold_tiles.jpg)',
+    backgroundImage: 'url(/assets/images/palace_tiles.jpg)',
     backgroundSize: '1800% 100%',
-    backgroundPositionX: `${positions[index]}%`
+    backgroundPositionX: `${positions[imageIndex]}%`
   }
+}
+
+// 获取宫殿板块后端编码（前端索引0-15对应后端编码1-16）
+function getPalaceBackendCode(index) {
+  return index + 1
 }
 
 // 切换宫殿板块选择状态
@@ -768,6 +1183,510 @@ function togglePalaceSelection(index) {
       return // 已达上限，点击无效
     }
     selectedPalaces.value.push(index)
+  }
+}
+
+// 轮次计分板块后端编码到图片索引的映射（后端1-12 -> 图片0-11）
+// 后端: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
+// 图片: 2, 11, 1, 8, 9, 6, 10, 3, 4, 5, 7, 0
+const roundScoringBackendToImageMap = [2, 11, 1, 8, 9, 6, 10, 3, 4, 5, 7, 0]
+
+// 获取轮次计分板块背景样式（17等分切割，只展示前12张）
+function getRoundScoringCardStyle(index) {
+  // 原图尺寸：3978x134，17张卡片横向排列
+  // 每份原宽度：234px，裁剪最右侧2px后显示232px
+  // 背景尺寸：3978/232 × 100% = 1714.655%
+  // positions：n/16 × 100%
+  const positions = [0, 6.25, 12.5, 18.75, 25, 31.25, 37.5, 43.75,
+                     50, 56.25, 62.5, 68.75, 75, 81.25, 87.5, 93.75, 100]
+  // 将前端显示索引映射到正确的图片位置
+  const imageIndex = roundScoringBackendToImageMap[index]
+  return {
+    backgroundImage: 'url(/assets/images/round_scoring_tiles.png)',
+    backgroundSize: `${(3978 / 232) * 100}% 100%`, // 横向1714.655%
+    backgroundPositionX: `${positions[imageIndex]}%`
+  }
+}
+
+// 获取轮次计分板块后端编码（前端索引0-11对应后端编码1-12）
+function getRoundScoringBackendCode(index) {
+  return index + 1
+}
+
+// 获取卡片的选择序号（1-6），未选中返回0
+function getRoundScoringOrder(index) {
+  const order = selectedRoundScoring.value.indexOf(index)
+  return order > -1 ? order + 1 : 0
+}
+
+// 切换轮次计分板块选择状态（有序选择）
+function toggleRoundScoringSelection(index) {
+  const currentIndex = selectedRoundScoring.value.indexOf(index)
+  if (currentIndex > -1) {
+    // 已选中，取消选择并重新排序
+    selectedRoundScoring.value.splice(currentIndex, 1)
+  } else {
+    // 未选中，检查是否已达到最大选择数量（6个）
+    if (selectedRoundScoring.value.length >= 6) {
+      return // 已达上限，点击无效
+    }
+    selectedRoundScoring.value.push(index)
+  }
+}
+
+// 判定条件1：同一学科的三个计分板不能同时出现在前5轮
+// 学科分组：[2,5,7], [1,3,12], [8,10,11], [4,6,9] 对应索引 [1,4,6], [0,2,11], [7,9,10], [3,5,8]
+
+// 规则1是否确定达成（前5轮已选满且没有违规，或者已选数量>=3但不可能再凑齐一组）
+function isRule1Satisfied() {
+  const selected = selectedRoundScoring.value
+  const firstFiveRounds = selected.slice(0, 5)
+  const sameTrackGroups = [
+    [1, 4, 6],   // [2,5,7]
+    [0, 2, 11],  // [1,3,12]
+    [7, 9, 10],  // [8,10,11]
+    [3, 5, 8]    // [4,6,9]
+  ]
+
+  // 检查是否有任何一组已经凑齐（违规）
+  for (const group of sameTrackGroups) {
+    const allInFirstFive = group.every(tileIndex => firstFiveRounds.includes(tileIndex))
+    if (allInFirstFive) return false // 违规了，不是达成
+  }
+
+  // 前5轮已选满6个且没有违规，确定达成
+  if (selected.length >= 5) return true
+
+  // 检查是否所有组都不可能再凑齐（每组至少有一个板块在前5轮之外）
+  // 这种情况比较复杂，暂时只在选满5轮时判定
+  return false
+}
+
+// 规则1是否确定违反
+function isRule1Violated() {
+  const selected = selectedRoundScoring.value
+  if (selected.length < 3) return false
+
+  const firstFiveRounds = selected.slice(0, 5)
+  const sameTrackGroups = [
+    [1, 4, 6],   // [2,5,7]
+    [0, 2, 11],  // [1,3,12]
+    [7, 9, 10],  // [8,10,11]
+    [3, 5, 8]    // [4,6,9]
+  ]
+
+  for (const group of sameTrackGroups) {
+    const allInFirstFive = group.every(tileIndex => firstFiveRounds.includes(tileIndex))
+    if (allInFirstFive) return true
+  }
+  return false
+}
+
+// 规则1图标
+function getRule1Icon() {
+  if (isRule1Satisfied()) return 'fa-check-circle'
+  if (isRule1Violated()) return 'fa-times-circle'
+  return 'fa-question-circle' // 未确定状态
+}
+
+// 判定条件2：8号轮次计分板（索引7）不能出现在第5和第6轮（索引4和5）
+
+// 规则2是否确定达成
+function isRule2Satisfied() {
+  const selected = selectedRoundScoring.value
+  const tile8Index = 7 // 8号板块对应的索引是7
+  const position = selected.indexOf(tile8Index)
+
+  // 8号板块未被选中，且已选满6个，确定不会出现在第5和第6轮
+  if (position === -1 && selected.length >= 6) return true
+
+  // 8号板块被选中且位置在前4轮（索引0-3）
+  if (position >= 0 && position <= 3) return true
+
+  return false
+}
+
+// 规则2是否确定违反
+function isRule2Violated() {
+  const selected = selectedRoundScoring.value
+  const tile8Index = 7 // 8号板块对应的索引是7
+  const position = selected.indexOf(tile8Index)
+
+  // 8号板块被选中且位置在第5或第6轮（索引4或5）
+  if (position >= 4) return true
+  return false
+}
+
+// 规则2图标
+function getRule2Icon() {
+  if (isRule2Satisfied()) return 'fa-check-circle'
+  if (isRule2Violated()) return 'fa-times-circle'
+  return 'fa-question-circle' // 未确定状态
+}
+
+// 最终计分板块后端编码到图片索引的映射（后端1-4 -> 图片0-3）
+// 后端: 1, 2, 3, 4
+// 图片: 3, 0, 2, 1
+const finalScoringBackendToImageMap = [3, 0, 2, 1]
+
+// 获取最终计分板块背景样式（17等分，取第13-16个即索引12-15，只显示右半部分）
+function getFinalScoringCardStyle(index) {
+  // 计算方式：100/(34-1) * (n-1)，n为边界点序号
+  // 第13-16张的右边分别对应第26,28,30,32个边界点
+  // 索引0(第13张右边): 100/33 * 25 = 75.7576%
+  // 索引1(第14张右边): 100/33 * 27 = 81.8182%
+  // 索引2(第15张右边): 100/33 * 29 = 87.8788%
+  // 索引3(第16张右边): 100/33 * 31 = 93.9394%
+  const positions = [75.7576, 81.8182, 87.8788, 93.9394]
+  // 将前端显示索引映射到正确的图片位置
+  const imageIndex = finalScoringBackendToImageMap[index]
+  return {
+    backgroundImage: 'url(/assets/images/round_scoring_tiles.png)',
+    backgroundSize: '3400% 100%',
+    backgroundPositionX: `${positions[imageIndex]}%`
+  }
+}
+
+// 获取最终计分板块后端编码（前端索引0-3对应后端编码1-4）
+function getFinalScoringBackendCode(index) {
+  return index + 1
+}
+
+// 切换最终计分板块选择状态（单选）
+function toggleFinalScoringSelection(index) {
+  if (selectedFinalScoring.value === index) {
+    selectedFinalScoring.value = null
+  } else {
+    selectedFinalScoring.value = index
+  }
+}
+
+// 书行动后端编码到图片索引的映射（后端1-6 -> 图片0-5）
+// 后端: 1, 2, 3, 4, 5, 6
+// 图片: 4, 0, 3, 1, 2, 5
+const bookActionBackendToImageMap = [4, 0, 3, 1, 2, 5]
+
+// 获取书行动卡片背景样式（6等分切割）
+function getBookActionCardStyle(index) {
+  // 6张卡片横向排列，位置点：0%, 20%, 40%, 60%, 80%, 100%
+  const positions = [0, 20, 40, 60, 80, 100]
+  // 将前端显示索引映射到正确的图片位置
+  const imageIndex = bookActionBackendToImageMap[index]
+  return {
+    backgroundImage: 'url(/assets/images/book_actions.png)',
+    backgroundSize: '600% 100%',
+    backgroundPositionX: `${positions[imageIndex]}%`
+  }
+}
+
+// 获取书行动后端编码（前端索引0-5对应后端编码1-6）
+function getBookActionBackendCode(index) {
+  return index + 1
+}
+
+// 切换书行动选择状态（多选，必须选3个）
+function toggleBookActionSelection(index) {
+  const currentIndex = selectedBookActions.value.indexOf(index)
+  if (currentIndex > -1) {
+    // 已选中，取消选择
+    selectedBookActions.value.splice(currentIndex, 1)
+  } else {
+    // 未选中，检查是否已达到最大选择数量（3个）
+    if (selectedBookActions.value.length >= 3) {
+      return // 已达上限，点击无效（不提示）
+    }
+    selectedBookActions.value.push(index)
+  }
+}
+
+// 回合助推板后端编码到图片索引的映射（后端1-10 -> 图片0-9）
+// 后端: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+// 图片: 0, 4, 5, 1, 2, 9, 8, 3, 6, 7
+const roundBoosterBackendToImageMap = [0, 4, 5, 1, 2, 9, 8, 3, 6, 7]
+
+// 获取回合助推板背景样式（图片上下等分取上半部分，然后10等分切割，裁剪最右侧2px）
+function getRoundBoosterCardStyle(index) {
+  // 原图分析：1500x800，2行10列共20个助推板
+  // 每个助推板原宽度：150px，裁剪最右侧2px后显示148px
+  // 背景尺寸：原图宽1500px / 显示宽148px × 100% = 1013.514%
+  // backgroundPosition 计算（基于CSS规范公式）：
+  // offset = P% × (元素宽度 - 背景图片宽度)
+  // 要让原图 n×150 对齐元素左边缘，解得 P% = n / 9 × 100%
+  const positions = [0, 11.1111, 22.2222, 33.3333, 44.4444, 55.5556, 66.6667, 77.7778, 88.8889, 100]
+  // 将前端显示索引映射到正确的图片位置
+  const imageIndex = roundBoosterBackendToImageMap[index]
+  return {
+    backgroundImage: 'url(/assets/images/round_boosters.png)',
+    backgroundSize: `${(1500 / 148) * 100}% 200%`, // 横向1013.514%，纵向200%
+    backgroundPositionX: `${positions[imageIndex]}%`,
+    backgroundPositionY: '0%' // 上半部分
+  }
+}
+
+// 获取回合助推板后端编码（前端索引0-9对应后端编码1-10）
+function getRoundBoosterBackendCode(index) {
+  return index + 1
+}
+
+// 切换回合助推板选择状态（多选，数量 = 玩家数 + 3）
+function toggleRoundBoosterSelection(index) {
+  const currentIndex = selectedRoundBoosters.value.indexOf(index)
+  if (currentIndex > -1) {
+    // 已选中，取消选择
+    selectedRoundBoosters.value.splice(currentIndex, 1)
+  } else {
+    // 未选中，检查是否已达到最大选择数量
+    if (selectedRoundBoosters.value.length >= requiredRoundBoosterCount.value) {
+      return // 已达上限，点击无效（不提示）
+    }
+    selectedRoundBoosters.value.push(index)
+  }
+}
+
+// 能力板块后端编码到图片索引的映射（后端1-12 -> 图片0-11）
+// 后端: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
+// 图片: 11, 8, 6, 10, 5, 1, 2, 7, 4, 9, 0, 3
+const abilityBackendToImageMap = [11, 8, 6, 10, 5, 1, 2, 7, 4, 9, 0, 3]
+
+// 获取能力板块背景样式（12等分切割）
+function getAbilityCardStyle(index) {
+  // 12张卡片横向排列，位置点：0%, 9.0909%, 18.1818%, ..., 100%
+  const positions = [0, 9.0909, 18.1818, 27.2727, 36.3636, 45.4545,
+                     54.5455, 63.6364, 72.7273, 81.8182, 90.9091, 100]
+  // 将前端显示索引映射到正确的图片位置
+  const imageIndex = abilityBackendToImageMap[index]
+  return {
+    backgroundImage: 'url(/assets/images/ability_tiles.png)',
+    backgroundSize: '1200% 100%',
+    backgroundPositionX: `${positions[imageIndex]}%`
+  }
+}
+
+// 获取能力板块后端编码（前端索引0-11对应后端编码1-12）
+function getAbilityBackendCode(index) {
+  return index + 1
+}
+
+// 能力板块拖拽相关
+const draggedAbilityIndex = ref(null)
+const draggedFromPosition = ref(null)
+
+// 点击选择方式相关
+const selectedAbilityCard = ref(null)
+const selectedAbilitySlot = ref(null)
+
+// 开始拖拽能力板块
+function handleAbilityDragStart(event, abilityIndex, fromPosition = null) {
+  draggedAbilityIndex.value = abilityIndex
+  draggedFromPosition.value = fromPosition
+  event.dataTransfer.effectAllowed = 'move'
+}
+
+// 拖拽经过摆放位置
+function handleAbilityDragOver(event, positionIndex) {
+  event.preventDefault()
+}
+
+// 放置能力板块到摆放位置
+function handleAbilityDrop(event, positionIndex) {
+  event.preventDefault()
+  if (draggedAbilityIndex.value === null) return
+
+  // 如果该位置已有板块，先清空原位置
+  const existingAbility = abilityOrder.value[positionIndex]
+  if (existingAbility !== null && draggedFromPosition.value !== null) {
+    // 交换位置
+    abilityOrder.value[draggedFromPosition.value] = existingAbility
+  }
+
+  // 放置新板块
+  abilityOrder.value[positionIndex] = draggedAbilityIndex.value
+
+  // 如果是从其他位置拖来的，清空原位置
+  if (draggedFromPosition.value !== null && draggedFromPosition.value !== positionIndex) {
+    abilityOrder.value[draggedFromPosition.value] = null
+  }
+
+  draggedAbilityIndex.value = null
+  draggedFromPosition.value = null
+}
+
+// 拖拽结束
+function handleAbilityDragEnd() {
+  draggedAbilityIndex.value = null
+  draggedFromPosition.value = null
+}
+
+// 从摆放位置移除能力板块
+function removeAbilityFromPosition(positionIndex) {
+  abilityOrder.value[positionIndex] = null
+}
+
+// 点击选择能力卡片
+function handleAbilityCardClick(abilityIndex) {
+  // 如果卡片已放置，不能选择
+  if (abilityOrder.value.includes(abilityIndex)) return
+
+  // 如果已经选中了这张卡片，取消选中
+  if (selectedAbilityCard.value === abilityIndex) {
+    selectedAbilityCard.value = null
+    return
+  }
+
+  // 如果已经选中了摆放框，直接放置
+  if (selectedAbilitySlot.value !== null) {
+    abilityOrder.value[selectedAbilitySlot.value] = abilityIndex
+    selectedAbilitySlot.value = null
+    selectedAbilityCard.value = null
+  } else {
+    // 否则选中这张卡片
+    selectedAbilityCard.value = abilityIndex
+  }
+}
+
+// 点击选择摆放框
+function handleAbilitySlotClick(positionIndex) {
+  // 如果该位置已有板块，不做任何事（或可以移除）
+  if (abilityOrder.value[positionIndex] !== null) return
+
+  // 如果已经选中了这个位置，取消选中
+  if (selectedAbilitySlot.value === positionIndex) {
+    selectedAbilitySlot.value = null
+    return
+  }
+
+  // 如果已经选中了卡片，直接放置
+  if (selectedAbilityCard.value !== null) {
+    abilityOrder.value[positionIndex] = selectedAbilityCard.value
+    selectedAbilityCard.value = null
+    selectedAbilitySlot.value = null
+  } else {
+    // 否则选中这个框
+    selectedAbilitySlot.value = positionIndex
+  }
+}
+
+// 高科板块后端编码到图片索引的映射（后端1-18 -> 图片0-17）
+// 后端: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18
+// 图片: 17, 7, 6, 0, 1, 8, 2, 3, 15, 4, 5, 16, 9, 10, 11, 12, 13, 14
+const techBackendToImageMap = [17, 7, 6, 0, 1, 8, 2, 3, 15, 4, 5, 16, 9, 10, 11, 12, 13, 14]
+
+// 获取高科板块背景样式（18等分切割）
+function getTechCardStyle(index) {
+  // 18张卡片横向排列，位置点：0%, 5.882%, 11.765%, ..., 100%
+  const positions = [0, 5.8824, 11.7647, 17.6471, 23.5294, 29.4118,
+                     35.2941, 41.1765, 47.0588, 52.9412, 58.8235, 64.7059,
+                     70.5882, 76.4706, 82.3529, 88.2353, 94.1176, 100]
+  // 将前端显示索引映射到正确的图片位置
+  const imageIndex = techBackendToImageMap[index]
+  return {
+    backgroundImage: 'url(/assets/images/science_tiles.jpg)',
+    backgroundSize: '1800% 100%',
+    backgroundPositionX: `${positions[imageIndex]}%`
+  }
+}
+
+// 获取高科板块后端编码（前端索引0-17对应后端编码1-18）
+function getTechBackendCode(index) {
+  return index + 1
+}
+
+// 高科板块拖拽相关
+const draggedTechIndex = ref(null)
+const draggedTechFromPosition = ref(null)
+
+// 点击选择方式相关
+const selectedTechCard = ref(null)
+const selectedTechSlot = ref(null)
+
+// 开始拖拽高科板块
+function handleTechDragStart(event, techIndex, fromPosition = null) {
+  draggedTechIndex.value = techIndex
+  draggedTechFromPosition.value = fromPosition
+  event.dataTransfer.effectAllowed = 'move'
+}
+
+// 拖拽经过摆放位置
+function handleTechDragOver(event, positionIndex) {
+  event.preventDefault()
+}
+
+// 放置高科板块到摆放位置
+function handleTechDrop(event, positionIndex) {
+  event.preventDefault()
+  if (draggedTechIndex.value === null) return
+
+  // 如果该位置已有板块，先清空原位置
+  const existingTech = techOrder.value[positionIndex]
+  if (existingTech !== null && draggedTechFromPosition.value !== null) {
+    // 交换位置
+    techOrder.value[draggedTechFromPosition.value] = existingTech
+  }
+
+  // 放置新板块
+  techOrder.value[positionIndex] = draggedTechIndex.value
+
+  // 如果是从其他位置拖来的，清空原位置
+  if (draggedTechFromPosition.value !== null && draggedTechFromPosition.value !== positionIndex) {
+    techOrder.value[draggedTechFromPosition.value] = null
+  }
+
+  draggedTechIndex.value = null
+  draggedTechFromPosition.value = null
+}
+
+// 拖拽结束
+function handleTechDragEnd() {
+  draggedTechIndex.value = null
+  draggedTechFromPosition.value = null
+}
+
+// 从摆放位置移除高科板块
+function removeTechFromPosition(positionIndex) {
+  techOrder.value[positionIndex] = null
+}
+
+// 点击选择高科卡片
+function handleTechCardClick(techIndex) {
+  // 如果卡片已放置，不能选择
+  if (techOrder.value.includes(techIndex)) return
+
+  // 如果已经选中了这张卡片，取消选中
+  if (selectedTechCard.value === techIndex) {
+    selectedTechCard.value = null
+    return
+  }
+
+  // 如果已经选中了摆放框，直接放置
+  if (selectedTechSlot.value !== null) {
+    techOrder.value[selectedTechSlot.value] = techIndex
+    selectedTechSlot.value = null
+    selectedTechCard.value = null
+  } else {
+    // 否则选中这张卡片
+    selectedTechCard.value = techIndex
+  }
+}
+
+// 点击选择高科摆放框
+function handleTechSlotClick(positionIndex) {
+  // 如果该位置已有板块，不做任何事
+  if (techOrder.value[positionIndex] !== null) return
+
+  // 如果已经选中了这个位置，取消选中
+  if (selectedTechSlot.value === positionIndex) {
+    selectedTechSlot.value = null
+    return
+  }
+
+  // 如果已经选中了卡片，直接放置
+  if (selectedTechCard.value !== null) {
+    techOrder.value[positionIndex] = selectedTechCard.value
+    selectedTechCard.value = null
+    selectedTechSlot.value = null
+  } else {
+    // 否则选中这个框
+    selectedTechSlot.value = positionIndex
   }
 }
 
@@ -850,21 +1769,18 @@ function isNavItemComplete(navId) {
       return isFactionsComplete.value
     case 'palace':
       return isPalaceComplete.value
+    case 'roundBoosters':
+      return isRoundBoostersComplete.value
     case 'roundScoring':
-      // TODO: 实现轮次计分选择完成条件
-      return false
+      return isRoundScoringComplete.value && isRule1Satisfied() && isRule2Satisfied()
     case 'finalScoring':
-      // TODO: 实现最终计分选择完成条件
-      return false
+      return isFinalScoringComplete.value
     case 'abilities':
-      // TODO: 实现能力板块选择完成条件
-      return false
+      return isAbilitiesComplete.value
     case 'techs':
-      // TODO: 实现高科板块选择完成条件
-      return false
+      return isTechsComplete.value
     case 'bookActions':
-      // TODO: 实现书行动选择完成条件
-      return false
+      return isBookActionsComplete.value
     default:
       return false
   }
@@ -914,6 +1830,17 @@ watch(() => form.playerCount, (newCount) => {
     newList.push({ id: i + 1, name: `玩家 ${i + 1}` })
   }
   playerOrderList.value = newList
+
+  // 调整高科板块摆放区域大小
+  const newTechSize = 2 + 2 * newCount
+  const currentTechOrder = techOrder.value
+  if (newTechSize > currentTechOrder.length) {
+    // 增加位置
+    techOrder.value = [...currentTechOrder, ...Array(newTechSize - currentTechOrder.length).fill(null)]
+  } else if (newTechSize < currentTechOrder.length) {
+    // 减少位置，保留已摆放的板块
+    techOrder.value = currentTechOrder.slice(0, newTechSize)
+  }
 })
 
 function goBack() {
@@ -933,12 +1860,151 @@ function resetForm() {
     { id: 2, name: '玩家 2' },
     { id: 3, name: '玩家 3' }
   ]
+  // 重置各配置项的选择状态
+  selectedPlanningCard.value = null
+  selectedFactions.value = []
+  selectedPalaces.value = []
+  selectedRoundBoosters.value = []
+  selectedRoundScoring.value = []
+  selectedFinalScoring.value = null
+  abilityOrder.value = Array(12).fill(null)
+  techOrder.value = Array(8).fill(null)
+  selectedBookActions.value = []
+  // 重置随机开关
+  Object.keys(initNavRandom).forEach(key => {
+    initNavRandom[key] = false
+  })
 }
 
 function handleSubmit() {
-  gameStore.setSettings({ ...form })
+  // 1. 检查玩家配置
+  for (let i = 0; i < form.players.length; i++) {
+    const player = form.players[i]
+    if (player.type === 'human') {
+      // 人类玩家需要填写ID
+      if (!player.playerId || player.playerId.trim() === '') {
+        alert(`玩家 ${i + 1} 未输入ID，请输入玩家ID`)
+        return
+      }
+    }
+    // AI玩家策略检查（预留，默认通过）
+  }
+
+  // 2. 检查游戏模式（预留，默认通过）
+  if (form.gameMode === 'custom') {
+    // 自定义模式检查（预留）
+  }
+
+  // 3. 检查初始板块配置
+  if (form.initSettings.mode === '自定义') {
+    // 检查是否所有导航项都已完成
+    const incompleteItems = []
+    for (const item of initNavItems) {
+      const isRandom = initNavRandom[item.id]
+      if (!isRandom && !isNavItemComplete(item.id)) {
+        incompleteItems.push(item.name)
+      }
+    }
+    if (incompleteItems.length > 0) {
+      alert(`初始板块配置未完成：${incompleteItems.join('、')}，请完成配置或开启随机`)
+      return
+    }
+  }
+
+  // 组装返回数据
+  const gameSettings = buildGameSettings()
+
+  // 发送到后端并打印
+  sendGameSettingsToBackend(gameSettings)
+
+  // 保存到 store 并跳转
+  gameStore.setSettings(gameSettings)
   gameStore.startGame()
   router.push('/game')
+}
+
+// 组装游戏设置数据
+function buildGameSettings() {
+  const players = form.players.map((player, index) => ({
+    type: player.type,
+    args: player.type === 'human' ? player.playerId : (player.strategy || 'random')
+  }))
+
+  const gameModeArgs = form.gameMode === 'custom' ? {} : null
+
+  const playerOrderType = form.playerOrder === '随机' ? 'random' : 'targeted'
+  const playerOrderArgs = playerOrderType === 'targeted'
+    ? playerOrderList.value.map(p => p.id)
+    : null
+
+  const setupTiles = buildSetupTiles()
+
+  return {
+    num_players: form.playerCount,
+    players: players,
+    game_mode: {
+      type: form.gameMode === 'standard' ? 'standard' : (form.gameMode === 'quick' ? 'quick' : 'custom'),
+      args: gameModeArgs
+    },
+    init_settings: {
+      player_order: {
+        type: playerOrderType,
+        args: playerOrderArgs
+      },
+      setup_tiles: setupTiles
+    }
+  }
+}
+
+// 组装初始板块配置
+function buildSetupTiles() {
+  const isRandom = form.initSettings.mode === '随机'
+
+  if (isRandom) {
+    return {
+      planning_cards: 'random',
+      factions: 'random',
+      palace_tiles: 'random',
+      round_boosters: 'random',
+      round_scoring: 'random',
+      final_scoring: 'random',
+      ability_tiles: 'random',
+      science_tiles: 'random',
+      book_actions: 'random'
+    }
+  }
+
+  // 规划卡：前端索引0-6对应后端编码1-7，直接返回 index + 1
+  const planningCardValue = selectedPlanningCard.value !== null ? selectedPlanningCard.value + 1 : 'random'
+
+  return {
+    planning_cards: initNavRandom.planningCards ? 'random' : planningCardValue,
+    factions: initNavRandom.factions ? 'random' : selectedFactions.value.map(i => i + 1),
+    palace_tiles: initNavRandom.palace ? 'random' : selectedPalaces.value.map(i => i + 1),
+    round_boosters: initNavRandom.roundBoosters ? 'random' : selectedRoundBoosters.value.map(i => i + 1),
+    round_scoring: initNavRandom.roundScoring ? 'random' : selectedRoundScoring.value.map(i => i + 1),
+    final_scoring: initNavRandom.finalScoring ? 'random' : (selectedFinalScoring.value !== null ? selectedFinalScoring.value + 1 : 'random'),
+    ability_tiles: initNavRandom.abilities ? 'random' : abilityOrder.value.map(i => i !== null ? i + 1 : null),
+    science_tiles: initNavRandom.techs ? 'random' : techOrder.value.map(i => i !== null ? i + 1 : null),
+    book_actions: initNavRandom.bookActions ? 'random' : selectedBookActions.value.map(i => i + 1)
+  }
+}
+
+// 发送游戏设置到后端
+async function sendGameSettingsToBackend(settings) {
+  try {
+    const response = await fetch('http://127.0.0.1:5001/api/game/start', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(settings)
+    })
+    const result = await response.json()
+    console.log('后端响应:', result)
+  } catch (error) {
+    console.error('发送游戏设置失败:', error)
+  }
 }
 </script>
 
@@ -1726,6 +2792,17 @@ function handleSubmit() {
   overflow: hidden;
 }
 
+/* TODO占位符样式 */
+.todo-placeholder {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.todo-placeholder p {
+  font-size: var(--font-size-body);
+}
+
 /* AI策略选项 */
 .strategy-options {
   padding: 20px;
@@ -1789,8 +2866,8 @@ function handleSubmit() {
 }
 
 /* 初始板块弹窗 */
-:deep(.modal-content) {
-  height: 600px;
+:deep(.init-modal .modal-content) {
+  height: 720px;
   max-height: 80vh;
 }
 
@@ -2040,7 +3117,7 @@ function handleSubmit() {
   gap: 8px;
   font-size: 0.85rem;
   color: var(--text-secondary);
-  margin-bottom: 24px;
+  margin-bottom: 36px;
 }
 
 .planning-cards-hint i {
@@ -2154,7 +3231,7 @@ function handleSubmit() {
   gap: 8px;
   font-size: 0.85rem;
   color: var(--text-secondary);
-  margin-bottom: 20px;
+  margin-bottom: 32px;
 }
 
 .factions-hint i {
@@ -2213,7 +3290,7 @@ function handleSubmit() {
 }
 
 .faction-card.active {
-  border: 3px solid var(--accent);
+  border: 3.5px solid var(--accent);
   box-shadow: 0 6px 20px rgba(0, 123, 255, 0.2);
 }
 
@@ -2266,7 +3343,7 @@ function handleSubmit() {
   gap: 8px;
   font-size: 0.85rem;
   color: var(--text-secondary);
-  margin-bottom: 20px;
+  margin-bottom: 32px;
 }
 
 .palace-hint i {
@@ -2325,7 +3402,7 @@ function handleSubmit() {
 }
 
 .palace-card.active {
-  border: 3px solid var(--accent);
+  border: 3.5px solid var(--accent);
   box-shadow: 0 6px 20px rgba(0, 123, 255, 0.2);
 }
 
@@ -2352,6 +3429,966 @@ function handleSubmit() {
   color: white;
   font-size: 0.8rem;
   z-index: 3;
+}
+
+/* 宫殿板块后端编码标签 */
+.palace-card-label {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  width: 20px;
+  height: 20px;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 600;
+  z-index: 2;
+}
+
+/* 回合助推板配置 */
+.round-boosters-config {
+  padding: 4px 20px 20px;
+}
+
+.round-boosters-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 44px;
+}
+
+.round-boosters-hint i {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.round-boosters-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+}
+
+.round-boosters-row {
+  display: flex;
+  gap: 18px;
+  justify-content: center;
+}
+
+.round-booster-card {
+  position: relative;
+  /* 助推板原比例 3:8（宽:高），卡片比例与之匹配 */
+  /* 设置高度 190px，宽度按 3:8 计算为 71.25px */
+  width: 71.25px;
+  height: 190px;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 3px solid transparent;
+  background: transparent;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.round-booster-card:hover {
+  transform: translateY(-3px);
+}
+
+.round-booster-card.active {
+  border: 3.5px solid var(--accent);
+  box-shadow: 0 6px 20px rgba(0, 123, 255, 0.2);
+}
+
+.round-booster-card-image {
+  /* 原图尺寸：1500x800，2行10列布局 */
+  /* 单个助推板尺寸：150x400，宽高比 3:8 */
+  /* 卡片尺寸 71.25x190px，图片占85%即 60.56x161.5px */
+  width: 60.56px;
+  height: 161.5px;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+  border-radius: 4px;
+}
+
+.round-booster-card-check {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 26px;
+  height: 26px;
+  background: var(--accent);
+  border-radius: 0 0 0 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 0.8rem;
+  z-index: 3;
+}
+
+/* 回合助推板后端编码标签 */
+.round-booster-card-label {
+  position: absolute;
+  bottom: 14px;
+  left: 8px;
+  width: 18px;
+  height: 18px;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 600;
+  z-index: 2;
+}
+
+/* 轮次计分板块配置 */
+.round-scoring-config {
+  padding: 4px 20px 20px;
+}
+
+.round-scoring-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+}
+
+.round-scoring-hint i {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+/* 判定条件提示 */
+.round-scoring-rules {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.rule-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  transition: color 0.2s ease;
+}
+
+.rule-item i {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  transition: color 0.2s ease;
+}
+
+.rule-item.satisfied {
+  color: #28a745;
+}
+
+.rule-item.satisfied i {
+  color: #28a745;
+}
+
+.rule-item.violated {
+  color: #dc3545;
+}
+
+.rule-item.violated i {
+  color: #dc3545;
+}
+
+.round-scoring-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  align-items: center;
+}
+
+.round-scoring-row {
+  display: flex;
+  gap: 15.7px;
+  justify-content: center;
+}
+
+.round-scoring-card {
+  position: relative;
+  width: 156.8px;
+  height: 90.7px;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 2px solid transparent;
+  background: transparent;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.round-scoring-card:hover {
+  transform: translateY(-2px);
+}
+
+.round-scoring-card.active {
+  border: 2.5px solid var(--accent);
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.2);
+}
+
+.round-scoring-card-image {
+  width: 85%;
+  height: 85%;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+  border-radius: 4px;
+  transform: translateY(2px);
+}
+
+.round-scoring-card-order {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 24.6px;
+  height: 24.6px;
+  background: var(--accent);
+  border-radius: 0 0 0 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 700;
+  z-index: 3;
+}
+
+/* 轮次计分板块后端编码标签 */
+.round-scoring-card-label {
+  position: absolute;
+  bottom: 12px;
+  left: 14px;
+  width: 18px;
+  height: 18px;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 600;
+  z-index: 2;
+}
+
+/* 最终计分板块配置 */
+.final-scoring-config {
+  padding: 4px 20px 20px;
+}
+
+.final-scoring-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 60px;
+}
+
+.final-scoring-hint i {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.final-scoring-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+}
+
+.final-scoring-row {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+}
+
+.final-scoring-card {
+  position: relative;
+  width: 104px;
+  height: 120px;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 3.5px solid transparent;
+  background: transparent;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.final-scoring-card:hover {
+  transform: translateY(-3px);
+}
+
+.final-scoring-card.active {
+  border: 3.5px solid var(--accent);
+  box-shadow: 0 6px 20px rgba(0, 123, 255, 0.2);
+}
+
+.final-scoring-card-image {
+  width: 85%;
+  height: 85%;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+  border-radius: 4px;
+  transform: translateY(3px);
+}
+
+.final-scoring-card-check {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 26px;
+  height: 26px;
+  background: var(--accent);
+  border-radius: 0 0 0 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 0.8rem;
+  z-index: 3;
+}
+
+/* 最终计分板块后端编码标签 */
+.final-scoring-card-label {
+  position: absolute;
+  bottom: 14px;
+  left: 8px;
+  width: 20px;
+  height: 20px;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 600;
+  z-index: 2;
+}
+
+/* 能力板块配置 */
+.abilities-config {
+  padding: 4px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.abilities-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.abilities-hint i {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+/* 上方选择区 */
+.abilities-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+
+.abilities-row {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.ability-card {
+  position: relative;
+  width: 75px;
+  height: 73px;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: grab;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  border: 2px solid transparent;
+  background: var(--bg-tertiary);
+  box-sizing: border-box;
+}
+
+.ability-card:hover {
+  transform: translateY(-2px);
+}
+
+.ability-card.is-placed {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ability-card.is-selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.3);
+}
+
+.ability-card-image {
+  width: 100%;
+  height: 100%;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+}
+
+/* 能力板块后端编码标签 */
+.ability-card-label {
+  position: absolute;
+  bottom: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 0.6rem;
+  font-weight: 600;
+  z-index: 2;
+}
+
+/* 下方摆放区 */
+.abilities-board-container {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0;
+}
+
+.abilities-board {
+  width: 534.6px;
+  height: 253.0px;
+  background-size: 534.6px 253.0px;
+  background-repeat: no-repeat;
+  background-position: center;
+  position: relative;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.abilities-board-grid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 534.6px;
+  height: 253.0px;
+}
+
+.ability-board-slot {
+  position: absolute;
+  width: 63.8px;
+  height: 61.6px;
+  background: rgba(0, 123, 255, 0.125);
+  border: 3.5px dashed rgba(0, 123, 255, 0.8);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+/* 12个位置的具体坐标（基于534.6x253.0的显示尺寸，3行4列布局，中心偏右，缩小6%）
+   列宽：534.6/4 = 133.7px
+   第1列中心偏右约50.6px，之后每列+133.1px
+   行高：253.0/3 = 84.3px */
+.ability-board-slot:nth-child(1) { left: 50.6px; top: 18.7px; }
+.ability-board-slot:nth-child(2) { left: 183.7px; top: 18.7px; }
+.ability-board-slot:nth-child(3) { left: 317.9px; top: 18.7px; }
+.ability-board-slot:nth-child(4) { left: 451.0px; top: 18.7px; }
+.ability-board-slot:nth-child(5) { left: 50.6px; top: 97.9px; }
+.ability-board-slot:nth-child(6) { left: 183.7px; top: 97.9px; }
+.ability-board-slot:nth-child(7) { left: 317.9px; top: 97.9px; }
+.ability-board-slot:nth-child(8) { left: 451.0px; top: 97.9px; }
+.ability-board-slot:nth-child(9) { left: 50.6px; top: 174.9px; }
+.ability-board-slot:nth-child(10) { left: 183.7px; top: 174.9px; }
+.ability-board-slot:nth-child(11) { left: 317.9px; top: 174.9px; }
+.ability-board-slot:nth-child(12) { left: 451.0px; top: 174.9px; }
+
+.ability-board-slot:hover {
+  border-color: rgba(0, 123, 255, 0.95);
+  background: rgba(0, 123, 255, 0.4);
+}
+
+.ability-board-slot.is-occupied {
+  border-style: solid;
+  border-color: transparent;
+  background: transparent;
+}
+
+.ability-board-slot.is-selected {
+  border-style: solid;
+  border-color: var(--accent);
+  background: rgba(0, 123, 255, 0.35);
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.3);
+}
+
+.ability-slot-number {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: rgba(0, 123, 255, 0.8);
+  text-shadow:
+    -1px -1px 0 rgba(255, 255, 255, 0.9),
+    1px -1px 0 rgba(255, 255, 255, 0.9),
+    -1px 1px 0 rgba(255, 255, 255, 0.9),
+    1px 1px 0 rgba(255, 255, 255, 0.9),
+    0 1px 3px rgba(0, 0, 0, 0.5);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.ability-board-slot:hover .ability-slot-number {
+  color: rgba(0, 123, 255, 1);
+  text-shadow:
+    -1px -1px 0 rgba(255, 255, 255, 1),
+    1px -1px 0 rgba(255, 255, 255, 1),
+    -1px 1px 0 rgba(255, 255, 255, 1),
+    1px 1px 0 rgba(255, 255, 255, 1),
+    0 1px 4px rgba(0, 0, 0, 0.6);
+}
+
+.ability-placed-card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+
+.ability-placed-card .ability-card-image {
+  border-radius: 6px;
+}
+
+.ability-order-number {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 22px;
+  height: 22px;
+  background: var(--accent);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  z-index: 2;
+}
+
+/* 书行动配置 */
+.book-actions-config {
+  padding: 4px 20px 20px;
+}
+
+.book-actions-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 32px;
+}
+
+.book-actions-hint i {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+/* 高科板块配置 */
+.techs-config {
+  padding: 4px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.techs-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.techs-hint i {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+/* 上方选择区 */
+.techs-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+}
+
+.techs-row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.tech-card {
+  position: relative;
+  width: 83px;
+  height: 53px;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: grab;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  border: 2px solid transparent;
+  background: var(--bg-tertiary);
+  box-sizing: border-box;
+}
+
+.tech-card:hover {
+  transform: translateY(-2px);
+}
+
+.tech-card.is-placed {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.tech-card.is-selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.3);
+}
+
+.tech-card-image {
+  width: 100%;
+  height: 100%;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+}
+
+/* 高科板块后端编码标签 */
+.tech-card-label {
+  position: absolute;
+  bottom: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 0.55rem;
+  font-weight: 600;
+  z-index: 2;
+}
+
+/* 下方摆放区 */
+.techs-board-container {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0;
+}
+
+.techs-board {
+  width: 428px;
+  height: 214px;
+  background-size: 428px 248px;
+  background-repeat: no-repeat;
+  background-position: bottom;
+  position: relative;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+/* 3人局：2行4列布局，完整显示图片 */
+.techs-board-3 {
+  height: 248px;
+  background-size: 428px 248px;
+  background-position: center;
+}
+
+/* 4人局：3行2列布局，完整显示图片 */
+.techs-board-4 {
+  height: 319px;
+  background-size: 428px 319px;
+  background-position: center;
+}
+
+/* 5人局：3行4列布局，宽度与4人局一致428px，高度319px（图片等比例缩放后裁剪/压缩显示） */
+.techs-board-5 {
+  height: 319px;
+  background-size: 428px auto;
+  background-position: center top;
+}
+
+.techs-board-grid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 428px;
+  height: 214px;
+}
+
+/* 3人局grid高度适配 */
+.techs-board-3 .techs-board-grid {
+  height: 248px;
+}
+
+/* 4人局grid高度适配 */
+.techs-board-4 .techs-board-grid {
+  height: 319px;
+}
+
+/* 5人局grid高度适配 */
+.techs-board-5 .techs-board-grid {
+  height: 319px;
+}
+
+.tech-board-slot {
+  position: absolute;
+  width: 86px;
+  height: 55px;
+  background: rgba(0, 123, 255, 0.125);
+  border: 3.5px dashed rgba(0, 123, 255, 0.8);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+/* 8个位置的具体坐标（基于428x214的显示尺寸，2行4列布局）
+   宽度86px高度55px，第2行下移1.5px */
+.tech-board-slot:nth-child(1) { left: 10.5px; top: 32px; }
+.tech-board-slot:nth-child(2) { left: 117.5px; top: 32px; }
+.tech-board-slot:nth-child(3) { left: 224.5px; top: 32px; }
+.tech-board-slot:nth-child(4) { left: 331.5px; top: 32px; }
+.tech-board-slot:nth-child(5) { left: 10.5px; top: 107.5px; }
+.tech-board-slot:nth-child(6) { left: 117.5px; top: 107.5px; }
+.tech-board-slot:nth-child(7) { left: 224.5px; top: 107.5px; }
+.tech-board-slot:nth-child(8) { left: 331.5px; top: 107.5px; }
+
+/* 3人局槽位位置调整 - 下移34px */
+.techs-board-3 .tech-board-slot:nth-child(1) { left: 10.5px; top: 66px; }
+.techs-board-3 .tech-board-slot:nth-child(2) { left: 117.5px; top: 66px; }
+.techs-board-3 .tech-board-slot:nth-child(3) { left: 224.5px; top: 66px; }
+.techs-board-3 .tech-board-slot:nth-child(4) { left: 331.5px; top: 66px; }
+.techs-board-3 .tech-board-slot:nth-child(5) { left: 10.5px; top: 141.5px; }
+.techs-board-3 .tech-board-slot:nth-child(6) { left: 117.5px; top: 141.5px; }
+.techs-board-3 .tech-board-slot:nth-child(7) { left: 224.5px; top: 141.5px; }
+.techs-board-3 .tech-board-slot:nth-child(8) { left: 331.5px; top: 141.5px; }
+
+/* 4人局槽位位置调整（基于428x319的显示尺寸）
+   第1行2个槽位：水平居中于第2行的两两之间，下移12.5px
+   第2-3行8个槽位：整体下移110px */
+/* 第1行2个槽位（9-10）- 水平中心对齐第2行两两中点 */
+.techs-board-4 .tech-board-slot:nth-child(9) { left: 64px; top: 27.5px; }
+.techs-board-4 .tech-board-slot:nth-child(10) { left: 278px; top: 27.5px; }
+/* 第2行4个槽位（1-4）- 下移110px */
+.techs-board-4 .tech-board-slot:nth-child(1) { left: 10.5px; top: 142px; }
+.techs-board-4 .tech-board-slot:nth-child(2) { left: 117.5px; top: 142px; }
+.techs-board-4 .tech-board-slot:nth-child(3) { left: 224.5px; top: 142px; }
+.techs-board-4 .tech-board-slot:nth-child(4) { left: 331.5px; top: 142px; }
+/* 第3行4个槽位（5-8）- 下移110px */
+.techs-board-4 .tech-board-slot:nth-child(5) { left: 10.5px; top: 217.5px; }
+.techs-board-4 .tech-board-slot:nth-child(6) { left: 117.5px; top: 217.5px; }
+.techs-board-4 .tech-board-slot:nth-child(7) { left: 224.5px; top: 217.5px; }
+.techs-board-4 .tech-board-slot:nth-child(8) { left: 331.5px; top: 217.5px; }
+
+/* 5人局槽位位置调整（基于428x426的显示尺寸）
+   第1行4个槽位（9-12）- 位于顶部
+   第2-3行8个槽位（1-8）- 与4人局第2-3行位置一致 */
+/* 第1行4个槽位（9-12） */
+.techs-board-5 .tech-board-slot:nth-child(9) { left: 10.5px; top: 66px; }
+.techs-board-5 .tech-board-slot:nth-child(10) { left: 117.5px; top: 66px; }
+.techs-board-5 .tech-board-slot:nth-child(11) { left: 224.5px; top: 66px; }
+.techs-board-5 .tech-board-slot:nth-child(12) { left: 331.5px; top: 66px; }
+/* 第2行4个槽位（1-4） */
+.techs-board-5 .tech-board-slot:nth-child(1) { left: 10.5px; top: 142px; }
+.techs-board-5 .tech-board-slot:nth-child(2) { left: 117.5px; top: 142px; }
+.techs-board-5 .tech-board-slot:nth-child(3) { left: 224.5px; top: 142px; }
+.techs-board-5 .tech-board-slot:nth-child(4) { left: 331.5px; top: 142px; }
+/* 第3行4个槽位（5-8） */
+.techs-board-5 .tech-board-slot:nth-child(5) { left: 10.5px; top: 217.5px; }
+.techs-board-5 .tech-board-slot:nth-child(6) { left: 117.5px; top: 217.5px; }
+.techs-board-5 .tech-board-slot:nth-child(7) { left: 224.5px; top: 217.5px; }
+.techs-board-5 .tech-board-slot:nth-child(8) { left: 331.5px; top: 217.5px; }
+
+.tech-board-slot:hover {
+  border-color: rgba(0, 123, 255, 0.85);
+  background: rgba(0, 123, 255, 0.3);
+}
+
+.tech-board-slot.is-occupied {
+  border-style: solid;
+  border-color: transparent;
+  background: transparent;
+}
+
+.tech-board-slot.is-selected {
+  border-style: solid;
+  border-color: var(--accent);
+  background: rgba(0, 123, 255, 0.3);
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+}
+
+.tech-slot-number {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: rgba(0, 123, 255, 0.8);
+  text-shadow:
+    -1px -1px 0 rgba(255, 255, 255, 0.9),
+    1px -1px 0 rgba(255, 255, 255, 0.9),
+    -1px 1px 0 rgba(255, 255, 255, 0.9),
+    1px 1px 0 rgba(255, 255, 255, 0.9),
+    0 1px 3px rgba(0, 0, 0, 0.5);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.tech-board-slot:hover .tech-slot-number {
+  color: rgba(0, 123, 255, 1);
+  text-shadow:
+    -1px -1px 0 rgba(255, 255, 255, 1),
+    1px -1px 0 rgba(255, 255, 255, 1),
+    -1px 1px 0 rgba(255, 255, 255, 1),
+    1px 1px 0 rgba(255, 255, 255, 1),
+    0 1px 4px rgba(0, 0, 0, 0.6);
+}
+
+.tech-placed-card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+
+.tech-placed-card .tech-card-image {
+  border-radius: 4px;
+}
+
+.book-actions-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  align-items: center;
+}
+
+.book-actions-row {
+  display: flex;
+  gap: 32px;
+  justify-content: center;
+}
+
+.book-action-card {
+  position: relative;
+  width: 165px;
+  height: 90px;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 3px solid transparent;
+  background: transparent;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.book-action-card:hover {
+  transform: translateY(-3px);
+}
+
+.book-action-card.active {
+  border: 3.5px solid var(--accent);
+  box-shadow: 0 6px 20px rgba(0, 123, 255, 0.2);
+}
+
+.book-action-card-image {
+  width: 124px;
+  height: 68px;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+  border-radius: 4px;
+}
+
+.book-action-card-check {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 26px;
+  height: 26px;
+  background: var(--accent);
+  border-radius: 0 0 0 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 0.8rem;
+  z-index: 3;
+}
+
+/* 书行动后端编码标签 */
+.book-action-card-label {
+  position: absolute;
+  bottom: 10px;
+  left: 22px;
+  width: 20px;
+  height: 20px;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 600;
+  z-index: 2;
 }
 
 /* 响应式 */
