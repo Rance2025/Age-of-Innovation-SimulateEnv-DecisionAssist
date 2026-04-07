@@ -264,7 +264,32 @@
       </div>
     </div>
 
+    <div v-if="isLoading" class="loading-overlay">
+      <div class="loading-content" :class="{ 'loading-content-countdown': isCountdownPhase }">
+        <template v-if="!isCountdownPhase">
+          <div class="loading-spinner">
+            <i class="fas fa-circle-notch fa-spin"></i>
+          </div>
+          <div class="loading-text">{{ loadingText }}</div>
+          <div class="loading-subtext">请稍候，正在等待后端返回游戏状态...</div>
+        </template>
+      </div>
+    </div>
+
     <!-- 自定义游戏模式配置弹窗 -->
+    <div v-if="isLoading && isCountdownPhase" class="countdown-overlay">
+      <div class="loading-content loading-content-countdown">
+        <div class="countdown-badge" :key="loadingCountdown">
+          <span>{{ loadingCountdown }}</span>
+        </div>
+        <div class="loading-text">{{ loadingText }}</div>
+        <div class="loading-subtext loading-subtext-emphasis">游戏即将开始</div>
+        <div class="countdown-progress">
+          <span class="countdown-progress-bar"></span>
+        </div>
+      </div>
+    </div>
+
     <Modal v-model="showCustomModeModal" title="自定义游戏配置">
       <div class="todo-placeholder">
         <p>TODO: 自定义游戏配置功能待实现</p>
@@ -948,11 +973,22 @@
   </main>
 </template>
 
+<style scoped>
+/* 页面样式 */
+.setup-page {
+  width: 100%;
+}
+</style>
+
 <script setup>
-import { reactive, ref, watch, computed } from 'vue'
+import { reactive, ref, watch, computed, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameStore } from '../stores/game'
 import Modal from '../components/Modal.vue'
+
+defineOptions({
+  name: 'SetupView'
+})
 
 const router = useRouter()
 const gameStore = useGameStore()
@@ -984,6 +1020,12 @@ const initNavItems = [
 const showInitModal = ref(false)
 const showStrategyModal = ref(null)
 const showCustomModeModal = ref(false)
+const isLoading = ref(false)
+const loadingStage = ref('loading')
+const loadingCountdown = ref(3)
+const isCountdownPhase = computed(() => loadingStage.value === 'countdown')
+let loadingCountdownTimer = null
+const loadingText = ref('正在启动游戏...')
 
 // 策略弹窗的显示状态（转换为布尔值）
 const showStrategyModalOpen = computed({
@@ -998,6 +1040,40 @@ function selectStrategy(strategyValue) {
   }
   closeStrategyModal()
 }
+
+function clearLoadingCountdownTimer() {
+  if (loadingCountdownTimer !== null) {
+    clearInterval(loadingCountdownTimer)
+    loadingCountdownTimer = null
+  }
+}
+
+function runStartCountdown(seconds = 3) {
+  clearLoadingCountdownTimer()
+  loadingCountdown.value = seconds
+
+  return new Promise((resolve) => {
+    loadingCountdownTimer = setInterval(() => {
+      if (loadingCountdown.value <= 0) {
+        clearLoadingCountdownTimer()
+        resolve()
+        return
+      }
+
+      loadingCountdown.value -= 1
+
+      if (loadingCountdown.value <= 0) {
+        clearLoadingCountdownTimer()
+        resolve()
+      }
+    }, 1000)
+  })
+}
+
+onUnmounted(() => {
+  clearLoadingCountdownTimer()
+})
+
 const activeInitNav = ref('planningCards')
 
 // 左侧导航栏各项目的随机开关状态（默认关闭，即非随机）
@@ -1844,7 +1920,7 @@ watch(() => form.playerCount, (newCount) => {
 })
 
 function goBack() {
-  gameStore.resetGame()
+  gameStore.endGame()
   router.push('/')
 }
 
@@ -1876,7 +1952,11 @@ function resetForm() {
   })
 }
 
-function handleSubmit() {
+async function handleSubmit() {
+  if (isLoading.value) {
+    return
+  }
+
   // 1. 检查玩家配置
   for (let i = 0; i < form.players.length; i++) {
     const player = form.players[i]
@@ -1911,16 +1991,44 @@ function handleSubmit() {
     }
   }
 
+  isLoading.value = true
+  clearLoadingCountdownTimer()
+  loadingStage.value = 'loading'
+  loadingCountdown.value = 3
+  loadingText.value = '正在启动游戏...'
+
   // 组装返回数据
   const gameSettings = buildGameSettings()
 
-  // 发送到后端并打印
-  sendGameSettingsToBackend(gameSettings)
+  try {
+    // 发送到后端并等待响应
+    await sendGameSettingsToBackend(gameSettings)
 
-  // 保存到 store 并跳转
-  gameStore.setSettings(gameSettings)
-  gameStore.startGame()
-  router.push('/game')
+    loadingText.value = '正在准备游戏状态...'
+    const isReady = await waitForGameStateReady()
+    if (!isReady) {
+      throw new Error('游戏状态准备超时')
+    }
+
+    loadingStage.value = 'countdown'
+    loadingText.value = '游戏即将开始'
+    await runStartCountdown(3)
+    await new Promise(resolve => setTimeout(resolve, 360))
+
+    // 保存到 store 并跳转
+    gameStore.setSettings(gameSettings)
+    gameStore.startGame()
+    await router.push('/game')
+  } catch (error) {
+    console.error('启动游戏失败:', error)
+    alert('启动游戏失败，请检查后端服务是否运行')
+  } finally {
+    clearLoadingCountdownTimer()
+    loadingStage.value = 'loading'
+    loadingCountdown.value = 3
+    loadingText.value = '正在启动游戏...'
+    isLoading.value = false
+  }
 }
 
 // 组装游戏设置数据
@@ -1932,10 +2040,9 @@ function buildGameSettings() {
 
   const gameModeArgs = form.gameMode === 'custom' ? {} : null
 
-  const playerOrderType = form.playerOrder === '随机' ? 'random' : 'targeted'
-  const playerOrderArgs = playerOrderType === 'targeted'
-    ? playerOrderList.value.map(p => p.id)
-    : null
+  const initPlayerOrder = form.playerOrder === '随机'
+    ? 'random'
+    : playerOrderList.value.map(p => p.id)
 
   const setupTiles = buildSetupTiles()
 
@@ -1947,10 +2054,7 @@ function buildGameSettings() {
       args: gameModeArgs
     },
     init_settings: {
-      player_order: {
-        type: playerOrderType,
-        args: playerOrderArgs
-      },
+      init_player_order: initPlayerOrder,
       setup_tiles: setupTiles
     }
   }
@@ -1992,8 +2096,9 @@ function buildSetupTiles() {
 
 // 发送游戏设置到后端
 async function sendGameSettingsToBackend(settings) {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5001'
   try {
-    const response = await fetch('http://127.0.0.1:5001/api/game/start', {
+    const response = await fetch(`${apiBaseUrl}/api/game/start`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -2002,9 +2107,37 @@ async function sendGameSettingsToBackend(settings) {
     })
     const result = await response.json()
     console.log('后端响应:', result)
+
+    if (!response.ok || result?.status !== 'success') {
+      throw new Error(result?.error || result?.message || '启动游戏失败')
+    }
+
+    return result
   } catch (error) {
     console.error('发送游戏设置失败:', error)
+    throw error
   }
+}
+
+async function waitForGameStateReady(retries = 60, delay = 250) {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5001'
+
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/game/state`)
+      const result = await response.json()
+
+      if (response.ok && result?.status === 'success' && result?.state) {
+        return true
+      }
+    } catch (error) {
+      console.warn('等待游戏状态就绪时重试:', error)
+    }
+
+    await new Promise(resolve => setTimeout(resolve, delay))
+  }
+
+  return false
 }
 </script>
 
@@ -4451,6 +4584,210 @@ async function sendGameSettingsToBackend(settings) {
 
   .nav-toggle {
     padding: 10px 12px 10px 6px;
+  }
+}
+
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 10, 10, 0.84);
+  backdrop-filter: blur(8px);
+  animation: setup-loading-fade-in 0.24s ease;
+}
+
+.countdown-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+@keyframes setup-loading-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 44px 60px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.42);
+}
+
+.loading-overlay > .loading-content.loading-content-countdown {
+  opacity: 0;
+  transform: scale(0.96);
+  pointer-events: none;
+}
+
+.countdown-overlay .loading-content-countdown {
+  min-width: 360px;
+  gap: 18px;
+  padding: 48px 64px;
+  border-color: rgba(0, 123, 255, 0.32);
+  box-shadow:
+    0 20px 54px rgba(0, 0, 0, 0.48),
+    0 0 0 1px rgba(0, 123, 255, 0.12);
+  animation: countdown-panel-in 0.32s ease;
+}
+
+.loading-spinner {
+  font-size: 2.75rem;
+  color: var(--accent);
+}
+
+.loading-text {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.loading-subtext {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.loading-subtext-emphasis {
+  color: rgba(255, 255, 255, 0.86);
+  letter-spacing: 0.08em;
+}
+
+.countdown-badge {
+  position: relative;
+  width: 112px;
+  height: 112px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #ffffff;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(120, 190, 255, 0.9), rgba(0, 123, 255, 0.9) 58%, rgba(0, 123, 255, 0.45) 100%);
+  box-shadow:
+    0 0 0 10px rgba(0, 123, 255, 0.08),
+    0 18px 48px rgba(0, 123, 255, 0.28);
+  overflow: visible;
+  animation: countdown-pop 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.countdown-badge::before,
+.countdown-badge::after {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 123, 255, 0.28);
+}
+
+.countdown-badge::before {
+  animation: countdown-ring 1.8s ease-out infinite;
+}
+
+.countdown-badge::after {
+  inset: -22px;
+  border-color: rgba(0, 123, 255, 0.16);
+  animation: countdown-ring 1.8s ease-out infinite 0.45s;
+}
+
+.countdown-badge span {
+  position: relative;
+  z-index: 1;
+  font-size: 3.1rem;
+  font-weight: 700;
+  line-height: 1;
+  text-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+  animation: countdown-digit 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.countdown-progress {
+  width: 100%;
+  max-width: 260px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.countdown-progress-bar {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(0, 123, 255, 1), rgba(115, 193, 255, 0.92));
+  transform-origin: left center;
+  animation: countdown-bar 3s linear forwards;
+}
+
+@keyframes countdown-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes countdown-pop {
+  from {
+    transform: scale(0.78);
+  }
+
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes countdown-digit {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes countdown-ring {
+  0% {
+    opacity: 0.7;
+    transform: scale(0.92);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.16);
+  }
+}
+
+@keyframes countdown-bar {
+  from {
+    transform: scaleX(1);
+  }
+
+  to {
+    transform: scaleX(0);
   }
 }
 </style>
