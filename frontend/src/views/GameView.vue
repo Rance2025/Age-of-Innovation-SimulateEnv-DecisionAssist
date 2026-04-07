@@ -1,14 +1,14 @@
 <template>
   <div class="game-page">
     <div class="main-container">
-      <!-- 左侧：玩家监控区 (28%) -->
+      <!-- 左侧：玩家面板 (28%) -->
       <div class="players-monitor">
         <div class="monitor-header">
           <i class="fas fa-users"></i>
-          <div>玩家监控</div>
+          <div>玩家面板</div>
         </div>
         <div class="monitor-content">
-          <div class="player-grid">
+          <div class="player-grid" id="player-grid">
             <div
               v-for="player in players"
               :key="player.id"
@@ -17,18 +17,46 @@
             >
               <div class="player-header" @click="togglePlayer(player.id)">
                 <div class="player-header-left">
-                  <div
-                    v-if="player.planningCard"
-                    class="planning-card-indicator"
-                  >
+                  <div class="planning-card-indicator">
                     <div
                       class="planning-card-circle"
-                      :style="{ backgroundColor: getPlanningCardColor(player.planningCard) }"
+                      :tabindex="player.planningCardId !== null ? 0 : -1"
+                      title=""
+                      :aria-label="player.planningCardId !== null ? `预览${player.planningCard}规划卡` : '未分配规划卡'"
+                      :class="{ 'is-visible': player.planningCardId !== null }"
+                      :style="{ backgroundColor: getPlanningCardColor(player.planningCardId) }"
+                      @mouseenter="handlePlanningCardMouseEnter(player.planningCardId, player.planningCard, $event)"
+                      @mouseleave="handlePlanningCardMouseLeave"
+                      @focus="handlePlanningCardMouseEnter(player.planningCardId, player.planningCard, $event)"
+                      @blur="handlePlanningCardMouseLeave"
+                      @keydown.esc.prevent="hideEntityPreview"
                     ></div>
                   </div>
                   <div class="player-title">
-                    <span>玩家 {{ player.id + 1 }}</span>
-                    <span v-if="player.faction" class="faction-badge">{{ player.faction }}</span>
+                    <span class="player-name">玩家 {{ player.id + 1 }}</span>
+                    <span
+                      v-if="player.factionId !== null"
+                      class="faction-badge"
+                    >
+                      <span
+                        class="faction-badge-avatar"
+                        tabindex="0"
+                        title=""
+                        :aria-label="`预览${player.faction}派系板块`"
+                        @mouseenter="handleFactionBadgeMouseEnter(player.factionId, player.faction, $event)"
+                        @mouseleave="handleFactionBadgeMouseLeave"
+                        @focus="handleFactionBadgeMouseEnter(player.factionId, player.faction, $event)"
+                        @blur="handleFactionBadgeMouseLeave"
+                        @keydown.esc.prevent="hideEntityPreview"
+                      >
+                        <span
+                          class="faction-badge-avatar-image"
+                          aria-hidden="true"
+                          :style="getFactionBadgeStyle(player.factionId)"
+                        ></span>
+                      </span>
+                      <span class="faction-badge-name">{{ player.faction }}</span>
+                    </span>
                   </div>
                 </div>
                 <div class="player-score">{{ player.score }}</div>
@@ -158,7 +186,7 @@
           <div>游戏区域</div>
         </div>
         <div class="middle-content">
-          <div class="game-grid">
+          <div class="game-grid" id="game-grid">
             <!-- 游戏版图卡片 -->
             <div class="game-card" :class="{ collapsed: collapsedCards['map'] }">
               <div class="game-header" @click="toggleCard('map')">
@@ -295,7 +323,18 @@
                     viewBox="0 0 800 640"
                     preserveAspectRatio="xMidYMid slice"
                   >
+                    <!-- 六边形网格层 -->
+                    <g id="hex-grid-group">
+                      <!-- 六边形将通过JavaScript生成 -->
+                    </g>
+                    <!-- 元素层，用于放置图标 -->
                     <g id="hex-elements"></g>
+                    <!-- 高亮层 -->
+                    <g id="hex-highlight-layer"></g>
+                    <!-- 悬停层 -->
+                    <g id="hex-hover-layer"></g>
+                    <!-- 编号层 -->
+                    <g id="hex-numbers"></g>
                   </svg>
                 </div>
               </div>
@@ -316,60 +355,99 @@
               </div>
               <div class="round-info-status">
                 <div class="round-info-container">
-                  <div class="left-column">
-                    <div
-                      v-for="round in roundInfo"
-                      :key="round.number"
-                      class="grid-cell"
-                      :class="[
-                        'round-' + round.number,
-                        {
-                          'current-round': currentRound === round.number,
-                          flipped: round.flipped,
-                        },
-                      ]"
-                      :data-round="round.number"
-                    >
-                      <span class="round-label">第 {{ round.number }} 回合</span>
+                  <!-- 左侧计分区 -->
+                  <div class="left-column" id="left-scoring-grid">
+                    <!-- 第1回合 -->
+                    <div class="grid-cell round-1" data-round="1" :class="{ 'current-round': currentRound === 1, 'flipped': roundStates[1]?.isFlipped }">
+                      <span class="round-label">第 1 回合</span>
                       <div class="card-container">
                         <div class="card-face front">
-                          <img
-                            :src="`/images/scoring/${round.currentX}.png`"
-                            alt="计分图标"
-                            class="scoring-image"
-                          />
+                          <img :src="`/images/scoring/${roundStates[1]?.currentX ?? -1}.png`" alt="计分图标" class="scoring-image">
                         </div>
                         <div class="card-face back">
-                          <img
-                            :src="`/images/scoring/${round.backX}.png`"
-                            alt="计分图标背面"
-                            class="scoring-image"
-                          />
+                          <img :src="`/images/scoring/0.png`" alt="计分图标背面" class="scoring-image">
                         </div>
                       </div>
-                      <img
-                        v-if="round.number === 6 && round.overlayImage"
-                        :src="round.overlayImage"
-                        alt="叠加奖励图标"
-                        class="overlay-image"
-                      />
+                    </div>
+                    <!-- 第4回合 -->
+                    <div class="grid-cell round-4" data-round="4" :class="{ 'current-round': currentRound === 4, 'flipped': roundStates[4]?.isFlipped }">
+                      <span class="round-label">第 4 回合</span>
+                      <div class="card-container">
+                        <div class="card-face front">
+                          <img :src="`/images/scoring/${roundStates[4]?.currentX ?? -1}.png`" alt="计分图标" class="scoring-image">
+                        </div>
+                        <div class="card-face back">
+                          <img :src="`/images/scoring/0.png`" alt="计分图标背面" class="scoring-image">
+                        </div>
+                      </div>
+                    </div>
+                    <!-- 第2回合 -->
+                    <div class="grid-cell round-2" data-round="2" :class="{ 'current-round': currentRound === 2, 'flipped': roundStates[2]?.isFlipped }">
+                      <span class="round-label">第 2 回合</span>
+                      <div class="card-container">
+                        <div class="card-face front">
+                          <img :src="`/images/scoring/${roundStates[2]?.currentX ?? -1}.png`" alt="计分图标" class="scoring-image">
+                        </div>
+                        <div class="card-face back">
+                          <img :src="`/images/scoring/0.png`" alt="计分图标背面" class="scoring-image">
+                        </div>
+                      </div>
+                    </div>
+                    <!-- 第5回合 -->
+                    <div class="grid-cell round-5" data-round="5" :class="{ 'current-round': currentRound === 5, 'flipped': roundStates[5]?.isFlipped }">
+                      <span class="round-label">第 5 回合</span>
+                      <div class="card-container">
+                        <div class="card-face front">
+                          <img :src="`/images/scoring/${roundStates[5]?.currentX ?? -1}.png`" alt="计分图标" class="scoring-image">
+                        </div>
+                        <div class="card-face back">
+                          <img :src="`/images/scoring/0.png`" alt="计分图标背面" class="scoring-image">
+                        </div>
+                      </div>
+                    </div>
+                    <!-- 第3回合 -->
+                    <div class="grid-cell round-3" data-round="3" :class="{ 'current-round': currentRound === 3, 'flipped': roundStates[3]?.isFlipped }">
+                      <span class="round-label">第 3 回合</span>
+                      <div class="card-container">
+                        <div class="card-face front">
+                          <img :src="`/images/scoring/${roundStates[3]?.currentX ?? -1}.png`" alt="计分图标" class="scoring-image">
+                        </div>
+                        <div class="card-face back">
+                          <img :src="`/images/scoring/0.png`" alt="计分图标背面" class="scoring-image">
+                        </div>
+                      </div>
+                    </div>
+                    <!-- 第6回合（支持叠加） -->
+                    <div class="grid-cell round-6" data-round="6" :class="{ 'current-round': currentRound === 6, 'flipped': roundStates[6]?.isFlipped }">
+                      <span class="round-label">第 6 回合</span>
+                      <div class="card-container">
+                        <div class="card-face front">
+                          <img :src="`/images/scoring/${roundStates[6]?.currentX ?? -1}.png`" alt="基础计分图标" class="base-image">
+                        </div>
+                        <div class="card-face back">
+                          <img :src="`/images/scoring/0.png`" alt="计分图标背面" class="scoring-image">
+                        </div>
+                      </div>
+                      <img :src="roundStates[6]?.overlayImage || ''" alt="叠加奖励图标" class="overlay-image" :style="{ display: roundStates[6]?.overlayImage ? 'block' : 'none' }">
                     </div>
                   </div>
+
+                  <!-- 右侧奖励区 -->
                   <div class="right-column" id="right-bonus-grid">
                     <div
                       v-for="(bonus, index) in bonusColumns"
                       :key="index"
                       class="bonus-cell"
-                      :class="{ flipped: bonus.flipped }"
+                      :class="{ flipped: bonus.isFlipped }"
                       :data-index="index"
                       :data-x="bonus.x"
                     >
                       <div class="card-container">
                         <div class="card-face front">
-                          <img :src="`/images/bonus/${bonus.x}.png`" alt="助推板块" />
+                          <img :src="`/images/bonus/${bonus.x}.png`" alt="助推板块">
                         </div>
                         <div class="card-face back">
-                          <img :src="`/images/bonus/${bonus.backX}.png`" alt="助推板块背面" />
+                          <img :src="`/images/bonus/${bonus.backX}.png`" alt="助推板块背面">
                         </div>
                       </div>
                       <span class="bonus-label">回合助推板 {{ bonus.x }}</span>
@@ -427,15 +505,9 @@
           </div>
           <!-- 更多菜单按钮 -->
           <div class="more-menu-container">
-            <button class="more-menu-btn" @click="toggleMoreMenu">
+            <button class="more-menu-btn" @click="openGameMenu">
               <i class="fas fa-bars"></i>
             </button>
-            <div class="more-menu-dropdown" :class="{ show: moreMenuOpen }">
-              <button class="menu-item end-game" @click="endGame">
-                <i class="fas fa-flag-checkered"></i>
-                <span>结束游戏</span>
-              </button>
-            </div>
           </div>
           <div class="status-content" id="global-status-content">{{ globalStatus }}</div>
         </div>
@@ -455,46 +527,170 @@
               :key="idx"
               class="action-item"
               :data-color="action.color"
+              @click="selectAction(action.id)"
             >
-              {{ action.text }}
+              <span class="action-id">{{ action.id }}</span>: {{ action.text }}
             </div>
           </div>
         </div>
 
-        <!-- 底部输入区 -->
-        <div class="global-input">
-          <div class="input-group">
-            <input
-              v-model="commandInput"
-              type="text"
-              id="command"
-              placeholder="输入行动编号..."
-              autofocus
-              @keypress.enter="sendCommand"
-            />
-            <button class="send-btn" @click="sendCommand">
-              <i class="fas fa-paper-plane"></i>
-            </button>
-          </div>
-        </div>
       </div>
+    </div>
+
+    <!-- 游戏菜单弹窗 -->
+    <Modal
+      v-model="gameMenuOpen"
+      title="游戏菜单"
+      size="small"
+      :show-close="true"
+      :close-on-overlay="true"
+  >
+    <div class="game-menu-content">
+      <button
+        class="menu-modal-btn end-game"
+        :class="{ 'confirm-state': confirmState === 'end' }"
+        @click="handleEndGame"
+      >
+        <div class="btn-icon">
+          <i class="fas fa-flag-checkered"></i>
+        </div>
+        <div class="btn-text">
+          <span>{{ confirmState === 'end' ? '确认结束' : '结束游戏' }}</span>
+          <small>{{ confirmState === 'end' ? '点击确认返回主界面' : '返回主界面' }}</small>
+        </div>
+      </button>
+      <button
+        class="menu-modal-btn reset-settings"
+        :class="{ 'confirm-state': confirmState === 'reset' }"
+        @click="handleResetSettings"
+      >
+        <div class="btn-icon">
+          <i class="fas fa-cog"></i>
+        </div>
+        <div class="btn-text">
+          <span>{{ confirmState === 'reset' ? '确认重置' : '重新设置' }}</span>
+          <small>{{ confirmState === 'reset' ? '点击确认返回设置页面' : '返回设置页面，保留当前设置' }}</small>
+        </div>
+      </button>
+      <button
+        class="menu-modal-btn restart-game"
+        :class="{ 'confirm-state': confirmState === 'restart' }"
+        @click="handleRestartGame"
+      >
+        <div class="btn-icon">
+          <i class="fas fa-redo"></i>
+        </div>
+        <div class="btn-text">
+          <span>{{ confirmState === 'restart' ? '确认重启' : '重新开始' }}</span>
+          <small>{{ confirmState === 'restart' ? '点击确认重新开始游戏' : '在当前界面重启游戏（开发中）' }}</small>
+        </div>
+      </button>
+    </div>
+    </Modal>
+    <div
+      v-if="entityPreview.visible"
+      class="entity-preview"
+      :style="getEntityPreviewPositionStyle()"
+      @mouseenter="cancelEntityPreviewHide"
+      @mouseleave="scheduleEntityPreviewHide"
+    >
+      <div
+        class="entity-preview-image"
+        :style="entityPreview.imageStyle"
+      ></div>
+      <div class="entity-preview-name">{{ entityPreview.name }}</div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameStore } from '../stores/game'
+import Modal from '../components/Modal.vue'
+
+defineOptions({
+  name: 'GameView'
+})
 
 const router = useRouter()
 const gameStore = useGameStore()
 
-// 玩家数据
-const players = ref([
-  {
-    id: 0,
+// ========== 地图配置 ==========
+const MAP_CONFIG = {
+  rows: 9,  // A-I
+  cols: 13, // 1-13
+  hexSize: 33.5,
+  rowLetters: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I']
+}
+
+// 地形类型映射 - 与 game_panel.html 保持一致
+const TERRAIN_TYPES = {
+  0: 'water',     // 水域
+  1: 'plains',    // 平原
+  2: 'swamp',     // 沼泽
+  3: 'lake',      // 湖泊
+  4: 'forest',    // 森林
+  5: 'mountain',  // 山脉
+  6: 'wasteland', // 荒地
+  7: 'desert'     // 沙漠
+}
+
+// 地形颜色映射 - 与 game_panel.html 保持一致
+const TERRAIN_COLORS = {
+  0: 'transparent',   // 水域 - 透明
+  1: '#85491D',       // 平原 - 棕色
+  2: '#595959',       // 沼泽 - 黑色
+  3: '#35a0d5',       // 湖泊 - 蓝色
+  4: '#37af37',       // 森林 - 绿色
+  5: '#a1a1a1',       // 山脉 - 灰色
+  6: '#cc2828',       // 荒地 - 红色
+  7: '#e8e83d'        // 沙漠 - 黄色
+}
+
+// 初始地形数据 - 与 game_panel.html 保持一致
+const INITIAL_TERRAIN = [
+  [4,0,3,2,1,6,5,0,3,2,1,7,0],
+  [5,0,0,4,3,4,7,0,4,5,3,0,2],
+  [6,3,2,0,5,1,2,0,0,6,0,0,6],
+  [7,5,6,0,7,6,0,2,0,0,1,5,4],
+  [1,4,1,7,0,0,0,4,5,3,6,7,1],
+  [2,0,0,0,3,5,0,7,1,0,2,3,6],
+  [3,0,1,2,0,4,1,0,0,0,0,0,0],
+  [0,7,3,0,6,2,7,6,2,3,4,2,0],
+  [4,5,6,0,7,5,1,3,4,5,6,7,1]
+]
+
+function createDefaultMapCellState() {
+  return {
+    terrain: 0,
+    controller: -1,
+    building_id: 0,
+    is_neutral: false,
+    has_annex: false
+  }
+}
+
+function createDefaultMapGrid() {
+  return Array.from({ length: MAP_CONFIG.rows }, () =>
+    Array.from({ length: MAP_CONFIG.cols }, () => createDefaultMapCellState())
+  )
+}
+
+// ========== 玩家数据 ==========
+// 动态根据 num_players 初始化，支持 3-5 人局
+const players = ref([])
+const mapState = reactive({
+  grid: createDefaultMapGrid()
+})
+
+// 创建默认玩家对象
+function createDefaultPlayer(id) {
+  return {
+    id,
+    factionId: null,
     faction: '',
+    planningCardId: null,
     planningCard: null,
     score: 20,
     money: 0,
@@ -510,119 +706,590 @@ const players = ref([
     cities: 0,
     navigation: 0,
     shovel: 3,
-    logs: [],
-  },
-  {
-    id: 1,
-    faction: '',
-    planningCard: null,
-    score: 20,
-    money: 0,
-    mineral: 0,
-    mibao: 0,
-    bank: 0,
-    law: 0,
-    engineering: 0,
-    medical: 0,
-    magic1: 5,
-    magic2: 7,
-    magic3: 0,
-    cities: 0,
-    navigation: 0,
-    shovel: 3,
-    logs: [],
-  },
-  {
-    id: 2,
-    faction: '',
-    planningCard: null,
-    score: 20,
-    money: 0,
-    mineral: 0,
-    mibao: 0,
-    bank: 0,
-    law: 0,
-    engineering: 0,
-    medical: 0,
-    magic1: 5,
-    magic2: 7,
-    magic3: 0,
-    cities: 0,
-    navigation: 0,
-    shovel: 3,
-    logs: [],
-  },
-])
+    logs: []
+  }
+}
+
+// 初始化玩家列表
+function initPlayers(count) {
+  const newPlayers = []
+  for (let i = 0; i < count; i++) {
+    newPlayers.push(createDefaultPlayer(i))
+  }
+  syncCollapsedPlayers(count)
+  players.value = newPlayers
+}
 
 // 折叠状态
 const collapsedPlayers = reactive({})
-const collapsedCards = reactive({
-  map: false,
-  round: false,
-  tactical: false,
-})
+const collapsedCards = reactive({ map: false, round: false, tactical: false })
+
+function syncCollapsedPlayers(count) {
+  Object.keys(collapsedPlayers).forEach((playerId) => {
+    delete collapsedPlayers[playerId]
+  })
+
+  for (let i = 0; i < count; i++) {
+    collapsedPlayers[i] = true
+  }
+}
 
 // 地形提示弹窗
 const terrainTooltipOpen = ref(false)
 let terrainTooltipTimeout = null
 
 // 更多菜单
-const moreMenuOpen = ref(false)
+const gameMenuOpen = ref(false)
+const confirmState = ref(null) // 'end' | 'reset' | 'restart' | null
 
-// 回合信息
-const currentRound = ref(1)
-const roundInfo = ref([
-  { number: 1, currentX: -1, backX: 0, flipped: false, overlayImage: null },
-  { number: 4, currentX: -1, backX: 0, flipped: false, overlayImage: null },
-  { number: 2, currentX: -1, backX: 0, flipped: false, overlayImage: null },
-  { number: 5, currentX: -1, backX: 0, flipped: false, overlayImage: null },
-  { number: 3, currentX: -1, backX: 0, flipped: false, overlayImage: null },
-  { number: 6, currentX: -1, backX: 0, flipped: false, overlayImage: null },
-])
+// 监听弹窗关闭，重置确认状态
+watch(gameMenuOpen, (isOpen) => {
+  if (!isOpen) {
+    confirmState.value = null
+  }
+})
 
-// 助推板块
-const bonusColumns = ref([
-  { x: 0, backX: 0, flipped: false },
-  { x: 0, backX: 0, flipped: false },
-  { x: 0, backX: 0, flipped: false },
-  { x: 0, backX: 0, flipped: false },
-  { x: 0, backX: 0, flipped: false },
-  { x: 0, backX: 0, flipped: false },
-])
+// 回合信息 - 默认currentRound为0表示没有高亮任何回合
+const currentRound = ref(0)
+const roundStates = reactive({
+  1: { currentX: -1, actualX: -1, isFlipped: false, overlayImage: null },
+  2: { currentX: -1, actualX: -1, isFlipped: false, overlayImage: null },
+  3: { currentX: -1, actualX: -1, isFlipped: false, overlayImage: null },
+  4: { currentX: -1, actualX: -1, isFlipped: false, overlayImage: null },
+  5: { currentX: -1, actualX: -1, isFlipped: false, overlayImage: null },
+  6: { currentX: -1, actualX: -1, isFlipped: false, overlayImage: null },
+})
+
+// 助推板块 - 动态初始化，根据实际人数调整 (num_players + 3)
+const bonusColumns = ref([])
+
+// 初始化助推板块列
+function initBonusColumns(count) {
+  const columns = []
+  for (let i = 0; i < count; i++) {
+    columns.push({ x: 0, backX: 0, isFlipped: false })
+  }
+  bonusColumns.value = columns
+}
 
 // 全局状态
 const globalStatus = ref('所有玩家已就绪，对局即将开始')
 const actionCount = ref(0)
 const actions = ref([])
 const tacticalLogs = ref([])
-const commandInput = ref('')
+const stateVersion = ref(0)
+const gameMeta = reactive({
+  round: 1,
+  num_players: 3,
+  current_player_id: -1,
+  action_type: '',
+  is_game_over: false
+})
 
-// 规划卡颜色映射
-const planningCardColors = {
-  森林: '#37af37',
-  湖泊: '#35a0d5',
-  沙漠: '#e8e83d',
-  山脉: '#a1a1a1',
-  平原: '#85491D',
-  沼泽: '#595959',
-  荒地: '#cc2828',
+// 规划卡与派系映射
+const planningCardIdToName = {
+  1: '平原', 2: '沼泽', 3: '湖泊', 4: '森林', 5: '山脉', 6: '荒地', 7: '沙漠'
 }
 
-function getPlanningCardColor(card) {
-  return planningCardColors[card] || '#ffffff'
+const planningCardIdToColor = {
+  1: '#85491d',
+  2: '#6b6b6b',
+  3: '#35a0d5',
+  4: '#37af37',
+  5: '#a1a1a1',
+  6: '#cc2828',
+  7: '#e8e83d'
 }
 
-// 切换玩家卡片折叠
+const planningCardBackendToImageMap = [6, 2, 4, 1, 5, 3, 0]
+const planningCardBackgroundPositions = [0, 16.6667, 33.3333, 50, 66.6667, 83.3333, 100]
+
+const factionIdToName = {
+  1: '神佑者', 2: '猫人', 3: '哥布林', 4: '幻术师', 5: '发明家',
+  6: '蜥蜴人', 7: '鼹鼠', 8: '僧侣', 9: '航海家', 10: '奥马尔',
+  11: '哲学家', 12: '通灵师'
+}
+
+const factionBackendToImageMap = [11, 4, 7, 0, 8, 9, 5, 10, 1, 6, 2, 3]
+const factionTileBackgroundPositions = [0, 9.0909, 18.1818, 27.2727, 36.3636, 45.4545, 54.5455, 63.6364, 72.7273, 81.8182, 90.9091, 100]
+const factionTileBackgroundSize = '1200% 100%'
+const factionTileCount = 12
+const factionTilePixelWidth = 592
+const factionTilePixelHeight = 338
+const factionSquareCropRightShiftPx = 24
+const factionSheetPixelWidth = factionTilePixelWidth * factionTileCount
+const factionSquareCropInsetPx = ((factionTilePixelWidth - factionTilePixelHeight) / 2) + factionSquareCropRightShiftPx
+const factionSquareCropBackgroundSize = `${((factionSheetPixelWidth / factionTilePixelHeight) * 100).toFixed(4)}% 100%`
+const factionSquareCropPositions = Array.from({ length: factionTileCount }, (_, index) => Number(
+  (((index * factionTilePixelWidth + factionSquareCropInsetPx) / (factionSheetPixelWidth - factionTilePixelHeight)) * 100).toFixed(4)
+))
+const factionTileAspectRatio = factionTilePixelWidth / factionTilePixelHeight
+const planningCardPreviewAspectRatio = 118 / 187
+const entityPreviewDelayMs = 300
+const entityPreviewOffsetPx = 12
+const entityPreviewViewportPaddingPx = 12
+const entityPreviewPaddingPx = 8
+const entityPreviewNameHeightPx = 30
+const factionPreviewCardWidthPx = 320
+const factionPreviewImageHeightPx = Math.round(factionPreviewCardWidthPx / factionTileAspectRatio)
+const planningPreviewCardWidthPx = 176
+const planningPreviewImageHeightPx = Math.round(planningPreviewCardWidthPx / planningCardPreviewAspectRatio)
+const entityPreview = reactive({
+  visible: false,
+  name: '',
+  imageStyle: {},
+  imageHeight: 0,
+  panelWidth: 0,
+  top: 0,
+  left: 0
+})
+let entityPreviewTimer = null
+let entityPreviewHideTimer = null
+
+// 建筑ID到建筑类型名称的映射
+const buildingIdToType = {
+  0: null,      // 无建筑
+  1: 'workshop', // 车间
+  2: 'guild',    // 工会
+  3: 'palace',   // 宫殿
+  4: 'school',   // 学校
+  5: 'university', // 大学
+  6: 'tower',    // 塔楼
+  7: 'monument', // 纪念碑
+  8: 'annex'     // 侧楼
+}
+
+function setPlayerPlanningCard(player, planningCardId) {
+  const normalizedId = Number(planningCardId)
+  const resolvedId = Number.isInteger(normalizedId) && normalizedId > 0 ? normalizedId : null
+  player.planningCardId = resolvedId
+  player.planningCard = resolvedId ? planningCardIdToName[resolvedId] || null : null
+}
+
+function setPlayerFaction(player, factionId) {
+  const normalizedId = Number(factionId)
+  const resolvedId = Number.isInteger(normalizedId) && normalizedId > 0 ? normalizedId : null
+  player.factionId = resolvedId
+  player.faction = resolvedId ? factionIdToName[resolvedId] || '' : ''
+}
+
+function getPlanningCardColor(planningCardId) {
+  return planningCardId ? planningCardIdToColor[planningCardId] || 'transparent' : 'transparent'
+}
+
+function getFactionBadgeStyle(factionId) {
+  if (!factionId) {
+    return {}
+  }
+
+  const imageIndex = factionBackendToImageMap[factionId - 1]
+  return {
+    backgroundImage: 'url(/assets/images/faction_tiles.jpg)',
+    backgroundSize: factionSquareCropBackgroundSize,
+    backgroundPosition: `${factionSquareCropPositions[imageIndex]}% 50%`
+  }
+}
+
+function getFactionPreviewStyle(factionId) {
+  if (!factionId) {
+    return {}
+  }
+
+  const imageIndex = factionBackendToImageMap[factionId - 1]
+  return {
+    backgroundImage: 'url(/assets/images/faction_tiles.jpg)',
+    backgroundSize: factionTileBackgroundSize,
+    backgroundPosition: `${factionTileBackgroundPositions[imageIndex]}% 50%`
+  }
+}
+
+function getPlanningCardPreviewStyle(planningCardId) {
+  if (!planningCardId) {
+    return {}
+  }
+
+  const imageIndex = planningCardBackendToImageMap[planningCardId - 1]
+  return {
+    backgroundImage: 'url(/assets/images/planning_cards.jpg)',
+    backgroundSize: '700% 100%',
+    backgroundPosition: `${planningCardBackgroundPositions[imageIndex]}% 50%`
+  }
+}
+
+function getEntityPreviewPositionStyle() {
+  return {
+    top: `${entityPreview.top}px`,
+    left: `${entityPreview.left}px`,
+    width: `${entityPreview.panelWidth}px`,
+    '--entity-preview-image-height': `${entityPreview.imageHeight}px`
+  }
+}
+
+function clearEntityPreviewTimer() {
+  if (entityPreviewTimer !== null) {
+    clearTimeout(entityPreviewTimer)
+    entityPreviewTimer = null
+  }
+}
+
+function clearEntityPreviewHideTimer() {
+  if (entityPreviewHideTimer !== null) {
+    clearTimeout(entityPreviewHideTimer)
+    entityPreviewHideTimer = null
+  }
+}
+
+function hideEntityPreview() {
+  clearEntityPreviewTimer()
+  clearEntityPreviewHideTimer()
+  entityPreview.visible = false
+  entityPreview.name = ''
+  entityPreview.imageStyle = {}
+  entityPreview.imageHeight = 0
+  entityPreview.panelWidth = 0
+}
+
+function showEntityPreview({ name, imageStyle, cardWidth, imageHeight, anchorElement }) {
+  if (!anchorElement?.isConnected) {
+    return
+  }
+
+  const panelWidth = cardWidth + entityPreviewPaddingPx * 2
+  const panelHeight = imageHeight + entityPreviewNameHeightPx + entityPreviewPaddingPx * 2
+  const rect = anchorElement.getBoundingClientRect()
+  let left = rect.right + entityPreviewOffsetPx
+  if (left + panelWidth > window.innerWidth - entityPreviewViewportPaddingPx) {
+    left = rect.left - entityPreviewOffsetPx - panelWidth
+  }
+  left = Math.max(entityPreviewViewportPaddingPx, left)
+
+  let top = rect.top + (rect.height - panelHeight) / 2
+  top = Math.min(
+    Math.max(entityPreviewViewportPaddingPx, top),
+    window.innerHeight - panelHeight - entityPreviewViewportPaddingPx
+  )
+
+  entityPreview.name = name
+  entityPreview.imageStyle = imageStyle
+  entityPreview.imageHeight = imageHeight
+  entityPreview.panelWidth = panelWidth
+  entityPreview.left = left
+  entityPreview.top = top
+  entityPreview.visible = true
+}
+
+function queueEntityPreview(config) {
+  clearEntityPreviewHideTimer()
+  clearEntityPreviewTimer()
+  entityPreviewTimer = setTimeout(() => {
+    entityPreviewTimer = null
+    showEntityPreview(config)
+  }, entityPreviewDelayMs)
+}
+
+function handlePlanningCardMouseEnter(planningCardId, planningCardName, event) {
+  if (!planningCardId) {
+    return
+  }
+
+  queueEntityPreview({
+    name: planningCardName || planningCardIdToName[planningCardId] || '',
+    imageStyle: getPlanningCardPreviewStyle(planningCardId),
+    cardWidth: planningPreviewCardWidthPx,
+    imageHeight: planningPreviewImageHeightPx,
+    anchorElement: event?.currentTarget
+  })
+}
+
+function handlePlanningCardMouseLeave() {
+  clearEntityPreviewTimer()
+  scheduleEntityPreviewHide()
+}
+
+function handleFactionBadgeMouseEnter(factionId, factionName, event) {
+  if (!factionId) {
+    return
+  }
+
+  queueEntityPreview({
+    name: factionName || factionIdToName[factionId] || '',
+    imageStyle: getFactionPreviewStyle(factionId),
+    cardWidth: factionPreviewCardWidthPx,
+    imageHeight: factionPreviewImageHeightPx,
+    anchorElement: event?.currentTarget
+  })
+}
+
+function handleFactionBadgeMouseLeave() {
+  clearEntityPreviewTimer()
+  scheduleEntityPreviewHide()
+}
+
+function cancelEntityPreviewHide() {
+  clearEntityPreviewHideTimer()
+}
+
+function scheduleEntityPreviewHide() {
+  clearEntityPreviewHideTimer()
+  if (!entityPreview.visible) {
+    return
+  }
+
+  entityPreviewHideTimer = setTimeout(() => {
+    entityPreviewHideTimer = null
+    hideEntityPreview()
+  }, 120)
+}
+
+function buildGlobalStatusFromMeta() {
+  return `第 ${gameMeta.round || 1} 回合`
+}
+
+function applyMetaState(metaPatch) {
+  if (!metaPatch || typeof metaPatch !== 'object') return
+  Object.assign(gameMeta, metaPatch)
+  globalStatus.value = buildGlobalStatusFromMeta()
+}
+
+function updateStateVersion(version) {
+  const normalizedVersion = Number(version)
+  if (Number.isInteger(normalizedVersion) && normalizedVersion >= 0) {
+    stateVersion.value = normalizedVersion
+  }
+}
+
+function normalizeAction(action, idx) {
+  return {
+    id: action?.action_id ?? action?.id ?? idx,
+    text: action?.description ?? action?.text ?? '',
+    color: action?.color || 'default'
+  }
+}
+
+function setAvailableActions(rawActions) {
+  const nextActions = Array.isArray(rawActions)
+    ? rawActions.map((action, idx) => normalizeAction(action, idx))
+    : []
+  actions.value = nextActions
+  actionCount.value = nextActions.length
+}
+
+function applyPlayerState(player, backendPlayer) {
+  if (!player || !backendPlayer) return
+
+  if (backendPlayer.resources) {
+    player.money = backendPlayer.resources.money ?? player.money
+    player.mineral = backendPlayer.resources.ore ?? player.mineral
+    player.mibao = backendPlayer.resources.meeples ?? player.mibao
+    player.bank = backendPlayer.resources.bank_book ?? player.bank
+    player.law = backendPlayer.resources.law_book ?? player.law
+    player.engineering = backendPlayer.resources.engineering_book ?? player.engineering
+    player.medical = backendPlayer.resources.medical_book ?? player.medical
+  }
+
+  if (backendPlayer.magics) {
+    player.magic1 = backendPlayer.magics.zone1 ?? player.magic1
+    player.magic2 = backendPlayer.magics.zone2 ?? player.magic2
+    player.magic3 = backendPlayer.magics.zone3 ?? player.magic3
+  }
+
+  player.money = backendPlayer.money ?? player.money
+  player.mineral = backendPlayer.mineral ?? player.mineral
+  player.mibao = backendPlayer.mibao ?? player.mibao
+  player.bank = backendPlayer.bank ?? player.bank
+  player.law = backendPlayer.law ?? player.law
+  player.engineering = backendPlayer.engineering ?? player.engineering
+  player.medical = backendPlayer.medical ?? player.medical
+  player.magic1 = backendPlayer.magic1 ?? player.magic1
+  player.magic2 = backendPlayer.magic2 ?? player.magic2
+  player.magic3 = backendPlayer.magic3 ?? player.magic3
+
+  player.score = backendPlayer.boardscore ?? player.score
+  player.score = backendPlayer.score ?? player.score
+  player.cities = backendPlayer.citys_amount ?? player.cities
+  player.cities = backendPlayer.cities ?? player.cities
+  player.navigation = backendPlayer.navigation_level ?? player.navigation
+  player.navigation = backendPlayer.navigation ?? player.navigation
+  player.shovel = backendPlayer.shovel_level ?? player.shovel
+  player.shovel = backendPlayer.shovel ?? player.shovel
+
+  if (Object.prototype.hasOwnProperty.call(backendPlayer, 'planning_card_id')) {
+    setPlayerPlanningCard(player, backendPlayer.planning_card_id)
+  }
+
+  if (Object.prototype.hasOwnProperty.call(backendPlayer, 'faction_id')) {
+    setPlayerFaction(player, backendPlayer.faction_id)
+  }
+}
+
+function ensureMapCell(row, col) {
+  if (!Array.isArray(mapState.grid) || mapState.grid.length !== MAP_CONFIG.rows) {
+    mapState.grid = createDefaultMapGrid()
+  }
+
+  if (!Array.isArray(mapState.grid[row])) {
+    mapState.grid[row] = Array.from(
+      { length: MAP_CONFIG.cols },
+      () => createDefaultMapCellState()
+    )
+  }
+
+  if (!mapState.grid[row][col]) {
+    mapState.grid[row][col] = createDefaultMapCellState()
+  }
+
+  return mapState.grid[row][col]
+}
+
+function resetMapState(nextGrid) {
+  if (!Array.isArray(nextGrid)) {
+    mapState.grid = createDefaultMapGrid()
+    return
+  }
+
+  mapState.grid = nextGrid.map((row) =>
+    Array.isArray(row)
+      ? row.map((cell) => ({ ...createDefaultMapCellState(), ...cell }))
+      : Array.from({ length: MAP_CONFIG.cols }, () => createDefaultMapCellState())
+  )
+}
+
+function getHexPositionId(row, col) {
+  const rowLetter = String.fromCharCode(65 + row)
+  return `${rowLetter}${col + 1}`
+}
+
+function clearPlacedElementsAt(row, col) {
+  const positionId = getHexPositionId(row, col)
+  document.querySelectorAll(`.hex-element[data-position="${positionId}"]`).forEach((el) => {
+    el.remove()
+  })
+}
+
+function renderBuildingForCell(row, col) {
+  const cell = ensureMapCell(row, col)
+
+  if (!cell.building_id || cell.building_id <= 0) {
+    clearPlacedElementsAt(row, col)
+    return
+  }
+
+  const buildingType = buildingIdToType[cell.building_id]
+  if (!buildingType) return
+
+  const controller = cell.controller ?? 0
+  const planningCardId = players.value[controller]?.planningCardId ?? (controller + 1)
+  placeElement(row, col, planningCardId, buildingType, 'replace')
+}
+
+function applyPlayerFieldChange(player, remainingKeys, value) {
+  if (!remainingKeys.length) return
+
+  const [firstKey, secondKey] = remainingKeys
+
+  if (remainingKeys.length === 1) {
+    switch (firstKey) {
+      case 'planning_card_id':
+        setPlayerPlanningCard(player, value)
+        return
+      case 'faction_id':
+        setPlayerFaction(player, value)
+        return
+      case 'boardscore':
+        player.score = value
+        return
+      case 'citys_amount':
+        player.cities = value
+        return
+      case 'navigation_level':
+        player.navigation = value
+        return
+      case 'shovel_level':
+        player.shovel = value
+        return
+      default:
+        player[firstKey] = value
+        return
+    }
+  }
+
+  if (firstKey === 'resources') {
+    switch (secondKey) {
+      case 'money':
+        player.money = value
+        return
+      case 'ore':
+        player.mineral = value
+        return
+      case 'meeples':
+        player.mibao = value
+        return
+      case 'bank_book':
+        player.bank = value
+        return
+      case 'law_book':
+        player.law = value
+        return
+      case 'engineering_book':
+        player.engineering = value
+        return
+      case 'medical_book':
+        player.medical = value
+        return
+      default:
+        break
+    }
+  }
+
+  if (firstKey === 'magics') {
+    switch (secondKey) {
+      case 'zone1':
+        player.magic1 = value
+        return
+      case 'zone2':
+        player.magic2 = value
+        return
+      case 'zone3':
+        player.magic3 = value
+        return
+      default:
+        break
+    }
+  }
+
+  updateNestedObject(player, remainingKeys, value)
+}
+
+// 监听可选行动变化，自动滚动到底部
+watch(actions, () => {
+  nextTick(() => {
+    const actionContent = document.getElementById('action-content')
+    if (actionContent) {
+      actionContent.scrollTop = actionContent.scrollHeight
+    }
+  })
+}, { deep: true })
+
+// 监听玩家日志变化，自动滚动到底部
+watch(() => players.value.map(p => p.logs.length), () => {
+  nextTick(() => {
+    players.value.forEach(player => {
+      const logPanel = document.getElementById(`player-log-${player.id + 1}`)
+      if (logPanel) {
+        logPanel.scrollTop = logPanel.scrollHeight
+      }
+    })
+  })
+})
+
 function togglePlayer(playerId) {
   collapsedPlayers[playerId] = !collapsedPlayers[playerId]
 }
 
-// 切换游戏卡片折叠
 function toggleCard(cardName) {
   collapsedCards[cardName] = !collapsedCards[cardName]
 }
 
-// 地形提示弹窗控制
 function showTerrainTooltip() {
   clearTimeout(terrainTooltipTimeout)
   terrainTooltipTimeout = setTimeout(() => {
@@ -637,57 +1304,1055 @@ function hideTerrainTooltip() {
   }, 300)
 }
 
-// 更多菜单控制
-function toggleMoreMenu() {
-  moreMenuOpen.value = !moreMenuOpen.value
+function openGameMenu() {
+  gameMenuOpen.value = true
 }
 
-// 结束游戏
-function endGame() {
-  if (confirm('确定要结束当前游戏吗？')) {
-    gameStore.resetGame() // 使用resetGame完全重置游戏状态
-    moreMenuOpen.value = false
-    router.push('/')
+async function handleEndGame() {
+  if (confirmState.value === 'end') {
+    confirmState.value = null
+    gameMenuOpen.value = false
+
+    // 调用后端API停止游戏
+    try {
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5001'
+      await fetch(`${apiBaseUrl}/api/game/stop`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+    } catch (e) {
+      console.error('停止游戏请求失败:', e)
+    }
+
+    // 清理前端状态
+    gameStore.endGame()
+
+    // 关闭SSE连接
+    if (eventSource) {
+      eventSource.close()
+      eventSource = null
+    }
+
+    setTimeout(() => router.push('/'), 500)
+  } else {
+    confirmState.value = 'end'
   }
 }
 
-// 发送命令
-function sendCommand() {
-  if (commandInput.value.trim()) {
-    console.log('发送命令:', commandInput.value)
-    commandInput.value = ''
+function handleResetSettings() {
+  if (confirmState.value === 'reset') {
+    confirmState.value = null
+    gameMenuOpen.value = false
+    setTimeout(() => router.push('/setup'), 500)
+  } else {
+    confirmState.value = 'reset'
   }
+}
+
+function handleRestartGame() {
+  if (confirmState.value === 'restart') {
+    confirmState.value = null
+    gameMenuOpen.value = false
+    alert('重新开始功能开发中，敬请期待！')
+  } else {
+    confirmState.value = 'restart'
+  }
+}
+
+async function syncStateAfterActionSubmission(previousVersion) {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5001'
+
+  for (let i = 0; i < 8; i++) {
+    if (stateVersion.value > previousVersion) {
+      return true
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, i === 0 ? 120 : 180))
+
+    if (stateVersion.value > previousVersion) {
+      return true
+    }
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/game/state?client_version=${stateVersion.value}`)
+      const result = await response.json()
+
+      if (result.up_to_date) {
+        continue
+      }
+
+      if (result.status === 'success' && result.state) {
+        applyGameViewFullState(result.state)
+        updateStateVersion(result.version)
+
+        if (stateVersion.value > previousVersion) {
+          return true
+        }
+      }
+    } catch (error) {
+      console.error('提交行动后同步最新状态失败:', error)
+    }
+  }
+
+  return stateVersion.value > previousVersion
+}
+
+async function submitActionAndSync(actionId) {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5001'
+  const previousVersion = stateVersion.value
+
+  try {
+    const response = await fetch(`${apiBaseUrl}/input`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action_id: actionId })
+    })
+    const data = await response.json()
+
+    if (!response.ok || data.status !== 'success') {
+      console.error('命令发送失败:', data.error || data.message || response.statusText)
+      return false
+    }
+
+    return await syncStateAfterActionSubmission(previousVersion)
+  } catch (error) {
+    console.error('命令发送失败:', error)
+    return false
+  }
+}
+
+function selectAction(actionId) {
+  void submitActionAndSync(actionId)
+}
+
+function getHexPoints(x, y, size) {
+  const points = []
+  for (let i = 0; i < 6; i++) {
+    const angle = (Math.PI / 3) * i - Math.PI / 6
+    const px = x + size * Math.cos(angle)
+    const py = y + size * Math.sin(angle)
+    points.push(`${px},${py}`)
+  }
+  return points.join(' ')
+}
+
+function generateHexMap() {
+  const svg = document.getElementById('hex-grid-svg')
+  if (!svg) return
+
+  // 完全按照 game_panel.html 的方式：清空SVG并重新创建所有层
+  svg.innerHTML = ''
+
+  const { rows, cols, hexSize, rowLetters } = MAP_CONFIG
+  const horizontalSpacing = hexSize * Math.sqrt(3)
+  const verticalSpacing = hexSize * 1.5
+
+  // 计算网格总尺寸
+  const gridWidth = cols * horizontalSpacing + hexSize
+  const gridHeight = rows * verticalSpacing + hexSize
+
+  // 设置SVG的viewBox
+  svg.setAttribute('viewBox', `0 0 ${gridWidth} ${gridHeight}`)
+  svg.setAttribute('preserveAspectRatio', 'xMidYMid meet')
+
+  // 计算起始位置
+  const startX = hexSize
+  const startY = hexSize + 5
+
+  // 创建组元素，用于整体控制
+  const gridGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+  gridGroup.setAttribute('id', 'hex-grid-group')
+  gridGroup.setAttribute('class', 'hex-grid-group')
+
+  // 创建编号层
+  const numbersLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+  numbersLayer.setAttribute('id', 'hex-numbers')
+
+  // 创建元素层
+  const elementsLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+  elementsLayer.setAttribute('id', 'hex-elements')
+  elementsLayer.setAttribute('class', 'hex-elements')
+
+  // 创建高亮层
+  const highlightLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+  highlightLayer.setAttribute('id', 'hex-highlight-layer')
+
+  // 创建悬停层
+  const hoverLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+  hoverLayer.setAttribute('id', 'hex-hover-layer')
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const xOffset = (row % 2 === 0) ? 0 : horizontalSpacing / 2
+      const centerX = startX + col * horizontalSpacing + xOffset
+      const centerY = startY + row * verticalSpacing
+      const rowLetter = rowLetters[row]
+      const colNumber = col + 1
+      const hexId = `${rowLetter}${colNumber}`
+
+      // 创建六边形 - 与 game_panel.html 完全一致
+      const hexagon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon')
+      hexagon.setAttribute('class', 'hexagon terrain-water')
+      hexagon.setAttribute('id', `hex-${hexId}`)
+      hexagon.setAttribute('points', getHexPoints(centerX, centerY, hexSize))
+      hexagon.setAttribute('data-position', hexId)
+      hexagon.setAttribute('data-row', row)
+      hexagon.setAttribute('data-col', col)
+      hexagon.setAttribute('data-terrain', '0')
+      // 设置默认颜色（水域）
+      hexagon.setAttribute('fill', TERRAIN_COLORS[0])
+      gridGroup.appendChild(hexagon)
+
+      // 创建编号文本
+      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+      text.setAttribute('class', 'hex-number')
+      text.setAttribute('id', `text-${hexId}`)
+      text.setAttribute('x', centerX)
+      text.setAttribute('y', centerY - 9)
+      text.textContent = hexId
+      numbersLayer.appendChild(text)
+
+      // 创建悬停叠加层
+      const hoverOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'polygon')
+      hoverOverlay.setAttribute('class', 'hover-overlay')
+      hoverOverlay.setAttribute('id', `hover-${row}-${col}`)
+      hoverOverlay.setAttribute('data-row', row)
+      hoverOverlay.setAttribute('data-col', col)
+      hoverOverlay.setAttribute('points', getHexPoints(centerX, centerY, hexSize))
+      hoverOverlay.addEventListener('mouseenter', function() {
+        this.classList.add('hover-active')
+        const highlight = document.getElementById(`highlight-${row}-${col}`)
+        if (highlight) highlight.classList.add('hover')
+      })
+      hoverOverlay.addEventListener('mouseleave', function() {
+        this.classList.remove('hover-active')
+        const highlight = document.getElementById(`highlight-${row}-${col}`)
+        if (highlight) highlight.classList.remove('hover')
+      })
+      hoverLayer.appendChild(hoverOverlay)
+
+      // 创建高亮叠加层
+      const highlightOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'polygon')
+      highlightOverlay.setAttribute('class', 'highlight-overlay')
+      highlightOverlay.setAttribute('id', `highlight-${row}-${col}`)
+      highlightOverlay.setAttribute('data-row', row)
+      highlightOverlay.setAttribute('data-col', col)
+      highlightOverlay.setAttribute('points', getHexPoints(centerX, centerY, hexSize))
+      highlightLayer.appendChild(highlightOverlay)
+    }
+  }
+
+  // 按照正确顺序添加所有层到SVG
+  svg.appendChild(gridGroup)
+  svg.appendChild(elementsLayer)
+  svg.appendChild(highlightLayer)
+  svg.appendChild(hoverLayer)
+  svg.appendChild(numbersLayer)
+
+  // 应用初始地形
+  applyInitialTerrain()
+
+  console.log('六边形地图生成完成')
+}
+
+// 应用初始地形 - 与 game_panel.html 完全一致
+function applyInitialTerrain() {
+  for (let row = 0; row < 9; row++) {
+    for (let col = 0; col < 13; col++) {
+      setHexTerrain(row, col, INITIAL_TERRAIN[row][col])
+    }
+  }
+}
+
+function setHexTerrain(row, col, terrainType) {
+  const hex = document.querySelector(`.hexagon[data-row="${row}"][data-col="${col}"]`)
+  if (hex && TERRAIN_COLORS[terrainType] !== undefined) {
+    // 移除旧的地形类
+    const terrainClasses = Object.values(TERRAIN_TYPES).map(t => `terrain-${t}`)
+    hex.classList.remove(...terrainClasses)
+    // 添加新的地形类和颜色 - 与 game_panel.html 保持一致
+    hex.classList.add(`terrain-${TERRAIN_TYPES[terrainType]}`)
+    hex.setAttribute('fill', TERRAIN_COLORS[terrainType])
+    hex.setAttribute('data-terrain', terrainType)
+    // 特殊处理：水域使用虚线边框
+    if (terrainType === 0) {
+      hex.style.strokeDasharray = '4,2'
+    } else {
+      hex.style.strokeDasharray = 'none'
+    }
+    return true
+  }
+  return false
+}
+
+function setHexHighlights(hexList) {
+  // 清除所有现有高亮
+  document.querySelectorAll('.highlight-overlay.active, .highlight-overlay.hover').forEach(el => {
+    el.classList.remove('active', 'hover')
+  })
+
+  if (!hexList || hexList.length === 0) return
+
+  hexList.forEach(coord => {
+    if (!Array.isArray(coord) || coord.length !== 2) return
+    const [row, col] = coord
+    if (row < 0 || row > 8 || col < 0 || col > 12) return
+    const highlight = document.getElementById(`highlight-${row}-${col}`)
+    if (highlight) highlight.classList.add('active')
+  })
+}
+
+// ========== 建筑放置功能 ==========
+
+async function placeElement(hexRow, hexCol, planningCardId, buildingType, mode = 'replace') {
+  // 计算位置ID (A1, B2等)
+  const positionId = getHexPositionId(hexRow, hexCol)
+
+  // 获取对应的六边形元素
+  const hexElement = document.getElementById(`hex-${positionId}`)
+  if (!hexElement) {
+    console.error(`六边形 ${positionId} 不存在`)
+    return
+  }
+
+  // 获取元素层
+  const elementsLayer = document.getElementById('hex-elements')
+  if (!elementsLayer) {
+    console.error('元素层不存在')
+    return
+  }
+
+  // 获取六边形的中心坐标
+  const bbox = hexElement.getBBox()
+  const centerX = bbox.x + bbox.width / 2
+  const bottomY = bbox.y + bbox.height * 0.85
+
+  // 替换模式：移除该位置的所有现有元素
+  if (mode === 'replace') {
+    clearPlacedElementsAt(hexRow, hexCol)
+  }
+
+  // 创建建筑图片
+  const image = document.createElementNS('http://www.w3.org/2000/svg', 'image')
+  image.setAttribute('class', 'hex-element')
+  image.setAttribute('data-position', positionId)
+  image.setAttribute('data-card-id', planningCardId)
+  image.setAttribute('data-building-type', buildingType)
+
+  try {
+    // 预加载图片获取原始尺寸
+    const imgUrl = `/images/buildings/${planningCardId}-${buildingType}.png`
+    const img = new Image()
+    img.src = imgUrl
+
+    await new Promise((resolve, reject) => {
+      img.onload = resolve
+      img.onerror = reject
+    })
+
+    // 计算25%的尺寸
+    const scaledWidth = img.naturalWidth * 0.25
+    const scaledHeight = img.naturalHeight * 0.25
+
+    // 设置正确尺寸
+    image.setAttribute('x', centerX - scaledWidth / 2)
+    image.setAttribute('y', bottomY - scaledHeight)
+    image.setAttribute('width', scaledWidth)
+    image.setAttribute('height', scaledHeight)
+    image.setAttribute('href', imgUrl)
+
+    console.log(`已加载建筑: ${planningCardId}-${buildingType}.png`)
+  } catch (error) {
+    console.error(`加载建筑图片失败: ${planningCardId}-${buildingType}.png`, error)
+    // 使用错误指示
+    image.setAttribute('href', 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="red" stroke-width="2"/><line x1="8" y1="8" x2="16" y2="16" stroke="red" stroke-width="2"/><line x1="16" y1="8" x2="8" y2="16" stroke="red" stroke-width="2"/></svg>')
+  }
+
+  // 添加到元素层
+  elementsLayer.appendChild(image)
+  return true
+}
+
+// ========== 回合信息功能 ==========
+
+function setRoundScoring(round, x) {
+  if (round < 1 || round > 6) return false
+  roundStates[round].actualX = x
+  roundStates[round].currentX = x
+  return true
+}
+
+function RoundScoringUpdate(round) {
+  if (round < 1 || round > 6) return false
+  roundStates[round].currentX = 0
+  roundStates[round].isFlipped = true
+  // 自动强调下一回合
+  if (round >= 0 && round <= 5) {
+    emphasizeRound(round + 1)
+  }
+  return true
+}
+
+function emphasizeRound(round) {
+  currentRound.value = round
+}
+
+function clearAllEmphasis() {
+  currentRound.value = 0
+}
+
+function setFinalRoundBonus(x) {
+  // 后端 final_scoring 范围是 1-4，前端需要 +12 映射到图片资源ID (13-16)
+  const frontendId = x + 12
+  if (frontendId < 13 || frontendId > 16) return false
+  roundStates[6].overlayImage = `/images/scoring/${frontendId}.png`
+  return true
+}
+
+function setBonusColumns(xList) {
+  if (!Array.isArray(xList)) return false
+  // 如果列数不够，自动扩展
+  while (bonusColumns.value.length < xList.length) {
+    bonusColumns.value.push({ x: 0, backX: 0, isFlipped: false })
+  }
+  xList.forEach((x, index) => {
+    if (index < bonusColumns.value.length) {
+      bonusColumns.value[index].x = x
+      bonusColumns.value[index].backX = x === 0 ? 0 : x + 10
+    }
+  })
+  return true
+}
+
+function flipSingleBonusColumn(index) {
+  if (index < 0 || index >= bonusColumns.value.length) return false
+  // 确保该索引存在
+  if (!bonusColumns.value[index]) return false
+  bonusColumns.value[index].isFlipped = !bonusColumns.value[index].isFlipped
+  return true
+}
+
+// ========== SSE 连接 ==========
+let eventSource = null
+let reconnectTimeout = null
+let isComponentActive = false
+
+// 获取全量状态并应用
+/*
+async function fetchFullState(retries = 10, delay = 500) {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5001'
+  
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/game/state?client_version=${stateVersion.value}`)
+      const result = await response.json()
+
+      if (result.up_to_date) {
+        return true
+      }
+
+      if (result.status === 'success' && result.state) {
+        applyGameViewFullState(result.state)
+        console.log('全量状态已加载, version:', result.version)
+        return true
+      }
+      
+      // 如果游戏还没开始，等待后重试
+      if (result.status === 'error') {
+        console.log(`游戏尚未启动，等待重试 (${i + 1}/${retries})...`)
+        await new Promise(resolve => setTimeout(resolve, delay))
+      }
+    } catch (e) {
+      console.error('获取全量状态失败:', e)
+      await new Promise(resolve => setTimeout(resolve, delay))
+    }
+  }
+  return false
+}
+
+// 应用全量状态到本地
+*/
+
+async function fetchFullState(retries = 10, delay = 500) {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5001'
+
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/game/state?client_version=${stateVersion.value}`)
+      const result = await response.json()
+
+      if (result.up_to_date) {
+        return true
+      }
+
+      if (result.status === 'success' && result.state) {
+        applyGameViewFullState(result.state)
+        updateStateVersion(result.version)
+        console.log('全量状态已加载, version:', result.version)
+        return true
+      }
+
+      if (result.status === 'error') {
+        console.log(`游戏尚未启动，等待重试 (${i + 1}/${retries})...`)
+        await new Promise((resolve) => setTimeout(resolve, delay))
+      }
+    } catch (error) {
+      console.error('获取全量状态失败:', error)
+      await new Promise((resolve) => setTimeout(resolve, delay))
+    }
+  }
+
+  return false
+}
+
+function applyFullState(state) {
+  // 应用元信息
+  if (state.meta) {
+    globalStatus.value = `第 ${state.meta.round || 1} 回合`
+    
+    // 根据玩家数量初始化玩家列表
+    const numPlayers = state.meta.num_players || 3
+    if (players.value.length !== numPlayers) {
+      initPlayers(numPlayers)
+    }
+  }
+  
+  // 应用游戏设置
+  if (state.setup) {
+    // 应用轮次计分
+    if (state.setup.round_scoring_order) {
+      state.setup.round_scoring_order.forEach((scoringId, index) => {
+        setRoundScoring(index + 1, scoringId)
+      })
+    }
+    
+    // 应用终局计分
+    if (state.setup.final_scoring) {
+      setFinalRoundBonus(state.setup.final_scoring)
+    }
+    
+    // 应用助推板块
+    if (state.setup.selected_round_boosters) {
+      setBonusColumns(state.setup.selected_round_boosters)
+    }
+  }
+  
+  // 应用玩家状态
+  if (state.players && Array.isArray(state.players)) {
+    state.players.forEach((p, idx) => {
+      if (idx < players.value.length) {
+        const player = players.value[idx]
+        // 更新资源
+        if (p.resources) {
+          player.money = p.resources.money ?? player.money
+          player.mineral = p.resources.ore ?? player.mineral
+          player.mibao = p.resources.meeples ?? player.mibao
+          player.bank = p.resources.bank_book ?? player.bank
+          player.law = p.resources.law_book ?? player.law
+          player.engineering = p.resources.engineering_book ?? player.engineering
+          player.medical = p.resources.medical_book ?? player.medical
+          player.magic1 = p.magics?.zone1 ?? player.magic1
+          player.magic2 = p.magics?.zone2 ?? player.magic2
+          player.magic3 = p.magics?.zone3 ?? player.magic3
+        }
+        // 更新得分
+        player.score = p.boardscore ?? player.score
+        setPlayerPlanningCard(player, p.planning_card_id)
+        setPlayerFaction(player, p.faction_id)
+      }
+    })
+  }
+  
+  // 应用可选行动
+  if (state.available_actions && Array.isArray(state.available_actions)) {
+    actions.value = state.available_actions.map((action, idx) => ({
+      id: action.action_id || idx,
+      text: action.description || ''
+    }))
+  }
+  
+  // 应用地图状态
+  if (state.map_state && state.map_state.grid) {
+    state.map_state.grid.forEach((row, rowIdx) => {
+      row.forEach((cell, colIdx) => {
+        if (cell.terrain !== undefined) {
+          setHexTerrain(rowIdx, colIdx, cell.terrain)
+        }
+        if (cell.building_id !== undefined && cell.building_id > 0) {
+          // 获取建筑类型名称
+          const buildingType = buildingIdToType[cell.building_id]
+          if (buildingType) {
+            // 获取控制者的规划卡ID来构建图片路径
+            const controllerPlayer = state.players?.[cell.controller]
+            const planningCardId = controllerPlayer?.planning_card_id || (cell.controller + 1)
+            placeElement(rowIdx, colIdx, planningCardId, buildingType, 'replace')
+          }
+        }
+      })
+    })
+  }
+}
+
+function applyGameViewFullState(state) {
+  if (state.meta) {
+    applyMetaState(state.meta)
+
+    const numPlayers = state.meta.num_players || 3
+    if (players.value.length !== numPlayers) {
+      initPlayers(numPlayers)
+    }
+  }
+
+  if (state.setup) {
+    if (state.setup.round_scoring_order) {
+      state.setup.round_scoring_order.forEach((scoringId, index) => {
+        setRoundScoring(index + 1, scoringId)
+      })
+    }
+
+    if (state.setup.final_scoring) {
+      setFinalRoundBonus(state.setup.final_scoring)
+    }
+
+    if (state.setup.selected_round_boosters) {
+      setBonusColumns(state.setup.selected_round_boosters)
+    }
+  }
+
+  if (state.players && Array.isArray(state.players)) {
+    state.players.forEach((playerState, idx) => {
+      if (idx < players.value.length) {
+        applyPlayerState(players.value[idx], playerState)
+      }
+    })
+  }
+
+  setAvailableActions(state.available_actions)
+
+  if (state.map_state && state.map_state.grid) {
+    resetMapState(state.map_state.grid)
+    document.querySelectorAll('.hex-element').forEach((el) => el.remove())
+
+    state.map_state.grid.forEach((row, rowIdx) => {
+      row.forEach((cell, colIdx) => {
+        if (cell.terrain !== undefined) {
+          setHexTerrain(rowIdx, colIdx, cell.terrain)
+        }
+        renderBuildingForCell(rowIdx, colIdx)
+      })
+    })
+  }
+}
+
+function connectSSE() {
+  if (!isComponentActive) return
+
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5001'
+  eventSource = new EventSource(`${apiBaseUrl}/stream/game`)
+
+  eventSource.onopen = () => {
+    console.log('SSE 连接已建立')
+  }
+
+  eventSource.onmessage = (event) => {
+    if (!isComponentActive) return
+    if (event.data === ':heartbeat') return
+    try {
+      const message = JSON.parse(event.data)
+      handleSSEMessage(message)
+    } catch (e) {
+      console.error('解析 SSE 消息失败:', e)
+    }
+  }
+
+  eventSource.onerror = (error) => {
+    console.error('SSE 连接错误:', error)
+    // 检测连接是否已关闭（后端可能已停止）
+    if (eventSource.readyState === EventSource.CLOSED) {
+      console.log('后端连接已关闭，清理游戏状态')
+      // 清理 localStorage 中的游戏状态
+      localStorage.removeItem('gameInProgress')
+      localStorage.removeItem('gameSettings')
+      // 重置游戏状态
+      gameStore.endGame()
+      // 返回首页
+      router.push('/')
+      return
+    }
+    // 尝试重连
+    reconnectTimeout = setTimeout(() => {
+      if (isComponentActive && eventSource) {
+        eventSource.close()
+        connectSSE()
+      }
+    }, 3000)
+  }
+}
+
+function handleSSEMessage(message) {
+  const { type, player_id, data } = message
+
+  switch (type) {
+    case 'player_state':
+      if (player_id >= 0 && player_id < players.value.length) {
+        applyPlayerState(players.value[player_id], data)
+      }
+      break
+
+    case 'global_status':
+      globalStatus.value = data.message
+      break
+
+    case 'log':
+      // channel 0 是可选行动框，1-3 对应玩家1-3的log框
+      if (player_id === 0) {
+        // channel 0: 可选行动框
+        actions.value.push({
+          text: data.content,
+          color: data.color || 'default'
+        })
+      } else if (player_id >= 1 && player_id <= players.value.length) {
+        // channel 1-3: 对应 player_id 0-2
+        players.value[player_id - 1].logs.push({
+          text: data.content,
+          color: data.color || 'default'
+        })
+      }
+      break
+
+    case 'actions':
+      // 处理可选行动，统一转换为前端格式 {id, text}
+      setAvailableActions(data.actions)
+      break
+
+    case 'terrain_update':
+      if (data.row !== undefined && data.col !== undefined && data.terrain_type !== undefined) {
+        setHexTerrain(data.row, data.col, data.terrain_type)
+      }
+      break
+
+    case 'building_update':
+      // 建筑更新处理
+      if (data.hex_row !== undefined && data.hex_col !== undefined && data.color !== undefined && data.id !== undefined) {
+        const buildingType = buildingIdToType[data.id]
+        if (buildingType) {
+          placeElement(data.hex_row, data.hex_col, data.color, buildingType, data.mode || 'replace')
+        }
+      }
+      break
+
+    case 'highlight_hex':
+      if (data.hex_list && Array.isArray(data.hex_list)) {
+        setHexHighlights(data.hex_list)
+      }
+      break
+
+    case 'round_scoring':
+      if (data.round >= 1 && data.round <= 6) {
+        setRoundScoring(data.round, data.scoring_id)
+      }
+      break
+
+    case 'final_scoring':
+      if (data.scoring_id >= 13 && data.scoring_id <= 16) {
+        setFinalRoundBonus(data.scoring_id)
+      }
+      break
+
+    case 'bonus_columns':
+      if (data.bonus_ids) {
+        setBonusColumns(data.bonus_ids)
+      }
+      break
+
+    case 'round_scoring_update':
+      // 回合计分板翻面并强调下一回合
+      if (data.round >= 1 && data.round <= 6) {
+        RoundScoringUpdate(data.round)
+      }
+      break
+
+    case 'round_bonus_get':
+    case 'round_bonus_back':
+      if (data.booster_index !== undefined) {
+        flipSingleBonusColumn(data.booster_index)
+      }
+      break
+
+    case 'full':
+      // 全量状态更新 - 来自 SSE 的初始状态
+      if (message.state) {
+        applyGameViewFullState(message.state)
+        updateStateVersion(message.version)
+        console.log('SSE 全量状态已加载, version:', message.version)
+      }
+      break
+
+    case 'incremental':
+      // 增量更新 - 应用变更到本地状态
+      console.log('[SSE] 收到增量更新, changes:', message.changes?.length || 0)
+      if (message.changes) {
+        // 检查是否有 available_actions 更新
+        const actionsChange = message.changes.find(c => c.path === 'available_actions')
+        if (actionsChange) {
+          console.log('[SSE] 发现 available_actions 更新:', actionsChange.new_value)
+        }
+        applyIncrementalChanges(message.changes)
+        updateStateVersion(message.version)
+      }
+      break
+
+    case 'game_over':
+      // 游戏结束
+      console.log('游戏结束:', data)
+      break
+
+    default:
+      console.log('未知消息类型:', type, data)
+  }
+}
+
+// 应用增量变更到本地状态
+function applyIncrementalChanges(changes) {
+  for (const change of changes) {
+    applyGameViewChange(change.path, change.new_value, change.change_type)
+  }
+}
+
+// 应用单个变更
+function applyGameViewChange(path, value, changeType) {
+  if (!path) return
+
+  const keys = path.split(/\.|\[|\]/).filter(k => k !== '')
+
+  if (keys.length >= 2) {
+    const lastKey = keys[keys.length - 1]
+    if (lastKey === 'added' || lastKey === 'removed') {
+      return
+    }
+  }
+
+  const rootKey = keys[0]
+
+  if (rootKey === 'available_actions') {
+    setAvailableActions(value)
+    return
+  }
+
+  if (rootKey === 'players' && keys.length >= 2) {
+    const playerIdx = Number.parseInt(keys[1], 10)
+    if (playerIdx >= 0 && playerIdx < players.value.length) {
+      applyPlayerFieldChange(players.value[playerIdx], keys.slice(2), value)
+    }
+    return
+  }
+
+  if (rootKey === 'meta' && keys.length >= 2) {
+    const key = keys[1]
+    gameMeta[key] = value
+
+    if (key === 'num_players' && value > 0 && players.value.length !== value) {
+      initPlayers(value)
+    }
+
+    if (key === 'round' || key === 'current_player_id' || key === 'action_type') {
+      globalStatus.value = buildGlobalStatusFromMeta()
+    }
+    return
+  }
+
+  if (rootKey === 'map_state' && keys.length >= 5 && keys[1] === 'grid') {
+    const row = Number.parseInt(keys[2], 10)
+    const col = Number.parseInt(keys[3], 10)
+    const field = keys[4]
+    const cell = ensureMapCell(row, col)
+
+    cell[field] = value
+
+    if (field === 'terrain') {
+      setHexTerrain(row, col, value)
+      return
+    }
+
+    if (field === 'building_id' || field === 'controller') {
+      renderBuildingForCell(row, col)
+    }
+    return
+  }
+
+  if (rootKey === 'setup' && keys.length >= 2) {
+    const setupKey = keys[1]
+    if (setupKey === 'round_scoring_order' && Array.isArray(value)) {
+      value.forEach((scoringId, index) => {
+        setRoundScoring(index + 1, scoringId)
+      })
+    } else if (setupKey === 'final_scoring' && value > 0) {
+      setFinalRoundBonus(value)
+    } else if (setupKey === 'selected_round_boosters' && Array.isArray(value)) {
+      setBonusColumns(value)
+    }
+  }
+}
+
+function applySingleChange(path, value, changeType) {
+  const keys = path.split(/\.|\[|\]/).filter(k => k !== '')
+
+  // 处理 set 类型的增量更新 (added/removed)
+  if (keys.length >= 2) {
+    const lastKey = keys[keys.length - 1]
+    if (lastKey === 'added' || lastKey === 'removed') {
+      // 暂不处理集合类型的增量更新
+      return
+    }
+  }
+
+  // 根据路径更新对应的本地状态
+  const rootKey = keys[0]
+
+  // 处理 available_actions - 直接替换整个列表
+  if (rootKey === 'available_actions') {
+    if (Array.isArray(value)) {
+      actions.value = value.map((action, idx) => ({
+        id: action.action_id || idx,
+        text: action.description || ''
+      }))
+    }
+    return
+  }
+
+  if (rootKey === 'players' && keys.length >= 2) {
+    // 更新玩家状态
+    const playerIdx = parseInt(keys[1])
+    if (playerIdx >= 0 && playerIdx < players.value.length) {
+      const player = players.value[playerIdx]
+      const remainingKeys = keys.slice(2)
+
+      // 特殊处理规划卡ID更新
+      if (remainingKeys.length === 1 && remainingKeys[0] === 'planning_card_id') {
+        setPlayerPlanningCard(player, value)
+        return
+      }
+
+      // 特殊处理派系ID更新
+      if (remainingKeys.length === 1 && remainingKeys[0] === 'faction_id') {
+        setPlayerFaction(player, value)
+        return
+      }
+
+      // 其他字段使用普通更新
+      updateNestedObject(player, remainingKeys, value)
+    }
+  } else if (rootKey === 'meta' && keys.length >= 2) {
+    // 更新元信息
+    const key = keys[1]
+    if (key === 'current_player_id') {
+      // 可以在这里添加当前玩家指示器的更新
+    } else if (key === 'num_players') {
+      // 玩家数量变化时重新初始化玩家列表
+      if (value > 0 && players.value.length !== value) {
+        initPlayers(value)
+      }
+    }
+  } else if (rootKey === 'map_state' && keys.length >= 4) {
+    // 更新地图状态
+    if (keys[1] === 'grid') {
+      const row = parseInt(keys[2])
+      const col = parseInt(keys[3])
+      if (keys.length >= 5) {
+        const field = keys[4]
+        if (field === 'terrain') {
+          setHexTerrain(row, col, value)
+        } else if (field === 'building_id') {
+          // 建筑更新 - 需要获取controller信息来放置正确的建筑图片
+          if (value > 0) {
+            const buildingType = buildingIdToType[value]
+            if (buildingType) {
+              // 尝试从当前地图状态获取controller
+              const cell = mapState.grid?.[row]?.[col]
+              const controller = cell?.controller ?? 0
+              const planningCardId = players.value[controller]?.planningCardId ?? (controller + 1)
+              placeElement(row, col, planningCardId, buildingType, 'replace')
+            }
+          }
+        } else if (field === 'controller') {
+          // 控制者更新 - 单独更新时可能需要重新渲染建筑
+        }
+      }
+    }
+  } else if (rootKey === 'setup' && keys.length >= 2) {
+    // 更新游戏设置
+    const setupKey = keys[1]
+    if (setupKey === 'round_scoring_order' && Array.isArray(value)) {
+      // 轮次计分顺序更新
+      value.forEach((scoringId, index) => {
+        setRoundScoring(index + 1, scoringId)
+      })
+    } else if (setupKey === 'final_scoring' && value > 0) {
+      // 最终计分更新
+      setFinalRoundBonus(value)
+    } else if (setupKey === 'selected_round_boosters' && Array.isArray(value)) {
+      // 回合助推器更新
+      setBonusColumns(value)
+    }
+  }
+}
+
+// 递归更新嵌套对象
+function updateNestedObject(obj, keys, value) {
+  let current = obj
+  for (let i = 0; i < keys.length - 1; i++) {
+    const key = keys[i]
+    if (current[key] === undefined) {
+      current[key] = {}
+    }
+    current = current[key]
+  }
+  const lastKey = keys[keys.length - 1]
+  current[lastKey] = value
 }
 
 // 点击外部关闭菜单
 function handleDocumentClick(e) {
-  const moreMenu = e.target.closest('.more-menu-container')
-  if (!moreMenu && moreMenuOpen.value) {
-    moreMenuOpen.value = false
-  }
-
   const tooltipContainer = e.target.closest('.terrain-tooltip-container')
   if (!tooltipContainer && terrainTooltipOpen.value) {
     terrainTooltipOpen.value = false
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  isComponentActive = true
   gameStore.loadFromStorage()
   document.addEventListener('click', handleDocumentClick)
+  // 初始化地图
+  generateHexMap()
+  // 先获取全量状态
+  await fetchFullState()
+  // 建立 SSE 连接
+  connectSSE()
 })
 
 onUnmounted(() => {
+  isComponentActive = false
   document.removeEventListener('click', handleDocumentClick)
   clearTimeout(terrainTooltipTimeout)
+  clearTimeout(reconnectTimeout)
+  clearEntityPreviewTimer()
+  clearEntityPreviewHideTimer()
+  if (eventSource) {
+    eventSource.close()
+    eventSource = null
+  }
 })
 </script>
 
 <style scoped>
-/* 使用与 setup 界面一致的 CSS 变量 */
 @import '../assets/variables.css';
 
 .game-page {
+  --game-page-padding: 24px 48px 36px 48px;
+  --game-column-gap: 18px;
+  --game-section-inset: 8px;
+  --game-content-gap: 16px;
   width: 100%;
   height: calc(100vh - 56px);
   background-color: var(--bg-primary);
@@ -695,16 +2360,16 @@ onUnmounted(() => {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  padding: var(--game-page-padding);
+  box-sizing: border-box;
 }
 
 .main-container {
   display: flex;
-  gap: var(--gap);
+  gap: var(--game-column-gap);
   flex: 1;
   height: 100%;
   overflow: hidden;
-  padding: var(--gap);
-  box-sizing: border-box;
 }
 
 /* ===== 左侧：玩家监控区 (28%) ===== */
@@ -712,13 +2377,13 @@ onUnmounted(() => {
   width: 28%;
   height: 100%;
   overflow: hidden;
-  background-color: var(--bg-secondary);
+  background-color: #171717;
   border: 1px solid var(--border);
   border-radius: var(--border-radius);
 }
 
 .monitor-header {
-  padding: 10px var(--panel-padding);
+  padding: 11px calc(var(--panel-padding) + 1px);
   height: 5%;
   display: flex;
   align-items: center;
@@ -740,18 +2405,18 @@ onUnmounted(() => {
   overflow: hidden;
   padding: 0;
   border-radius: 10px;
-  border: 1px solid #262626;
-  margin-left: 9px;
-  margin-right: 9px;
-  margin-bottom: 8px;
+  border: none;
+  margin-left: var(--game-section-inset);
+  margin-right: var(--game-section-inset);
+  margin-bottom: var(--game-section-inset);
   background-color: #171717;
 }
 
 .player-grid {
   display: flex;
   flex-direction: column;
-  gap: var(--gap);
-  padding: var(--gap);
+  gap: var(--game-content-gap);
+  padding: var(--game-content-gap);
   flex: 1;
   overflow-y: auto;
   max-height: 100%;
@@ -787,7 +2452,7 @@ onUnmounted(() => {
 }
 
 .player-header {
-  padding: 8px var(--panel-padding);
+  padding: 9px calc(var(--panel-padding) + 1px);
   background-color: var(--bg-tertiary);
   border-bottom: 1px solid var(--border);
   display: flex;
@@ -809,30 +2474,107 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
 .planning-card-indicator {
   display: flex;
   align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
 }
 
 .planning-card-circle {
-  width: 12px;
-  height: 12px;
+  display: block;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  background-color: #ffffff;
-  border: 0;
+  background-color: transparent;
+  border: 1px solid transparent;
+  box-shadow: inset 0 0 0 1px rgba(10, 10, 10, 0.45);
+  cursor: default;
+  transition: background-color 0.3s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.planning-card-circle.is-visible {
+  border-color: rgba(255, 255, 255, 0.35);
+  cursor: zoom-in;
+}
+
+.planning-card-circle.is-visible:hover,
+.planning-card-circle.is-visible:focus-visible {
+  outline: none;
+  border-color: rgba(149, 196, 230, 0.62);
+  box-shadow:
+    0 0 0 3px rgba(72, 122, 168, 0.2),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
 .faction-badge {
-  background-color: rgba(77, 166, 255, 0.2);
-  color: var(--accent-light);
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 0.8rem;
+  --faction-badge-height: 32px;
+  --faction-badge-border: 1px;
+  --faction-badge-gap: 3px;
+  --faction-badge-avatar-size: calc(var(--faction-badge-height) - var(--faction-badge-border) * 2 - var(--faction-badge-gap) * 2);
+  --faction-badge-text-gap: 8px;
+  display: inline-grid;
+  grid-template-columns: var(--faction-badge-avatar-size) auto;
+  column-gap: var(--faction-badge-text-gap);
+  align-items: center;
+  min-width: 0;
+  height: var(--faction-badge-height);
+  padding: var(--faction-badge-gap) 12px var(--faction-badge-gap) var(--faction-badge-gap);
+  border-radius: 999px;
+  background: rgba(14, 22, 34, 0.78);
+  border: var(--faction-badge-border) solid rgba(120, 160, 200, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  box-sizing: border-box;
+}
+
+.faction-badge-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--faction-badge-avatar-size);
+  height: var(--faction-badge-avatar-size);
+  border-radius: 50%;
+  overflow: hidden;
+  background: #0f1724;
+  border: 1px solid rgba(120, 160, 200, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  box-sizing: border-box;
+  cursor: zoom-in;
+  flex-shrink: 0;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.faction-badge-avatar:hover,
+.faction-badge-avatar:focus-visible {
+  outline: none;
+  border-color: rgba(149, 196, 230, 0.62);
+  box-shadow:
+    0 0 0 3px rgba(72, 122, 168, 0.2),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.faction-badge-avatar-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background-repeat: no-repeat;
+}
+
+.faction-badge-name {
+  max-width: 5em;
+  overflow: hidden;
+  color: var(--text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
   font-weight: 600;
-  margin-left: 6px;
-  border: 1px solid rgba(77, 166, 255, 0.3);
+  line-height: 1;
 }
 
 .player-title {
@@ -841,6 +2583,44 @@ onUnmounted(() => {
   color: var(--text-primary);
   display: flex;
   align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.player-name {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.entity-preview {
+  position: fixed;
+  z-index: 1200;
+  padding: 8px;
+  border-radius: 16px;
+  background: rgba(28, 28, 28, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(10px);
+  box-sizing: border-box;
+}
+
+.entity-preview-image {
+  width: 100%;
+  height: var(--entity-preview-image-height);
+  border-radius: 12px;
+  background-repeat: no-repeat;
+  background-color: #242424;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.entity-preview-name {
+  margin-top: 8px;
+  color: var(--text-primary);
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.3;
 }
 
 .player-score {
@@ -909,7 +2689,6 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 
-/* 游戏相关 icon 颜色保持不变 */
 .fa-coins { color: gold; }
 .fa-cube { color: silver; }
 .fa-user { color: #ff6b6b; }
@@ -989,7 +2768,7 @@ onUnmounted(() => {
 
 /* ===== 中间区域：游戏区域 (47%) ===== */
 .middle-section {
-  background-color: var(--bg-secondary);
+  background-color: #171717;
   border-radius: var(--border-radius);
   width: 47%;
   height: 100%;
@@ -1000,7 +2779,7 @@ onUnmounted(() => {
 }
 
 .middle-header {
-  padding: 10px var(--panel-padding);
+  padding: 11px calc(var(--panel-padding) + 1px);
   height: 5%;
   display: flex;
   align-items: center;
@@ -1022,18 +2801,18 @@ onUnmounted(() => {
   overflow: hidden;
   padding: 0;
   border-radius: 10px;
-  border: 1px solid #262626;
-  margin-left: 9px;
-  margin-right: 9px;
-  margin-bottom: 8px;
+  border: none;
+  margin-left: var(--game-section-inset);
+  margin-right: var(--game-section-inset);
+  margin-bottom: var(--game-section-inset);
   background-color: #171717;
 }
 
 .game-grid {
   display: flex;
   flex-direction: column;
-  gap: var(--gap);
-  padding: var(--gap);
+  gap: var(--game-content-gap);
+  padding: var(--game-content-gap);
   flex: 1;
   overflow-y: auto;
   max-height: 100%;
@@ -1067,7 +2846,7 @@ onUnmounted(() => {
 }
 
 .game-header {
-  padding: 8px var(--panel-padding);
+  padding: 9px calc(var(--panel-padding) + 1px);
   background-color: var(--bg-tertiary);
   display: flex;
   justify-content: space-between;
@@ -1263,10 +3042,10 @@ onUnmounted(() => {
   display: flex;
   overflow: hidden;
   min-height: 0;
-  transition: opacity 0.3s ease;
   opacity: 1;
   position: relative;
   z-index: 0;
+  transition: opacity 0.3s ease;
 }
 
 .game-card.collapsed .map-board-status {
@@ -1275,19 +3054,19 @@ onUnmounted(() => {
 
 .map-container-full {
   width: 100%;
-  height: 100%;
+  max-height: 100%;
   padding: 5px;
   display: flex;
   align-items: center;
   justify-content: center;
   background-color: transparent;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 #hex-grid-svg {
   display: block;
   width: 100%;
-  min-height: 490px;
 }
 
 /* 回合信息 */
@@ -1303,7 +3082,7 @@ onUnmounted(() => {
 
 .round-info-container {
   display: flex;
-  gap: 20px;
+  gap: 24px;
 }
 
 .left-column {
@@ -1471,8 +3250,8 @@ onUnmounted(() => {
 .right-column {
   width: 70%;
   display: flex;
-  gap: 6px;
-  padding: 4px;
+  gap: 8px;
+  padding: 6px;
   min-height: 100px;
   box-sizing: border-box;
   overflow: hidden;
@@ -1613,7 +3392,7 @@ onUnmounted(() => {
 .global-section {
   display: flex;
   flex-direction: column;
-  gap: var(--gap);
+  gap: var(--game-column-gap);
   width: 25%;
   height: 100%;
 }
@@ -1621,7 +3400,7 @@ onUnmounted(() => {
 .global-status {
   background-color: var(--bg-secondary);
   border-radius: var(--border-radius);
-  padding: 16px var(--panel-padding);
+  padding: 18px calc(var(--panel-padding) + 2px);
   border: 1px solid var(--border);
   overflow: hidden;
   display: flex;
@@ -1656,16 +3435,16 @@ onUnmounted(() => {
 /* 更多菜单 */
 .more-menu-container {
   position: absolute;
-  top: 12px;
-  right: 12px;
+  top: 14px;
+  right: 14px;
 }
 
 .more-menu-btn {
   width: 32px;
   height: 32px;
   border-radius: 6px;
-  border: 1px solid var(--border);
-  background: var(--bg-tertiary);
+  border: none;
+  background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
   display: flex;
@@ -1675,58 +3454,102 @@ onUnmounted(() => {
 }
 
 .more-menu-btn:hover {
-  border-color: var(--accent);
+  background: var(--bg-tertiary);
   color: var(--accent);
 }
 
-.more-menu-dropdown {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 4px;
-  min-width: 140px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  z-index: 100;
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(-4px);
-  transition: all 0.2s ease;
-}
-
-.more-menu-dropdown.show {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0);
-}
-
-.menu-item {
+/* 游戏菜单弹窗样式 */
+.game-menu-content {
   display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 24px;
+}
+
+.menu-modal-btn {
+  display: flex;
+  flex-direction: row;
   align-items: center;
-  gap: 8px;
+  gap: 16px;
   width: 100%;
-  padding: 8px 12px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
+  padding: 16px 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-tertiary);
   color: var(--text-primary);
-  font-size: 0.9rem;
   cursor: pointer;
   transition: all 0.2s;
+  text-align: left;
 }
 
-.menu-item:hover {
-  background: var(--bg-tertiary);
+.menu-modal-btn:hover {
+  border-color: var(--accent);
+  background: var(--bg-secondary);
+  transform: translateY(-2px);
 }
 
-.menu-item.end-game {
+.btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+}
+
+.btn-icon i {
+  font-size: 1.5rem;
+}
+
+.btn-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.btn-text span {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.btn-text small {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+/* 所有菜单按钮悬停态统一为红色 */
+.menu-modal-btn:hover {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.menu-modal-btn .btn-icon i {
   color: #ef4444;
 }
 
-.menu-item.end-game:hover {
-  background: rgba(239, 68, 68, 0.1);
+/* 二次确认状态样式 */
+.menu-modal-btn.confirm-state {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
+  animation: confirm-pulse 1s ease-in-out infinite;
+}
+
+.menu-modal-btn.confirm-state .btn-text span {
+  color: #ef4444;
+}
+
+.menu-modal-btn.confirm-state .btn-text small {
+  color: #f87171;
+}
+
+@keyframes confirm-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.2);
+  }
 }
 
 .action-section {
@@ -1740,7 +3563,7 @@ onUnmounted(() => {
 }
 
 .action-header {
-  padding: 8px var(--panel-padding);
+  padding: 10px calc(var(--panel-padding) + 2px);
   background-color: var(--bg-tertiary);
   border-bottom: 1px solid var(--border);
   display: flex;
@@ -1769,7 +3592,7 @@ onUnmounted(() => {
 
 .action-content {
   flex: 1;
-  padding: var(--panel-padding);
+  padding: calc(var(--panel-padding) + 2px);
   overflow-y: auto;
   font-size: 0.9rem;
   line-height: 1.5;
@@ -1792,13 +3615,27 @@ onUnmounted(() => {
 
 .action-item {
   background-color: var(--bg-tertiary);
-  border-left: 4px solid var(--accent);
-  padding: 10px;
-  margin-bottom: 8px;
+  border-left: 3px solid var(--accent);
+  padding: 6px 8px;
+  margin-bottom: 4px;
   border-radius: 0 2px 2px 0;
   font-family: 'Consolas', monospace;
+  font-size: 0.8rem;
+  line-height: 1.3;
   white-space: pre-wrap;
   word-wrap: break-word;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.action-item:hover {
+  background-color: var(--bg-hover);
+}
+
+.action-id {
+  font-weight: bold;
+  color: var(--accent);
+  font-size: 0.8rem;
 }
 
 .action-item[data-color='red'] { border-left-color: #cc2828; }
@@ -1809,55 +3646,6 @@ onUnmounted(() => {
 .action-item[data-color='brown'] { border-left-color: #85491d; }
 .action-item[data-color='black'] { border-left-color: #595959; }
 .action-item[data-color='white'] { border-left-color: #ffffff; }
-
-.global-input {
-  background-color: var(--bg-secondary);
-  border-radius: var(--border-radius);
-  padding: var(--panel-padding);
-  height: 70px;
-  border: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-}
-
-.input-group {
-  display: flex;
-  gap: 8px;
-  flex: 1;
-}
-
-.input-group input {
-  flex: 1;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-  font-size: 0.95rem;
-  font-family: inherit;
-  outline: none;
-  transition: border-color 0.2s;
-}
-
-.input-group input:focus {
-  border-color: var(--accent);
-}
-
-.send-btn {
-  background-color: var(--accent);
-  color: white;
-  border: none;
-  width: 44px;
-  border-radius: 4px;
-  font-size: 1.05rem;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  flex-shrink: 0;
-}
-
-.send-btn:hover {
-  background-color: #0069d9;
-}
 
 /* 滚动条优化 */
 ::-webkit-scrollbar {
@@ -1896,6 +3684,13 @@ onUnmounted(() => {
 }
 
 @media (max-width: 768px) {
+  .game-page {
+    --game-page-padding: 18px;
+    --game-column-gap: 18px;
+    --game-section-inset: 9px;
+    --game-content-gap: 13px;
+  }
+
   .main-container {
     flex-direction: column;
     height: auto;
@@ -1909,5 +3704,94 @@ onUnmounted(() => {
     height: auto;
     min-height: 400px;
   }
+}
+
+</style>
+
+<style>
+/* ===== 六边形地图样式（全局，因为 SVG 元素是动态创建的） ===== */
+.hexagon {
+  fill: rgba(40, 40, 60, 0.7);
+  stroke: rgb(219, 219, 219);
+  stroke-width: 2;
+  stroke-dasharray: 0;
+  transition: all 0.1s ease;
+  cursor: default;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* 水域地块使用虚线边框 */
+.hexagon.terrain-water {
+  stroke-dasharray: 9, 9;
+  stroke-width: 1.5;
+  stroke: rgba(255, 255, 255, 0.2);
+}
+
+/* 地形颜色类 */
+.terrain-water { fill: transparent; }
+.terrain-plains { fill: #85491D; }
+.terrain-swamp { fill: #595959; }
+.terrain-lake { fill: #35a0d5; }
+.terrain-forest { fill: #37af37; }
+.terrain-mountain { fill: #a1a1a1; }
+.terrain-wasteland { fill: #cc2828; }
+.terrain-desert { fill: #e8e83d; }
+
+/* 六边形编号样式 */
+.hex-number {
+  font-family: Arial, sans-serif;
+  font-size: 10px;
+  font-weight: bold;
+  fill: rgba(255, 255, 255, 0.9);
+  text-anchor: middle;
+  dominant-baseline: middle;
+  pointer-events: none;
+  user-select: none;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.85);
+}
+
+/* 高亮层基础样式 */
+.highlight-overlay {
+  pointer-events: none;
+  stroke: transparent;
+  stroke-dasharray: 0;
+  stroke-width: 4;
+  fill: transparent;
+  transition: all 0.3s ease;
+}
+
+/* 高亮激活状态 - 紫色边框和填充 */
+.highlight-overlay.active {
+  stroke: #9c27b0;
+  stroke-dasharray: 12, 6;
+  stroke-width: 4;
+  fill: rgba(156, 39, 176, 0.2);
+}
+
+/* 高亮层悬停状态 - 蓝色边框 */
+.highlight-overlay.hover {
+  stroke: var(--accent) !important;
+  stroke-width: 4 !important;
+}
+
+.highlight-overlay.active.hover {
+  stroke: var(--accent) !important;
+}
+
+/* 悬停叠加层样式 */
+.hover-overlay {
+  pointer-events: all;
+  cursor: default;
+  stroke: transparent;
+  stroke-width: 4;
+  transition: all 0.1s ease;
+  fill: transparent;
+}
+
+.hover-overlay:hover,
+.hover-overlay.hover-active {
+  stroke: var(--accent);
+  stroke-width: 4;
 }
 </style>

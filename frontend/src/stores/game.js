@@ -11,7 +11,6 @@ export const useGameStore = defineStore('game', () => {
   // Getters
   const gameState = computed(() => {
     if (isPlaying.value) return 'playing'
-    if (settings.value) return 'setup'
     return 'home'
   })
 
@@ -28,7 +27,11 @@ export const useGameStore = defineStore('game', () => {
 
   function endGame() {
     isPlaying.value = false
+    settings.value = null
+    currentRound.value = 1
+    players.value = []
     localStorage.removeItem('gameInProgress')
+    localStorage.removeItem('gameSettings')
   }
 
   function resetGame() {

@@ -1,0 +1,39 @@
+/* ===== CSS 变量定义 ===== */
+/* 此文件包含全局 CSS 变量，用于统一控制主题色彩 */
+
+:root {
+  /* 背景色 */
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #1a1a1a;
+  --bg-tertiary: #252525;
+  --bg-elevated: #2a2a2a;
+
+  /* 文字色 */
+  --text-primary: #f0f0f0;
+  --text-secondary: #a0a0a0;
+  --text-muted: #666666;
+
+  /* 强调色 */
+  --accent: #007bff;
+  --accent-light: #4da6ff;
+  --accent-glow: rgba(0, 123, 255, 0.4);
+
+  /* 边框 */
+  --border: #333333;
+
+  /* 布局 */
+  --gap: 14px;
+  --border-radius: 10px;
+  --panel-padding: 12px;
+
+  /* 导航栏 */
+  --navbar-height: 56px;
+
+  /* 字号规范 */
+  --font-size-page-title: 2rem;
+  --font-size-section-title: 1.5rem;
+  --font-size-card-title: 1.25rem;
+  --font-size-body: 1rem;
+  --font-size-small: 0.85rem;
+  --font-size-tiny: 0.75rem;
+}

@@ -2,9 +2,9 @@
   <div id="app">
     <NavBar />
     <main class="main-content">
-      <router-view v-slot="{ Component }">
+      <router-view v-slot="{ Component, route }">
         <transition name="page" mode="out-in">
-          <component :is="Component" />
+          <component :is="Component" :key="route.path" />
         </transition>
       </router-view>
     </main>
@@ -29,9 +29,10 @@ onMounted(() => {
   min-height: 100vh;
 }
 
+/* 页面统一缓入缓出效果 - 纯渐变 */
 .page-enter-active,
 .page-leave-active {
-  transition: opacity 0.3s ease;
+  transition: opacity 0.2s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 .page-enter-from,

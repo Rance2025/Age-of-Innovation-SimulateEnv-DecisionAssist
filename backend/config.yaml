@@ -1,0 +1,30 @@
+# Age of Innovation - 后端配置
+
+# 服务器配置
+server:
+  host: "127.0.0.1"
+  port: 5001
+  debug: false
+  use_reloader: false
+
+# 玩家配置
+players:
+  default_count: 3
+  min_count: 3
+  max_count: 5
+
+# CORS配置
+cors:
+  origins:
+    - "*"
+  methods:
+    - "GET"
+    - "POST"
+    - "OPTIONS"
+  headers:
+    - "Content-Type"
+
+# 路径配置（相对于项目根目录）
+paths:
+  static_folder: "frontend/assets/images"
+  db_path: "backend/database/game_history.db"

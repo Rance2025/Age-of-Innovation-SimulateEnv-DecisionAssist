@@ -25,14 +25,6 @@
             <i class="fas fa-history"></i>
             <span>历史对局</span>
           </a>
-          <a
-            class="nav-item"
-            :class="{ active: $route.name === 'Test' }"
-            @click="handleTestClick"
-          >
-            <i class="fas fa-flask"></i>
-            <span>测试</span>
-          </a>
         </div>
       </div>
       <div class="nav-right">
@@ -59,6 +51,8 @@ const isGameRoute = computed(() =>
 
 // 根据游戏状态显示不同文字
 const gameStatusText = computed(() => {
+  // 如果在游戏页面，显示"游戏中…"
+  if (route.name === 'Game') return '游戏中…'
   // 如果在设置页面，显示"初始中…"
   if (route.name === 'Setup') return '初始中…'
   // 如果在历史页面，检查来源页面
@@ -67,34 +61,21 @@ const gameStatusText = computed(() => {
     if (source === 'Setup') return '初始中…'
     if (source === 'Game') return '游戏中…'
   }
-  switch (gameStore.gameState) {
-    case 'playing': return '游戏中…'
-    case 'setup': return '初始中…'
-    default: return '开始游戏'
-  }
+  // 默认显示"开始游戏"
+  return '开始游戏'
 })
 
-// 点击游戏按钮：根据状态跳转到不同页面
+// 点击游戏按钮：根据当前路由决定行为
 function handleGameClick() {
-  // 如果已经在当前路由，不执行任何操作
-  if (route.name === 'Game' && gameStore.gameState === 'playing') return
-  if (route.name === 'Setup' && gameStore.gameState === 'setup') return
-  if (route.name === 'Home' && gameStore.gameState === 'home') return
+  // 如果已经在游戏相关路由，不执行任何操作
+  if (route.name === 'Game' || route.name === 'Setup' || route.name === 'Home') {
+    return
+  }
 
   if (route.name === 'History') {
     // 从历史页面返回：回到之前的页面
     const source = navStore.getHistorySource()
     router.push({ name: source })
-  } else {
-    // 正常导航：根据游戏状态跳转
-    const state = gameStore.gameState
-    if (state === 'playing') {
-      router.push('/game')
-    } else if (state === 'setup') {
-      router.push('/setup')
-    } else {
-      router.push('/setup')
-    }
   }
 }
 
@@ -106,12 +87,6 @@ function handleHistoryClick() {
   // 记录从哪个页面跳转过来的
   navStore.setHistorySource(route.name)
   router.push('/history')
-}
-
-// 点击测试按钮
-function handleTestClick() {
-  if (route.name === 'Test') return
-  router.push('/test')
 }
 </script>
 

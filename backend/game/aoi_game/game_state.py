@@ -1,20 +1,23 @@
 import random
-import time
 from typing import Callable
-from web_io import GamePanel, Silence_IO
-from collections import defaultdict, deque
-from DetailedAction import DetailedAction
+from .utils.actions_loader import get_all_detailed_actions
+from .utils.generatorize import generatorize
+
 
 class GameStateBase:
     """游戏状态类"""
     class GameSetup:
         """游戏初始设置类"""
-        def __init__(self, num_players: int, mode: tuple, io: GamePanel|Silence_IO):
+        def __init__(self, num_players: int, init_settings: dict[str, str|list[int]|dict[str,str|int|list[int]]]):
             self.num_players = num_players
-            self.mode = mode
-            self.seedid = 7
-            self.io = io
+
+            # 保存设置参数
+            self._player_order = init_settings['init_player_order']
+            self._setup_tiles = init_settings['setup_tiles']
             
+            # 参数合法性检验
+            self._validate_params(num_players, self._player_order, self._setup_tiles)
+
             # 所有可用组件
             self.all_factions = list(range(1, 13))       # 共12派系
             self.all_planning_cards = list(range(1, 8))  # 共7规划卡
@@ -25,18 +28,19 @@ class GameStateBase:
             self.all_science_tiles = list(range(1, 19))  # 共18科学板块
             self.all_palace_tiles = list(range(1, 17))   # 共16宫殿板块
             self.all_round_boosters = list(range(1, 11)) # 共10回合助推板
-            
+
             # 初始化设置结果
             self.selected_planning_cards = []       # [int]
             self.selected_factions = []             # [int]
             self.selected_palace_tiles = []         # [int]
-            self.selected_round_boosters = []       # [int]            
+            self.selected_round_boosters = []       # [int]
             self.round_scoring_order = []           # [int] 顺序重要
             self.final_scoring = 0                  # int
             self.ability_tiles_order = []           # [int] 顺序重要
             self.science_tiles_order = []           # [int] 顺序重要
-            self.selected_book_actions = []         # [int] 
-            
+            self.selected_book_actions = []         # [int]
+            self.init_player_order = []             # [int] 初始玩家顺序
+
             # 当前全局书资源
             self.current_global_books = {
                 'bank_book': 12,                   # 银行书总量上限
@@ -44,255 +48,169 @@ class GameStateBase:
                 'engineering_book': 12,            # 工程书总量上限
                 'medical_book': 12,                # 医学书总量上限
             }
-            
-            # 执行随机初始设置
-            match mode[0]:
-                case 'random':
-                    self.perform_random_initial_setup()
-                case 'target':
-                    self.perform_target_initial_setup(mode[1])
-                case 'input':
-                    self.perform_input_initial_setup()
-                case _:
-                    raise ValueError('Invalid mode')
-        
-        def perform_random_initial_setup(self):
-            """执行随机初始设置步骤"""
-            self.seedid = int(time.strftime("%S%H%M", time.localtime()))
-            random.seed(self.seedid)
-            # print(f'seed:{self.seedid}')
 
-            # 1. 选择6张规划卡
-            self.selected_planning_cards =sorted(random.sample(self.all_planning_cards, 6))
+            # 执行初始设置
+            self.perform_initial_setup()
 
-            # 2. 选择人数+1的派系板块
-            self.selected_factions = sorted(random.sample(self.all_factions, self.num_players + 1))
-            
-            # 3. 选取人数+1个宫殿板块作为可选项
-            self.selected_palace_tiles = sorted(random.sample(self.all_palace_tiles, self.num_players + 1))
-            
-            # 4. 选取人数+3个回合助推板作为可选项
-            self.selected_round_boosters = sorted(random.sample(self.all_round_boosters, self.num_players + 3))
-            self.io.set_bonus_columns(self.selected_round_boosters)
-            
-            # 5. 选取6个轮次计分板块并随机排序
-            self.round_scoring_order = random.sample(self.all_round_scoring, 6)
-            while not self.round_scoring_order_is_legal(self.round_scoring_order):
+        def _validate_params(self, num_players: int, player_order: list[int]|str, setup_tiles: dict):
+            """验证输入参数的合法性"""
+            # 验证玩家数量
+            if not isinstance(num_players, int) or num_players < 3 or num_players > 5:
+                raise ValueError(f'玩家数量必须在3-5之间，当前为: {num_players}')
+
+            # 验证 player_order 结构
+            if isinstance(player_order, str):
+                if player_order != 'random':
+                    raise ValueError("player_order 如果是字符串，必须是 'random'")
+            elif isinstance(player_order, list):
+                if len(player_order) != num_players:
+                    raise ValueError(f'player_order 列表长度({len(player_order)})必须与玩家数量({num_players})一致')
+                if len(set(player_order)) != num_players:
+                    raise ValueError('player_order 列表中存在重复值')
+                # 前端传递的是1-based编号，验证范围是 1 到 num_players
+                if any(not isinstance(i, int) or i < 1 or i > num_players for i in player_order):
+                    raise ValueError(f'player_order 列表中的值必须在 1 到 {num_players} 之间')
+            else:
+                raise ValueError('player_order 必须是字符串 "random" 或整数列表')
+
+            # 验证 setup_tiles 结构
+            if not isinstance(setup_tiles, dict):
+                raise ValueError('setup_tiles 必须是字典类型')
+
+            # 定义需要验证的板块字段及其规则
+            tile_validators = {
+                'planning_cards': {'type': (int, str), 'random': True, 'range': (1, 7)},
+                'factions': {'type': (list, str), 'random': True, 'range': (1, 12), 'count': num_players + 1},
+                'palace_tiles': {'type': (list, str), 'random': True, 'range': (1, 16), 'count': num_players + 1},
+                'round_boosters': {'type': (list, str), 'random': True, 'range': (1, 10), 'count': num_players + 3},
+                'round_scoring': {'type': (list, str), 'random': True, 'range': (1, 12), 'count': 6},
+                'final_scoring': {'type': (int, str), 'random': True, 'range': (1, 4)},
+                'ability_tiles': {'type': (list, str), 'random': True, 'range': (1, 12), 'count': 12},
+                'science_tiles': {'type': (list, str), 'random': True, 'range': (1, 18), 'count': num_players * 2 + 2},
+                'book_actions': {'type': (list, str), 'random': True, 'range': (1, 6), 'count': 3},
+            }
+
+            for field, rules in tile_validators.items():
+                if field not in setup_tiles:
+                    continue  # 允许缺失，使用默认值
+
+                value = setup_tiles[field]
+
+                # 如果是 'random' 字符串，跳过进一步验证
+                if value == 'random':
+                    continue
+
+                # 验证类型
+                expected_type = rules['type']
+                if isinstance(expected_type, tuple):
+                    if not isinstance(value, expected_type):
+                        raise ValueError(f'{field} 必须是 {expected_type} 类型之一，当前为: {type(value)}')
+                else:
+                    if not isinstance(value, expected_type):
+                        raise ValueError(f'{field} 必须是 {expected_type} 类型，当前为: {type(value)}')
+
+                # 如果是字符串且不是 'random'，则报错
+                if isinstance(value, str) and value != 'random':
+                    raise ValueError(f"{field} 如果是字符串，必须是 'random'，当前为: {value}")
+
+                # 验证列表类型的值
+                if isinstance(value, list):
+                    min_val, max_val = rules['range']
+                    for item in value:
+                        if not isinstance(item, int) or item < min_val or item > max_val:
+                            raise ValueError(f'{field} 中的值必须在 {min_val} 到 {max_val} 之间，当前包含: {item}')
+
+                    # 验证数量
+                    if 'count' in rules and len(value) != rules['count']:
+                        raise ValueError(f'{field} 必须包含 {rules["count"]} 个元素，当前为: {len(value)}')
+
+                    # 验证重复
+                    if len(set(value)) != len(value):
+                        raise ValueError(f'{field} 中存在重复值')
+
+                # 验证整数类型的值
+                if isinstance(value, int):
+                    min_val, max_val = rules['range']
+                    if value < min_val or value > max_val:
+                        raise ValueError(f'{field} 必须在 {min_val} 到 {max_val} 之间，当前为: {value}')
+
+        def perform_initial_setup(self):
+            """
+            执行统一的初始设置步骤
+            使用 self._player_order 和 self._setup_tiles 中保存的参数
+            """
+            # ========== 1. 处理玩家顺序 ==========
+            if self._player_order == 'random':
+                self.init_player_order = random.sample(list(range(self.num_players)), self.num_players)
+            else:
+                # 前端传递的是1-based的玩家编号，转换为0-based
+                self.init_player_order = [i - 1 for i in self._player_order]
+
+            # ========== 2. 处理规划卡 ==========
+            if self._setup_tiles['planning_cards'] == 'random':
+                self.selected_planning_cards = sorted(random.sample(self.all_planning_cards, 6))
+            else:
+                # 前端传递的是被排除的规划卡编号
+                excluded_card = self._setup_tiles['planning_cards']
+                self.selected_planning_cards = self.all_planning_cards.copy()
+                self.selected_planning_cards.remove(excluded_card)
+
+            # ========== 3. 处理派系板块 ==========
+            if self._setup_tiles['factions'] == 'random':
+                self.selected_factions = sorted(random.sample(self.all_factions, self.num_players + 1))
+            else:
+                self.selected_factions = sorted(self._setup_tiles['factions'])
+
+            # ========== 4. 处理宫殿板块 ==========
+            if self._setup_tiles['palace_tiles'] == 'random':
+                self.selected_palace_tiles = sorted(random.sample(self.all_palace_tiles, self.num_players + 1))
+            else:
+                self.selected_palace_tiles = sorted(self._setup_tiles['palace_tiles'])
+
+            # ========== 5. 处理回合助推板 ==========
+            if self._setup_tiles['round_boosters'] == 'random':
+                self.selected_round_boosters = sorted(random.sample(self.all_round_boosters, self.num_players + 3))
+            else:
+                self.selected_round_boosters = sorted(self._setup_tiles['round_boosters'])
+            pass  # web_io 已移除
+
+            # ========== 6. 处理轮次计分板块 ==========
+            if self._setup_tiles['round_scoring'] == 'random':
                 self.round_scoring_order = random.sample(self.all_round_scoring, 6)
-                random.shuffle(self.round_scoring_order)
-            for i in range(6):
-                self.io.set_round_scoring(i+1,self.round_scoring_order[i])
+                while not self.round_scoring_order_is_legal(self.round_scoring_order):
+                    self.round_scoring_order = random.sample(self.all_round_scoring, 6)
+                    random.shuffle(self.round_scoring_order)
+            else:
+                self.round_scoring_order = self._setup_tiles['round_scoring']
+            pass  # web_io 已移除
 
-            # 6. 随机选取1个最终计分板块
-            self.final_scoring = random.choice(self.all_final_scoring)
-            self.io.set_final_round_bonus(self.final_scoring)
+            # ========== 7. 处理最终计分板块 ==========
+            if self._setup_tiles['final_scoring'] == 'random':
+                self.final_scoring = random.choice(self.all_final_scoring)
+            else:
+                self.final_scoring = self._setup_tiles['final_scoring']
+            pass  # web_io 已移除
 
-            # 7. 对共12块能力板块随机排序
-            self.ability_tiles_order = random.sample(self.all_ability_tiles, 12)
-            random.shuffle(self.ability_tiles_order)
-            
-            # 8. 选取2+人数*2的科学板块并随机排序
-            self.science_tiles_order = random.sample(self.all_science_tiles, self.num_players * 2 + 2)
-            random.shuffle(self.science_tiles_order)
-            
-            # 9. 选取3个书本行动
-            self.selected_book_actions = sorted(random.sample(self.all_book_actions, 3))            
-      
-        def perform_target_initial_setup(self, args):
-            """执行指定初始设置步骤"""
-            def validate_setup_args(args, num_players):
-                """
-                验证通过args元组传入的设置参数是否合法
-                
-                Args:
-                    args: 包含9个元素的元组，对应9个设置步骤
-                    num_players: 玩家数量
-                
-                Returns:
-                    bool: 参数是否合法
-                    str: 错误信息（如果合法则为空字符串）
-                """
-                
-                # 检查args是否为9个元素的元组
-                if not isinstance(args, tuple) or len(args) != 9:
-                    return False, "参数必须是一个包含9个元素的元组"
-                
-                try:
-                    # 1. 检查被排除的规划卡
-                    excluded_planning_card = args[0]
-                    if not isinstance(excluded_planning_card, int) or excluded_planning_card < 1 or excluded_planning_card > 7:
-                        return False, "被排除的规划卡必须是1-7之间的整数"
-                    
-                    # 2. 检查派系板块
-                    selected_factions = args[1]
-                    if (not isinstance(selected_factions, (list, tuple)) or 
-                        len(set(selected_factions)) != num_players + 1 or 
-                        min(selected_factions) < 1 or max(selected_factions) > 12):
-                        return False, f"派系板块必须是包含{num_players+1}个不重复的1-12之间整数的列表"
-                    
-                    # 3. 检查宫殿板块
-                    selected_palace_tiles = args[2]
-                    if (not isinstance(selected_palace_tiles, (list, tuple)) or 
-                        len(set(selected_palace_tiles)) != num_players + 1 or 
-                        min(selected_palace_tiles) < 1 or max(selected_palace_tiles) > 16):
-                        return False, f"宫殿板块必须是包含{num_players+1}个不重复的1-16之间整数的列表"
-                    
-                    # 4. 检查回合助推板
-                    selected_round_boosters = args[3]
-                    if (not isinstance(selected_round_boosters, (list, tuple)) or 
-                        len(set(selected_round_boosters)) != num_players + 3 or 
-                        min(selected_round_boosters) < 1 or max(selected_round_boosters) > 10):
-                        return False, f"回合助推板必须是包含{num_players+3}个不重复的1-10之间整数的列表"
-                    
-                    # 5. 检查轮次计分板块
-                    round_scoring_order = args[4]
-                    if (not isinstance(round_scoring_order, (list, tuple)) or 
-                        len(set(round_scoring_order)) != 6 or 
-                        min(round_scoring_order) < 1 or max(round_scoring_order) > 12):
-                        return False, "轮次计分板块必须是包含6个不重复的1-12之间整数的列表"
-                    
-                    if self.round_scoring_order_is_legal(round_scoring_order) == False:
-                        return False, "轮次计分板不符合同学科前五回合内不能出现三次的限制性规定或8号板位于第五第六回合"
-                    
-                    # 6. 检查最终计分板块
-                    final_scoring = args[5]
-                    if not isinstance(final_scoring, int) or final_scoring < 1 or final_scoring > 4:
-                        return False, "最终计分板块必须是1-4之间的整数"
-                    
-                    # 7. 检查能力板块顺序
-                    ability_tiles_order = args[6]
-                    if (not isinstance(ability_tiles_order, (list, tuple)) or 
-                        len(set(ability_tiles_order)) != 12 or 
-                        min(ability_tiles_order) < 1 or max(ability_tiles_order) > 12):
-                        return False, "能力板块顺序必须是包含12个不重复的1-12之间整数的列表"
-                    
-                    # 8. 检查科学板块
-                    science_count = 2 + num_players * 2
-                    science_tiles_order = args[7]
-                    if (not isinstance(science_tiles_order, (list, tuple)) or 
-                        len(set(science_tiles_order)) != science_count or 
-                        min(science_tiles_order) < 1 or max(science_tiles_order) > 18):
-                        return False, f"科学板块必须是包含{science_count}个不重复的1-18之间整数的列表"
-                    
-                    # 9. 检查书本行动板块
-                    selected_book_actions = args[8]
-                    if (not isinstance(selected_book_actions, (list, tuple)) or 
-                        len(set(selected_book_actions)) != 3 or 
-                        min(selected_book_actions) < 1 or max(selected_book_actions) > 6):
-                        return False, "书本行动板块必须是包含3个不重复的1-6之间整数的列表"
-                    
-                    return True, ""
-                    
-                except (IndexError, TypeError, ValueError) as e:
-                    return False, f"参数格式错误: {str(e)}"
-            
-            res = validate_setup_args(args, self.num_players)
-            if not res[0]:
-                print(res[1])
-                return
-            
-            # 1. 选择被排除的那张规划卡
-            self.selected_planning_cards = self.all_planning_cards.copy()
-            self.selected_planning_cards.remove(args[0])
+            # ========== 8. 处理能力板块顺序 ==========
+            if self._setup_tiles['ability_tiles'] == 'random':
+                self.ability_tiles_order = random.sample(self.all_ability_tiles, 12)
+                random.shuffle(self.ability_tiles_order)
+            else:
+                self.ability_tiles_order = self._setup_tiles['ability_tiles']
 
-            # 2. 选择人数+1的派系板块
-            self.selected_factions = args[1]
-            
-            # 3. 选取人数+1个宫殿板块作为可选项
-            self.selected_palace_tiles = args[2]
-            
-            # 4. 选取人数+3个回合助推板作为可选项
-            self.selected_round_boosters = args[3]
-            self.io.set_bonus_columns(self.selected_round_boosters)
-            
-            # 5. 选取6个轮次计分板块并随机排序
-            self.round_scoring_order = args[4]
-            for i in range(6):
-                self.io.set_round_scoring(i+1,self.round_scoring_order[i])
+            # ========== 9. 处理科学板块顺序 ==========
+            science_count = self.num_players * 2 + 2
+            if self._setup_tiles['science_tiles'] == 'random':
+                self.science_tiles_order = random.sample(self.all_science_tiles, science_count)
+                random.shuffle(self.science_tiles_order)
+            else:
+                self.science_tiles_order = self._setup_tiles['science_tiles']
 
-            # 6. 随机选取1个最终计分板块
-            self.final_scoring = args[5]
-            self.io.set_final_round_bonus(self.final_scoring)
-
-            # 7. 对共12块能力板块随机排序
-            self.ability_tiles_order = args[6]
-            
-            # 8. 选取2+人数*2的科学板块并随机排序
-            self.science_tiles_order = args[7]
-            
-            # 9. 选取3个书本行动
-            self.selected_book_actions = args[8]
-
-        def perform_input_initial_setup(self):
-            """执行所有初始设置步骤"""
-
-            # 1. 选择被排除的那张规划卡
-            excluded_planning_card = int(self.io.get_input("请输入要排除的规划卡编号(1-7):"))
-            if excluded_planning_card not in self.all_planning_cards:
-                raise ValueError("无效的规划卡编号")
-            self.selected_planning_cards = self.all_planning_cards.copy()
-            self.selected_planning_cards.remove(excluded_planning_card)
-
-            # 2. 选择人数+1的派系板块
-            faction_input = self.io.get_input(f"请输入{self.num_players+1}个派系板块编号(1-12)，用空格分割:")
-            inp = list(map(int, faction_input.split()))
-            if len(set(inp)) != self.num_players + 1 or min(inp) < 1 or max(inp) > 12:
-                raise ValueError('无效的派系板块')
-            self.selected_factions = sorted(inp)
-
-            # 3. 选取人数+1个宫殿板块作为可选项
-            palace_input = self.io.get_input(f"请输入{self.num_players+1}个宫殿板块编号(1-16)，用空格分割:")
-            inp = list(map(int, palace_input.split()))
-            if len(set(inp)) != self.num_players + 1 or min(inp) < 1 or max(inp) > 16:
-                raise ValueError('无效的宫殿板块')
-            self.selected_palace_tiles = sorted(inp)
-
-            # 4. 选取人数+3个回合助推板作为可选项
-            booster_input = self.io.get_input(f"请输入{self.num_players+3}个回合助推板编号(1-10)，用空格分割:")
-            inp = list(map(int, booster_input.split()))
-            if len(set(inp)) != self.num_players + 3 or min(inp) < 1 or max(inp) > 10:
-                raise ValueError('无效的回合助推板')
-            self.selected_round_boosters = sorted(inp)
-            self.io.set_bonus_columns(self.selected_round_boosters)
-
-            # 5. 按第1-6轮顺序输入6个轮次计分板块
-            scoring_input = self.io.get_input("请按顺序输入6个轮次计分板块编号(1-12)，用空格分割:")
-            inp = list(map(int, scoring_input.split()))
-            if len(set(inp)) != 6 or min(inp) < 1 or max(inp) > 12 or self.round_scoring_order_is_legal(inp):
-                raise ValueError('无效的轮次计分板块')
-            self.round_scoring_order = inp
-            for i in range(6):
-                self.io.set_round_scoring(i+1,self.round_scoring_order[i])
-
-            # 6. 随机选取1个最终计分板块
-            final_input = self.io.get_input("请输入1个最终计分板块编号(1-4):")
-            inp = int(final_input)
-            if inp not in self.all_final_scoring:
-                raise ValueError('无效的最终计分板块')
-            self.final_scoring = inp
-            self.io.set_final_round_bonus(self.final_scoring)
-
-            # 7. 对共12块能力板块随机排序
-            ability_input = self.io.get_input("请按顺序输入12个能力板块编号(1-12)，用空格分割:")
-            inp = list(map(int, ability_input.split()))
-            if len(set(inp)) != 12 or min(inp) < 1 or max(inp) > 12:
-                raise ValueError('无效的能力板块')
-            self.ability_tiles_order = inp
-
-            # 8. 选取2+人数*2的科学板块并随机排序
-            science_count = 2 + self.num_players * 2
-            science_input = self.io.get_input(f"请按顺序输入{science_count}个科学板块编号(1-18)，用空格分割:")
-            inp = list(map(int, science_input.split()))
-            if len(set(inp)) != science_count or min(inp) < 1 or max(inp) > 18:
-                raise ValueError('无效的科学板块')
-            self.science_tiles_order = inp
-
-            # 9. 选取3个书本行动
-            book_input = self.io.get_input("请输入3个书本行动板块编号(1-6)，用空格分割:")
-            inp = list(map(int, book_input.split()))
-            if len(set(inp)) != 3 or min(inp) < 1 or max(inp) > 6:
-                raise ValueError('无效的书本行动板块')
-            self.selected_book_actions = sorted(inp)  
+            # ========== 10. 处理书本行动 ==========
+            if self._setup_tiles['book_actions'] == 'random':
+                self.selected_book_actions = sorted(random.sample(self.all_book_actions, 3))
+            else:
+                self.selected_book_actions = sorted(self._setup_tiles['book_actions'])
 
         def round_scoring_order_is_legal(self, round_scoring_order) -> bool:
             """返回轮次计分顺序是否合法"""
@@ -307,7 +225,6 @@ class GameStateBase:
             """返回设置结果的字符串表示"""
             return (
                 f"游戏初始设置 ({self.num_players}玩家):\n"
-                f"随机种子: {self.seedid}\n"
                 f"派系板块: {self.selected_factions}\n"
                 f"可用规划卡: {self.selected_planning_cards}\n"
                 f"轮次计分顺序: {self.round_scoring_order}\n"
@@ -722,37 +639,28 @@ class GameStateBase:
                 }
             }     
 
-    def __init__(self, game_args: dict, num_players: int = 3):
-        if num_players:
-            self.num_players = num_players                                                                          # 玩家数量
-            self.game_args = game_args                                                                              # 本局游戏参数
-            self.io: GamePanel|Silence_IO = game_args['web_io']                                                     # 网页IO接口     
-            self.setup = __class__.GameSetup(num_players, (game_args['setup_mode'],game_args['setup_tile_args']), self.io)   # 游戏初始状态设置
-            self.players:list[__class__.PlayerState] = [__class__.PlayerState(i) for i in range(num_players)]       # 玩家状态
-            self.map_board_state = __class__.MapBoardState()                                                        # 地图状态
-            self.display_board_state = __class__.DisplayBoardState(num_players)                                     # 展示板状态
-            self.round = 0                                                                                          # 当前回合 (0表示设置阶段)
-            match game_args['setup_mode']:                                                                          # 初始玩家顺位
-                case 'random':
-                    self.init_player_order = random.sample(list(range(num_players)),num_players)
-                case 'input':
-                    self.init_player_order = [int(i)-1 for i in self.io.get_input(f"请输入初始玩家顺位（1-{num_players}）: ").split()]
-                    assert (
-                        len(self.init_player_order) == num_players 
-                        and min(self.init_player_order) > 0 
-                        and max(self.init_player_order) <= num_players
-                    )
-                case 'target':
-                    self.init_player_order = game_args['setup_player_order_args']
-            self.current_player_order = self.init_player_order.copy()                                               # 当前玩家顺位
-            self.pass_order = list(reversed(self.current_player_order))                                             # 本回合玩家结束顺序
-            self.setup_choice_is_completed = False                                                                  # 初始选择是否完成
-            self.check = self.init_check()                                                                          # 初始化检查函数
-            self.adjust = self.init_adjust()                                                                        # 初始化调整函数
-            self.all_detailed_actions = DetailedAction().all_detailed_actions                                       # 所有具体行动
+    def __init__(self, num_players:int, init_settings: dict[str, str|list[int]|dict[str,str|int|list[int]]]):
+        
+        self.num_players = num_players                                                                          # 玩家数量
+        self.init_settings = init_settings                                                                      # 初始设置参数
+        self.setup = __class__.GameSetup(self.num_players, init_settings)                                       # 游戏初始状态设置          
+        self.action_history: list[tuple[int,str,int]] = []                                                      # 行动历史
+        self.players:list[__class__.PlayerState] = [__class__.PlayerState(i) for i in range(self.num_players)]  # 玩家状态
+        self.map_board_state = __class__.MapBoardState()                                                        # 地图状态
+        self.display_board_state = __class__.DisplayBoardState(self.num_players)                                # 展示板状态
+        self.round:int = 0                                                                                      # 当前回合 (0表示设置阶段)
+        self.init_player_order = self.setup.init_player_order                                                   # 初始玩家顺位
+        self.current_player_order = self.init_player_order.copy()                                               # 当前玩家顺位
+        self.pass_order = list(reversed(self.current_player_order))                                             # 本回合玩家结束顺序
+        self.setup_choice_is_completed:bool = False                                                             # 初始选择是否完成
+        self.check = self.init_check()                                                                          # 初始化检查函数
+        self.adjust = self.init_adjust()                                                                        # 初始化调整函数
+        self.all_detailed_actions = get_all_detailed_actions()                                                  # 所有具体行动
 
-    def invoke_immediate_aciton(self, player_id: int, args: tuple):
-        return
+    def invoke_immediate_action(self, player_id: int, args: tuple):
+        """【生成器】立即行动 - 产出状态，接收响应，立即执行"""
+        # 由子类或外部注入实现
+        yield from ()
     
     def update_reachable_map_ids_set(self, player_id: int, update_pos: tuple = tuple(), mode: str = 'normal'):
         """更新可抵达的坐标列表"""
@@ -987,7 +895,7 @@ class GameStateBase:
                     self.players[player_idx].boardscore + 1                                         # 最大可支付版面分数
                 )
                 if actual_num:
-                    if self.invoke_immediate_aciton(player_idx, ('gain_magics', actual_num)): return 
+                    yield from self.invoke_immediate_action(player_idx, ('gain_magics', actual_num)) 
 
     def city_establishment_check(self, player_id: int, mode: str, pos: tuple[int, int], bridge_key: tuple[tuple[int,int],tuple[int,int]] = tuple()):
 
@@ -1100,7 +1008,7 @@ class GameStateBase:
                 # 触发立即行动，选取城片（保证一定存在可选城片）
                 for city_tile_id in range(1,8):
                     if self.all_available_object_dict['city_tile'][city_tile_id].check_get(player_id):                 
-                        if self.invoke_immediate_aciton(player_id, ('select_city_tile',)): return
+                        yield from self.invoke_immediate_action(player_id, ('select_city_tile',))
                         break
         
     def calculate_players_total_score(self):
@@ -1388,6 +1296,8 @@ class GameStateBase:
             ) or (
                 self.players[player_id].tracks[typ] == 11
                 and self.display_board_state.science_tracks[typ]['is_crowned'] == True
+            ) or (
+                self.players[player_id].tracks[typ] == 12
             ):
                 return False
             else:
@@ -1460,23 +1370,24 @@ class GameStateBase:
 
     def init_adjust(self):
 
+        @generatorize
         def adjust_money(player_id: int, mode: str, num: int):
             mode_factor = 1 if mode == 'get' else -1
             self.players[player_id].resources['money'] += mode_factor * num
-            self.io.update_player_state(player_id, {'money': self.players[player_id].resources['money']})
         
+        @generatorize
         def adjust_ore(player_id:int , mode: str, num:int):
             mode_factor = 1 if mode == 'get' else -1
             self.players[player_id].resources['ore'] += mode_factor * num
-            self.io.update_player_state(player_id, {'ore': self.players[player_id].resources['ore']})
         
+        @generatorize
         def adjust_book(player_id:int , mode: str, typ: str, num: int):
             match mode, typ:
                 case 'get', 'any':
                     act_num = min(sum(self.setup.current_global_books.values()), num)
                     for time in range(act_num):
                         # print(f'请选择您想获取的第{time + 1}本书的类型')
-                        if self.invoke_immediate_aciton(player_id, ('select_book', 'get')): return 
+                        yield from self.invoke_immediate_action(player_id, ('select_book', 'get')) 
                 case 'get', _:
                     act_num = min(self.setup.current_global_books[f'{typ}_book'], num)
                     self.setup.current_global_books[f'{typ}_book'] -= act_num
@@ -1484,15 +1395,15 @@ class GameStateBase:
                 case 'use', 'any':
                     for time in range(num):
                         # print(f'请选择您想使用的第{time + 1}本书的类型')
-                        if self.invoke_immediate_aciton(player_id, ('select_book', 'use')): return 
+                        yield from self.invoke_immediate_action(player_id, ('select_book', 'use')) 
                 case 'use', _:
                     if num <= self.players[player_id].resources[f'{typ}_book']:
                         self.players[player_id].resources[f'{typ}_book'] -= num
                         self.setup.current_global_books[f'{typ}_book'] += num
                     else:
                         raise ValueError(f'{player_id + 1}号玩家未拥有{typ}书{num}本')
-            self.io.update_player_state(player_id, {f'{x}_book': self.players[player_id].resources[f'{x}_book'] for x in ['bank', 'law', 'engineering', 'medical']})
 
+        @generatorize
         def adjust_meeple(player_id: int, mode: str, args):
             match mode:
                 case 'get':
@@ -1521,11 +1432,11 @@ class GameStateBase:
                     else:
                         climb_num = 1
                         self.players[player_id].resources['all_meeples'] +=  1
-                    climb_track(player_id, typ, climb_num)
+                    yield from climb_track(player_id, typ, climb_num)
                     # 插入米宝行动效果触发
-                    self.action_effect(player_id=player_id, insert_meeple=True)
-            self.io.update_player_state(player_id, {'meeple': self.players[player_id].resources['meeples']})
+                    yield from self.action_effect(player_id=player_id, insert_meeple=True)
                 
+        @generatorize
         def adjust_score(player_id: int, mode: str, which: str, num: int):
             mode_factor = 1 if mode == 'get' else -1
             match which:
@@ -1539,8 +1450,8 @@ class GameStateBase:
                     self.players[player_id].resourcescore += mode_factor * num
                 case _:
                     raise ValueError(f'不存在【{which}】板块分数')
-            self.io.update_player_state(player_id, {'score': self.players[player_id].boardscore})
     
+        @generatorize
         def magic_rotation(player_id: int, mode:str, num:int):
             match mode:
                 case 'get':
@@ -1569,8 +1480,8 @@ class GameStateBase:
                 case 'science_tile_18':
                     self.players[player_id].magics[3] += num
                     # 科技板块效果-宫殿
-            self.io.update_player_state(player_id, {f'magics_{x}': self.players[player_id].magics[x] for x in range(1, 4)})
 
+        @generatorize
         def climb_track(player_id: int, typ: str, num: int, split: bool = True):
 
             if typ != 'any':
@@ -1599,37 +1510,41 @@ class GameStateBase:
                 actual_num = after_climb - before_climb
 
                 if before_climb < 3 <= after_climb:
-                    magic_rotation(player_id, 'get', 1)
+                    yield from magic_rotation(player_id, 'get', 1)
                 if before_climb < 5 <= after_climb:
-                    magic_rotation(player_id, 'get', 2)
+                    yield from magic_rotation(player_id, 'get', 2)
                 if before_climb < 7 <= after_climb:
-                    magic_rotation(player_id, 'get', 2)
+                    yield from magic_rotation(player_id, 'get', 2)
                 if before_climb < 9 <= after_climb:
                     match typ:
                         case 'bank':
+                            @generatorize
                             def display_board_bank_tracks_9(player_idx):
-                                self.adjust(player_idx, [('money', 'get', 3)])
+                                yield from self.adjust(player_idx, [('money', 'get', 3)])
                                 # print(f'银行轨道等级9 -> 3块钱')
                             self.players[player_id].income_effect_list.append(display_board_bank_tracks_9)
                         case 'law':
+                            @generatorize
                             def display_board_law_tracks_9(player_idx):
-                                self.adjust(player_idx, [('magics', 'get', 6)])
+                                yield from self.adjust(player_idx, [('magics', 'get', 6)])
                                 # print(f'法律轨道等级9 -> 6转魔')
                             self.players[player_id].income_effect_list.append(display_board_law_tracks_9)
                         case 'engineering':
+                            @generatorize
                             def display_board_engineering_tracks_9(player_idx):
-                                self.adjust(player_idx, [('ore', 'get', 1)])
+                                yield from self.adjust(player_idx, [('ore', 'get', 1)])
                                 # print(f'工程轨道等级9 -> 1矿')
                             self.players[player_id].income_effect_list.append(display_board_engineering_tracks_9)
                         case 'medical':
+                            @generatorize
                             def display_board_medical_tracks_9(player_idx):
-                                self.adjust(player_idx, [('score', 'get', 'board', 3)])
+                                yield from self.adjust(player_idx, [('score', 'get', 'board', 3)])
                                 # print(f'医疗轨道等级9 -> 3分')
                             self.players[player_id].income_effect_list.append(display_board_medical_tracks_9)
                         case _:
                             raise ValueError(f'不存在{typ}轨道效果')
                 if before_climb < 12 <= after_climb:
-                    magic_rotation(player_id, 'get', 3)
+                    yield from magic_rotation(player_id, 'get', 3)
             else:
                 if split:
                     actual_num = 0
@@ -1644,7 +1559,7 @@ class GameStateBase:
                         else:
                             # 如无，则跳出循环，取消后续立即行动调起
                             break
-                        if self.invoke_immediate_aciton(player_id, ('select_track',)): return
+                        yield from self.invoke_immediate_action(player_id, ('select_track',))
                 else:
                     actual_num = 0
                     for temp_typ in ['bank', 'law', 'engineering', 'medical']:
@@ -1654,13 +1569,14 @@ class GameStateBase:
                             break
                     else:
                         return
-                    if self.invoke_immediate_aciton(player_id, ('select_track',)): return
+                    yield from self.invoke_immediate_action(player_id, ('select_track',))
                     selected_track_typ = self.players[player_id].choice_track
-                    climb_track(player_id, selected_track_typ, num-1)
+                    yield from climb_track(player_id, selected_track_typ, num-1)
 
             # 爬轨行动效果
-            self.action_effect(player_id=player_id, climb_track_nums=actual_num)
+            yield from self.action_effect(player_id=player_id, climb_track_nums=actual_num)
 
+        @generatorize
         def adjust_terrain(player_id: int, shovel_times: int):
 
             i,j = self.players[player_id].choice_position
@@ -1679,26 +1595,10 @@ class GameStateBase:
 
             self.map_board_state.map_grid[i][j][0] = new_terrain_id
             # 铲子行动效果
-            self.action_effect(player_id=player_id, shovel_times=shovel_times)
+            yield from self.action_effect(player_id=player_id, shovel_times=shovel_times)
 
-            self.io.update_terrain(i,j,self.map_board_state.map_grid[i][j][0])
-
+        @generatorize
         def adjust_building(player_id: int, mode:str, to_build_id: int, is_neutral: bool):
-
-            def panel_update(pos):
-                # 更新面板
-                i,j = pos
-                side_building_num = self.map_board_state.map_grid[i][j][3]
-                match side_building_num, to_build_id:
-                    case 0, y if y != 8:
-                        self.io.update_building(i, j, 0 if is_neutral else self.players[player_id].planning_card_id, to_build_id, 'replace')
-                    case 1, 8:
-                        self.io.update_building(i, j, 0, 8, 'overlay')
-                    case 1, y if y != 8:
-                        self.io.update_building(i, j, 0 if is_neutral else self.players[player_id].planning_card_id, to_build_id, 'replace')
-                        self.io.update_building(i, j, 0, 8, 'overlay')
-                    case _:
-                        raise ValueError('面板更新建筑模式不存在')
             
             match mode:
                 case (
@@ -1711,10 +1611,10 @@ class GameStateBase:
                 ):
                     if mode == 'build_setup':
                         # 立即选择位置
-                        if self.invoke_immediate_aciton(
+                        yield from self.invoke_immediate_action(
                             player_id, 
                             ('select_position', 'anywhere', set([self.players[player_id].planning_card_id]))
-                        ): return 
+                        ) 
                         # 获取选择的位置
                         i,j = self.players[player_id].choice_position
 
@@ -1722,7 +1622,7 @@ class GameStateBase:
                         # 获取之前第一铲地位置
                         i,j = self.players[player_id].choice_position
                         # 支付建造工会费用
-                        self.adjust(player_id, [('money', 'use', 2), ('ore', 'use', 1)])
+                        yield from self.adjust(player_id, [('money', 'use', 2), ('ore', 'use', 1)])
 
                     elif mode == 'build_special_faction_tile_6': # 蜥蜴人派系板块行动效果
                         max_shovel_times = (
@@ -1737,15 +1637,15 @@ class GameStateBase:
                                 self.players[player_id].terrain_id_need_shovel_times[terrain] <= max_shovel_times
                                 and controller == -1    
                             ):
-                                if self.invoke_immediate_aciton(
+                                yield from self.invoke_immediate_action(
                                     player_id, 
                                     ('select_position', 'reachable', ('build', max_shovel_times))
-                                ): return 
+                                ) 
                                 i,j = self.players[player_id].choice_position
                                 cur_terrain = self.map_board_state.map_grid[i][j][0]
                                 need_shovel_times = self.players[player_id].terrain_id_need_shovel_times[cur_terrain]
                                 # 支付铲地费用
-                                self.adjust(
+                                yield from self.adjust(
                                     player_id, 
                                     [
                                         ('ore', 'use', need_shovel_times * self.players[player_id].shovel_level),
@@ -1765,10 +1665,10 @@ class GameStateBase:
                                 terrain == self.players[player_id].planning_card_id 
                                 and controller == -1
                             ):
-                                if self.invoke_immediate_aciton(
+                                yield from self.invoke_immediate_action(
                                     player_id, 
                                     ('select_position', 'anywhere', set([self.players[player_id].planning_card_id]))
-                                ): return 
+                                ) 
                                 break
                         else:
                             return
@@ -1842,26 +1742,26 @@ class GameStateBase:
                                 and controller == -1    
                             ):
                                 if mode == 'build_normal' or mode == 'build_neutral':
-                                    if self.invoke_immediate_aciton(
+                                    yield from self.invoke_immediate_action(
                                         player_id, 
                                         ('select_position', 'reachable', ('build', max_shovel_times))
-                                    ): return
+                                    )
                                 elif mode == 'build_after_flight':
-                                    if self.invoke_immediate_aciton(
+                                    yield from self.invoke_immediate_action(
                                         player_id, 
                                         ('select_position', 'non_adjacent', (3, 'build', max_shovel_times))
-                                    ): return
+                                    )
                                 elif mode == 'build_after_tunneling':
-                                    if self.invoke_immediate_aciton(
+                                    yield from self.invoke_immediate_action(
                                         player_id, 
                                         ('select_position', 'non_adjacent', (2, 'build', max_shovel_times))
-                                    ): return 
+                                    ) 
 
                                 i,j = self.players[player_id].choice_position
                                 cur_terrain = self.map_board_state.map_grid[i][j][0]
                                 need_shovel_times = self.players[player_id].terrain_id_need_shovel_times[cur_terrain]
                                 # 支付铲地费用
-                                self.adjust(
+                                yield from self.adjust(
                                     player_id, 
                                     [
                                         ('ore', 'use', need_shovel_times * self.players[player_id].shovel_level),
@@ -1870,7 +1770,7 @@ class GameStateBase:
                                 )
                                 if mode == 'build_normal' or mode == 'build_after_flight' or mode == 'build_after_tunneling':
                                     # 支付建造工会费用
-                                    self.adjust(player_id, [('money', 'use', 2), ('ore', 'use', 1)])
+                                    yield from self.adjust(player_id, [('money', 'use', 2), ('ore', 'use', 1)])
                                 break
                         else:
                             if mode == 'build_normal' or mode == 'build_after_flight' or mode == 'build_after_tunneling':
@@ -1893,7 +1793,6 @@ class GameStateBase:
                     # 修改地块控制玩家id和建筑id和建筑性质
                     self.map_board_state.map_grid[i][j][1:3] = player_id, to_build_id
                     self.map_board_state.map_grid[i][j][4] = is_neutral
-                    panel_update((i,j))
                     # 调整玩家规划板上建筑数量
                     if mode == 'build_setup':
                         if to_build_id == 6:
@@ -1947,26 +1846,25 @@ class GameStateBase:
                                                     controlled_id = self.map_board_state.map_grid[new_i][new_j][1]
                                                     if controlled_id != -1 and controlled_id != player_id:
                                                         # 支付有邻居的升级费用
-                                                        self.adjust(player_id, [('money', 'use', 3), ('ore', 'use', 2)])
+                                                        yield from self.adjust(player_id, [('money', 'use', 3), ('ore', 'use', 2)])
                                                         break
                                             else:
                                                 # 支付无邻居的升级费用
-                                                self.adjust(player_id, [('money', 'use', 6), ('ore', 'use', 2)])
+                                                yield from self.adjust(player_id, [('money', 'use', 6), ('ore', 'use', 2)])
                                         # 升级为宫殿时
                                         case 3:
                                             # 支付升级费用
-                                            self.adjust(player_id, [('money', 'use', 6), ('ore', 'use', 4)])
+                                            yield from self.adjust(player_id, [('money', 'use', 6), ('ore', 'use', 4)])
                                             # 标记宫殿已经获得
                                             self.players[player_id].is_got_palace = True
                                             # 激活宫殿板块
                                             cur_player_palace_tile_id = self.players[player_id].palace_tile_id
-                                            self.all_available_object_dict['palace_tile'][cur_player_palace_tile_id].activate(player_id)
+                                            yield from self.all_available_object_dict['palace_tile'][cur_player_palace_tile_id].activate(player_id)
                                         # 升级为学院时
                                         case 4:
                                             self.map_board_state.map_grid[i][j][2:] = to_build_id, pre_side_building_num, is_neutral
-                                            panel_update((i,j))
                                             # 支付升级费用 并 立即获取一个能力板块
-                                            self.adjust(player_id, [
+                                            yield from self.adjust(player_id, [
                                                 ('money', 'use', 5),
                                                 ('ore', 'use', 3),
                                                 ('ability_tile',)
@@ -1974,9 +1872,8 @@ class GameStateBase:
                                         # 升级为大学时
                                         case 5:
                                             self.map_board_state.map_grid[i][j][2:] = to_build_id, pre_side_building_num, is_neutral
-                                            panel_update((i,j))
                                             # 支付升级费用 并 立即获取一个能力板块
-                                            self.adjust(player_id, [
+                                            yield from self.adjust(player_id, [
                                                 ('money', 'use', 8), 
                                                 ('ore', 'use', 5),
                                                 ('ability_tile',)
@@ -1996,8 +1893,6 @@ class GameStateBase:
                                 self.players[player_id].buildings[pre_building_id] += 1
                             else:
                                 self.map_board_state.map_grid[i][j][2:] = pre_building_id, 1, pre_is_neutral
-                            if not (mode == 'upgrade' and to_build_id in [4,5]):
-                                panel_update((i,j))
                             self.players[player_id].buildings[to_build_id] -= 1
                             # 定义检查模式为升级
                             check_mode = 'upgrade'
@@ -2029,22 +1924,24 @@ class GameStateBase:
                             is_riverside = True
                             break
                 # 建筑行动效果触发
-                self.action_effect(player_id=player_id, building_id=to_build_id, is_edge=is_edge, is_riverside=is_riverside)
+                yield from self.action_effect(player_id=player_id, building_id=to_build_id, is_edge=is_edge, is_riverside=is_riverside)
 
             # 初始建造和建造侧楼不会触发吸取魔力立即行动
             if not (mode == 'build_annex' or mode == 'build_setup'):
                 # 执行吸取魔力立即行动（如有）
-                self.absorb_magics_check(player_id, (i,j))
+                yield from self.absorb_magics_check(player_id, (i,j))
             
             # 更新聚落及检查城市建立
-            self.city_establishment_check(player_id,check_mode,(i,j))
+            yield from self.city_establishment_check(player_id,check_mode,(i,j))
 
+        @generatorize
         def build_bridge(player_id: int):
             # 调起建桥立即行动（保证一定可建）
             if self.check(player_id, [('bridge',)]):
                 self.players[player_id].resources['all_bridges'] -= 1
-                if self.invoke_immediate_aciton(player_id, ('build_bridge',)): return
+                yield from self.invoke_immediate_action(player_id, ('build_bridge',))
 
+        @generatorize
         def shovel(player_id: int, shovel_times: int, can_build_after_shovel: bool = True):
             # 初始化第一铲地标记和位置
             first_shovel = True
@@ -2073,9 +1970,9 @@ class GameStateBase:
                         )
                     )
                 ):
-                    if self.invoke_immediate_aciton(player_id, ('select_tunneling_or_flight_in_spade',)): return 
+                    yield from self.invoke_immediate_action(player_id, ('select_tunneling_or_flight_in_spade',)) 
                     
-                    match self.game_args['action_history'][-1]:
+                    match self.action_history[-1]:
                         case (player_id, 'immediate', 346):
                             pass
                         
@@ -2137,13 +2034,13 @@ class GameStateBase:
 
                 if choice == 'normal':
                     # 选择可铲位置（保证一定存在可铲地）
-                    if self.invoke_immediate_aciton(player_id, ('select_position', 'reachable', ('shovel', 1))): return 
+                    yield from self.invoke_immediate_action(player_id, ('select_position', 'reachable', ('shovel', 1)))
                 elif choice == 'tunneling':
                     # 选择可铲位置（保证一定存在可铲地）
-                    if self.invoke_immediate_aciton(player_id, ('select_position','non_adjacent',(2,'shovel',1))): return
+                    yield from self.invoke_immediate_action(player_id, ('select_position','non_adjacent',(2,'shovel',1)))
                 elif choice == 'flight':
                     # 选择可铲位置（保证一定存在可铲地）
-                    if self.invoke_immediate_aciton(player_id, ('select_position','non_adjacent',(3,'shovel',1))): return
+                    yield from self.invoke_immediate_action(player_id, ('select_position','non_adjacent',(3,'shovel',1)))
                 
                 # 记录一铲地坐标
                 if first_shovel:
@@ -2157,7 +2054,7 @@ class GameStateBase:
                 # 判断铲当前地块的实际用铲量（需铲次数 和 剩余铲数 的两者小值）
                 act_current_shovel_times = min(self.players[player_id].terrain_id_need_shovel_times[terrain], shovel_times)
                 # 将该地块铲 实际用铲量 下
-                adjust_terrain(player_id, act_current_shovel_times)
+                yield from adjust_terrain(player_id, act_current_shovel_times)
                 # 更新剩余铲数
                 shovel_times -= act_current_shovel_times
 
@@ -2174,8 +2071,9 @@ class GameStateBase:
                     ('building', 1)
                 ]):
                     self.players[player_id].choice_position = first_pos
-                    if self.invoke_immediate_aciton(player_id,('build_workshop',)): return 
+                    yield from self.invoke_immediate_action(player_id,('build_workshop',)) 
 
+        @generatorize
         def improve_navigation(player_id: int):
             # 判断是否可升级
             if self.players[player_id].navigation_level < 3:
@@ -2198,16 +2096,14 @@ class GameStateBase:
                         case 3:
                             reward.append(('score', 'get', 'board', 4))
                 # 获取本次提升奖励
-                self.adjust(player_id, reward)
+                yield from self.adjust(player_id, reward)
                 # 升级航行行动效果触发
-                self.action_effect(player_id=player_id, improve_navigation_or_shovel=True)
-
-                # 更新数据面板
-                self.io.update_player_state(player_id, {'navigation_level': self.players[player_id].navigation_level})
+                yield from self.action_effect(player_id=player_id, improve_navigation_or_shovel=True)
 
                 # 更新可抵地块
                 self.update_reachable_map_ids_set(player_id)
 
+        @generatorize
         def improve_shovel(player_id: int):
             # 判断是否可升级
             if self.players[player_id].shovel_level > 1:
@@ -2221,16 +2117,15 @@ class GameStateBase:
                     case 1:
                         reward.append(('score', 'get', 'board', 6))
                 # 获取本次提升奖励
-                self.adjust(player_id, reward)
+                yield from self.adjust(player_id, reward)
                 # 升级铲子行动效果触发
-                self.action_effect(player_id=player_id, improve_navigation_or_shovel=True)
-        
-            self.io.update_player_state(player_id, {'shovel_level': self.players[player_id].shovel_level})
+                yield from self.action_effect(player_id=player_id, improve_navigation_or_shovel=True)
 
+        @generatorize
         def get_ability_tile(player_id: int):
             for ability_tile_id in range(1,13):
                 if self.all_available_object_dict['ability_tile'][ability_tile_id].check_get(player_id):
-                    if self.invoke_immediate_aciton(player_id, ('select_ability_tile',)): return 
+                    yield from self.invoke_immediate_action(player_id, ('select_ability_tile',))
                     break
 
         all_adjust_list = {
@@ -2250,107 +2145,17 @@ class GameStateBase:
             'ability_tile': get_ability_tile
         }
 
-        def adjust(player_id: int, list_to_be_adjusted) -> tuple[str, str]:
-            reward_str_list = []
-            spend_str_list = []
+        def adjust(player_id: int, list_to_be_adjusted) -> None:
             for adjust_item, *adjust_args in list_to_be_adjusted:
                 if adjust_item not in all_adjust_list:
                     raise ValueError(f'非法状态调整对象：{adjust_item}')
                 else:
-                    all_adjust_list[adjust_item](player_id, *adjust_args)
-                    match adjust_item, adjust_args:
-                        case 'money', ('get', num):
-                            if num > 0:
-                                reward_str_list.append(f'{num}块钱')
-                        case 'money', ('use', num):
-                            if num > 0:
-                                spend_str_list.append(f'{num}块钱') 
-                        case 'ore', ('get', num):
-                            if num > 0:
-                                reward_str_list.append(f'{num}矿')
-                        case 'ore', ('use', num):
-                            if num > 0:
-                                spend_str_list.append(f'{num}矿')
-                        case 'book', ('get', typ, num):
-                            if num > 0:
-                                match typ:
-                                    case 'any':
-                                        reward_str_list.append(f'{num}任意书')
-                                    case 'bank':
-                                        reward_str_list.append(f'{num}银行书')
-                                    case 'law':
-                                        reward_str_list.append(f'{num}法律书')
-                                    case 'engineering':
-                                        reward_str_list.append(f'{num}工程书')
-                                    case 'medical':
-                                        reward_str_list.append(f'{num}医疗书')
-                        case 'book', ('use', typ, num):
-                            if num > 0:
-                                match typ:
-                                    case 'any':
-                                        spend_str_list.append(f'{num}任意书')
-                                    case 'bank':
-                                        spend_str_list.append(f'{num}银行书')
-                                    case 'law':
-                                        spend_str_list.append(f'{num}法律书')
-                                    case 'engineering':
-                                        spend_str_list.append(f'{num}工程书')
-                                    case 'medical':
-                                        spend_str_list.append(f'{num}医疗书')
-                        case 'meeple', ('get', num):
-                            if num > 0:
-                                reward_str_list.append(f'{num}米宝')
-                        case 'meeple', ('use', num):
-                            if num > 0:
-                                spend_str_list.append(f'{num}米宝')
-                        case 'score', ('get', 'board', num):
-                            if num > 0:
-                                reward_str_list.append(f'{num}分')
-                        case 'score', ('use', 'baord', num):
-                            if num > 0:
-                                spend_str_list.append(f'{num}分')
-                        case 'magics', ('get', num):
-                            if num > 0:
-                                reward_str_list.append(f'{num}转魔')
-                        case 'magics', ('use', num):
-                            if num > 0:
-                                spend_str_list.append(f'{num}转魔')
-                        case 'tracks', (typ, num):
-                            if num > 0:
-                                match typ:
-                                    case 'any':
-                                        reward_str_list.append(f'推{num}任意轨')
-                                    case 'bank':
-                                        reward_str_list.append(f'推{num}银行轨')
-                                    case 'law':
-                                        reward_str_list.append(f'推{num}法律轨')
-                                    case 'engineering':
-                                        reward_str_list.append(f'推{num}工程轨')
-                                    case 'medical':
-                                        reward_str_list.append(f'推{num}医疗轨')
-                        case 'spade', (num, _):
-                            if num > 0:
-                                reward_str_list.append(f'{num}铲')
-                        case 'navigation', _:
-                            reward_str_list.append('升1航行')
-                        case 'shovel', _:
-                            reward_str_list.append('升1铲子')
-                        case 'ability_tile', _:
-                            reward_str_list.append('1能力板块')
-            if spend_str_list:
-                spend_str = ' + '.join(spend_str_list)
-            else:
-                spend_str = ''
-            if reward_str_list:
-                reward_str = ' + '.join(reward_str_list)
-            else:
-                reward_str = ''
-            return spend_str, reward_str
+                    yield from all_adjust_list[adjust_item](player_id, *adjust_args)
         return adjust
     
     def effect_object(self): # 效果板块
         
-        from EffectObject import AllEffectObject   
+        from .effect_object import AllEffectObject
              
         # 本局所有需实例化效果板块对象字典
         self.all_available_object_dict: dict[str, dict[int, AllEffectObject.EffectObject]] = {}
@@ -2472,7 +2277,7 @@ class GameStateBase:
             reward.append(('book', 'get', get_ability_tile_typ, 1))
 
         # ============== 获取奖励 ==============
-        self.adjust(player_id=player_id, list_to_be_adjusted=reward)
+        yield from self.adjust(player_id=player_id, list_to_be_adjusted=reward)
 
     def get_game_state_str(self, player_id:int):
         

@@ -20,40 +20,69 @@ def cleanup():
     _cleanup_done = True
 
     print("\n正在停止所有服务...")
+
+    # 先尝试优雅地停止进程
     for p in processes:
         try:
             if sys.platform == 'win32':
-                # 强制终止进程树，确保端口被释放
+                # 发送 Ctrl+C 信号（Windows）
                 import ctypes
                 kernel32 = ctypes.windll.kernel32
                 handle = kernel32.OpenProcess(1, False, p.pid)
-                kernel32.TerminateProcess(handle, -1)
-                kernel32.CloseHandle(handle)
+                if handle:
+                    kernel32.GenerateConsoleCtrlEvent(0, p.pid)
+                    kernel32.CloseHandle(handle)
             else:
-                os.killpg(os.getpgid(p.pid), signal.SIGTERM)
+                os.killpg(os.getpgid(p.pid), signal.SIGINT)
         except:
             pass
+
+    # 等待进程优雅退出（捕获 KeyboardInterrupt 避免中断）
+    try:
+        time.sleep(1)
+    except KeyboardInterrupt:
+        pass
+
+    # 强制终止仍未退出的进程
+    for p in processes:
+        try:
+            if p.poll() is None:  # 进程仍在运行
+                if sys.platform == 'win32':
+                    import ctypes
+                    kernel32 = ctypes.windll.kernel32
+                    handle = kernel32.OpenProcess(1, False, p.pid)
+                    if handle:
+                        kernel32.TerminateProcess(handle, -1)
+                        kernel32.CloseHandle(handle)
+                else:
+                    os.killpg(os.getpgid(p.pid), signal.SIGTERM)
+        except:
+            pass
+
     print("服务已停止")
-    # 等待端口释放
-    time.sleep(1)
+    # 等待端口释放（捕获 KeyboardInterrupt 避免中断）
+    try:
+        time.sleep(1)
+    except KeyboardInterrupt:
+        pass
 
 def start_backend(host='127.0.0.1', port=5001, player_count=3):
     """启动后端服务"""
     backend_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'backend')
     images_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'frontend', 'images')
+    root_dir = os.path.dirname(os.path.abspath(__file__))
 
     env = os.environ.copy()
-    env['PYTHONPATH'] = backend_dir
+    env['PYTHONPATH'] = root_dir
 
     cmd = [
         sys.executable, '-c',
         f'''
 import sys
-sys.path.insert(0, r"{backend_dir}")
-from app import GamePanelAPI
-api = GamePanelAPI(host="{host}", port={port}, player_count={player_count}, static_folder=r"{images_dir}")
+sys.path.insert(0, r"{root_dir}")
+from backend.api.app import run_app
 print(f"后端服务启动在 http://{host}:{port}")
-api.run(debug=False, use_reloader=False)
+run_app(host="{host}", port={port}, debug=False, use_reloader=False)
 '''
     ]
 

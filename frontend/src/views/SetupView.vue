@@ -279,8 +279,8 @@
     <!-- 自定义游戏模式配置弹窗 -->
     <div v-if="isLoading && isCountdownPhase" class="countdown-overlay">
       <div class="loading-content loading-content-countdown">
-        <div class="countdown-badge" :key="loadingCountdown">
-          <span>{{ loadingCountdown }}</span>
+        <div class="countdown-badge">
+          <span :key="loadingCountdown" class="countdown-digit">{{ loadingCountdown }}</span>
         </div>
         <div class="loading-text">{{ loadingText }}</div>
         <div class="loading-subtext loading-subtext-emphasis">游戏即将开始</div>
@@ -4679,10 +4679,12 @@ async function waitForGameStateReady(retries = 60, delay = 250) {
   border-radius: 50%;
   color: #ffffff;
   background:
-    radial-gradient(circle at 30% 30%, rgba(120, 190, 255, 0.9), rgba(0, 123, 255, 0.9) 58%, rgba(0, 123, 255, 0.45) 100%);
+    radial-gradient(circle at 30% 28%, rgba(164, 217, 255, 0.96), rgba(0, 123, 255, 0.92) 56%, rgba(0, 88, 204, 0.92) 100%);
   box-shadow:
-    0 0 0 10px rgba(0, 123, 255, 0.08),
-    0 18px 48px rgba(0, 123, 255, 0.28);
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -12px 20px rgba(0, 66, 158, 0.22),
+    0 18px 42px rgba(0, 123, 255, 0.22);
+  isolation: isolate;
   overflow: visible;
   animation: countdown-pop 0.42s cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -4691,24 +4693,41 @@ async function waitForGameStateReady(retries = 60, delay = 250) {
 .countdown-badge::after {
   content: '';
   position: absolute;
-  inset: -10px;
   border-radius: 50%;
-  border: 1px solid rgba(0, 123, 255, 0.28);
+  pointer-events: none;
 }
 
 .countdown-badge::before {
-  animation: countdown-ring 1.8s ease-out infinite;
+  inset: -18px;
+  z-index: -2;
+  background:
+    conic-gradient(
+      from 0deg,
+      rgba(0, 123, 255, 0) 0deg,
+      rgba(110, 190, 255, 0.18) 48deg,
+      rgba(0, 123, 255, 0.52) 122deg,
+      rgba(0, 123, 255, 0.1) 192deg,
+      rgba(110, 190, 255, 0.28) 286deg,
+      rgba(0, 123, 255, 0) 360deg
+    );
+  filter: blur(10px);
+  opacity: 0.6;
+  animation: countdown-halo-spin 3.8s linear infinite;
 }
 
 .countdown-badge::after {
-  inset: -22px;
-  border-color: rgba(0, 123, 255, 0.16);
-  animation: countdown-ring 1.8s ease-out infinite 0.45s;
+  inset: -14px;
+  z-index: -1;
+  background:
+    radial-gradient(circle, rgba(92, 176, 255, 0.26) 0%, rgba(0, 123, 255, 0.12) 48%, rgba(0, 123, 255, 0) 72%);
+  opacity: 0.8;
+  animation: countdown-halo-breathe 1.9s ease-in-out infinite;
 }
 
-.countdown-badge span {
+.countdown-digit {
   position: relative;
   z-index: 1;
+  display: block;
   font-size: 3.1rem;
   font-weight: 700;
   line-height: 1;
@@ -4769,15 +4788,26 @@ async function waitForGameStateReady(retries = 60, delay = 250) {
   }
 }
 
-@keyframes countdown-ring {
-  0% {
-    opacity: 0.7;
-    transform: scale(0.92);
+@keyframes countdown-halo-spin {
+  from {
+    transform: rotate(0deg) scale(0.98);
   }
 
+  to {
+    transform: rotate(360deg) scale(1.02);
+  }
+}
+
+@keyframes countdown-halo-breathe {
+  0%,
   100% {
-    opacity: 0;
-    transform: scale(1.16);
+    opacity: 0.52;
+    transform: scale(0.94);
+  }
+
+  50% {
+    opacity: 0.82;
+    transform: scale(1.04);
   }
 }
 
