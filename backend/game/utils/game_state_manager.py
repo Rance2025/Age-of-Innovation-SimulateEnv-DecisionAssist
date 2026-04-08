@@ -142,7 +142,7 @@ class GameStateManager:
         
         return FullGameState(
             meta=self._extract_meta(request, gs),
-            setup=self._extract_setup(gs.setup) if gs else GameSetup(),
+            setup=self._extract_setup(gs) if gs else GameSetup(),
             players=self._extract_players(gs.players) if gs else [],
             map_state=self._extract_map_state(gs.map_board_state) if gs else MapState(),
             display_board=self._extract_display_board(gs.display_board_state) if gs else DisplayBoardState(),
@@ -153,6 +153,7 @@ class GameStateManager:
     def _extract_meta(self, request: 'ActionRequest', gs: Optional['GameStateBase']) -> GameMeta:
         """提取元信息"""
         setup_choice_is_completed = bool(gs and getattr(gs, 'setup_choice_is_completed', False))
+        setup_build_is_completed = bool(gs and getattr(gs, 'setup_build_is_completed', False))
         return GameMeta(
             round=gs.round if gs else 0,
             num_players=gs.num_players if gs else 3,
@@ -160,84 +161,18 @@ class GameStateManager:
             action_type=request.action_type,
             is_game_over=request.is_game_over,
             setup_choice_is_completed=setup_choice_is_completed,
-            setup_build_is_completed=self._is_setup_build_completed(gs, setup_choice_is_completed)
+            setup_build_is_completed=setup_build_is_completed
         )
-
-    def _is_setup_build_completed(self, gs: Optional['GameStateBase'], setup_choice_is_completed: bool) -> bool:
-        """
-        判断初始建筑摆放阶段是否完成。
-
-        不修改受保护的 aoi_game 核心状态结构，直接基于当前 yield 出来的
-        game_state 和行动历史复刻初始建筑摆放顺序，判断 setup_build 是否已经全部完成。
-        """
-        if not gs or gs.round != 0 or not setup_choice_is_completed:
-            return False
-
-        expected_setup_build_count = self._get_expected_setup_build_count(gs)
-        if expected_setup_build_count <= 0:
-            return False
-
-        completed_setup_build_count = self._get_completed_setup_build_count(gs)
-        return completed_setup_build_count >= expected_setup_build_count
-
-    def _get_expected_setup_build_count(self, gs: 'GameStateBase') -> int:
-        """按 game_engine 的初始建筑摆放顺序规则推导应完成的 setup_build 次数。"""
-        pass_order = list(getattr(gs, 'pass_order', []))
-        current_player_order = list(getattr(gs, 'current_player_order', []))
-        players = list(getattr(gs, 'players', []))
-
-        if not pass_order or not current_player_order or not players:
-            return 0
-
-        faction_8_owner_id = -1
-        faction_10_owner_id = -1
-        for idx, player in enumerate(players):
-            faction_id = getattr(player, 'faction_id', 0)
-            if faction_id == 8:
-                faction_8_owner_id = idx
-            elif faction_id == 10:
-                faction_10_owner_id = idx
-
-        if faction_8_owner_id == -1 and faction_10_owner_id == -1:
-            build_order = pass_order + current_player_order
-        elif faction_10_owner_id == -1:
-            build_order = [idx for idx in pass_order + current_player_order if idx != faction_8_owner_id]
-            build_order.append(faction_8_owner_id)
-        elif faction_8_owner_id == -1:
-            build_order = pass_order + current_player_order + [faction_10_owner_id]
-        else:
-            build_order = [idx for idx in pass_order + current_player_order if idx != faction_8_owner_id]
-            build_order.extend([faction_10_owner_id, faction_8_owner_id])
-
-        return len(build_order)
-
-    def _get_completed_setup_build_count(self, gs: 'GameStateBase') -> int:
-        """统计 action_history 中已经执行完成的 setup_build 次数。"""
-        action_history = getattr(gs, 'action_history', [])
-        all_detailed_actions = getattr(gs, 'all_detailed_actions', {})
-        completed_count = 0
-
-        for history_entry in action_history:
-            if not isinstance(history_entry, tuple) or len(history_entry) != 3:
-                continue
-
-            _player_id, action_mode, action_id = history_entry
-            if action_mode != 'normal':
-                continue
-
-            action_detail = all_detailed_actions.get(action_id, {})
-            if action_detail.get('action') == 'setup_build':
-                completed_count += 1
-
-        return completed_count
     
-    def _extract_setup(self, setup: 'GameSetup') -> GameSetup:
+    def _extract_setup(self, gs: 'GameStateBase') -> GameSetup:
         """提取游戏设置"""
+        setup = gs.setup
         return GameSetup(
             selected_planning_cards=list(setup.selected_planning_cards),
             selected_factions=list(setup.selected_factions),
             selected_palace_tiles=list(setup.selected_palace_tiles),
             selected_round_boosters=list(setup.selected_round_boosters),
+            round_booster_coin_counts=self._extract_round_booster_coin_counts(gs, setup.selected_round_boosters),
             round_scoring_order=list(setup.round_scoring_order),
             final_scoring=setup.final_scoring,
             ability_tiles_order=list(setup.ability_tiles_order),
@@ -246,6 +181,25 @@ class GameStateManager:
             init_player_order=list(setup.init_player_order),
             current_global_books=dict(setup.current_global_books)
         )
+
+    def _extract_round_booster_coin_counts(
+        self,
+        gs: 'GameStateBase',
+        booster_ids: List[int]
+    ) -> Dict[int, int]:
+        """提取每张回合助推板正面累计的 ('money', 'get', 1) 次数。"""
+        all_available_object_dict = getattr(gs, 'all_available_object_dict', {}) or {}
+        round_boosters = all_available_object_dict.get('round_booster', {}) if isinstance(all_available_object_dict, dict) else {}
+
+        return {
+            booster_id: self._count_round_booster_single_coin_effect(round_boosters.get(booster_id))
+            for booster_id in booster_ids
+        }
+
+    def _count_round_booster_single_coin_effect(self, booster: Any) -> int:
+        """只统计 immediate_effect 中精确匹配 ('money', 'get', 1) 的元组个数。"""
+        immediate_effects = getattr(booster, 'immediate_effect', []) if booster is not None else []
+        return sum(1 for effect in immediate_effects if effect == ('money', 'get', 1))
     
     def _extract_players(self, players: List['PlayerState']) -> List[PlayerState]:
         """提取玩家状态列表"""

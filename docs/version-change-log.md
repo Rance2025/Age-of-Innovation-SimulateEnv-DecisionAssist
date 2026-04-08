@@ -33,6 +33,49 @@
 
 ## 版本记录
 
+## 0.9.5.9
+- 日期：`2026-04-08`
+- 分支：`main`
+- 影响范围：
+  - `backend/game/utils/game_state_manager.py`
+  - `backend/game/utils/frontend_state_types.py`
+  - `frontend/src/views/GameView.vue`
+  - `frontend/src/views/SetupView.vue`
+  - `frontend/src/stores/gameState.js`
+  - `docs/game_state_frontend_mapping.md`
+  - `docs/version-change-log.md`
+- 更新内容：
+  - `fix: 初始阶段状态判断改为直接读取核心 game_state 的 setup_choice_is_completed 与 setup_build_is_completed 标志，避免在最后一次初始建筑摆放的立即子步骤中误显示为初始效果结算。`
+  - `fix: 对局页对局状态改为直接根据 gameMeta 标志实时计算显示，不再接受独立 global_status 文案覆盖，确保 setup_choice_is_completed=true 且 setup_build_is_completed=false 时稳定显示初始建筑摆放阶段。`
+  - `docs: 同步更新前端状态映射文档中的元信息提取示例，移除基于 action_history 推导初始建筑摆放完成态的旧实现。`
+  - `ui: 调整对局页玩家标题栏中的宫殿板块编号圆圈为定宽对齐布局，固定“玩家 x”文本宽度以保证各玩家编号列垂直对齐，并将宫殿圆圈缩小到接近标题文字高度后放置于玩家名与派系胶囊之间。`
+  - `ui: 基于 is_got_palace 为宫殿板块缩略圆圈和悬停大图增加激活/未激活状态表现，未激活时在圆圈右上角显示禁用图标，并在大图预览上叠加透明灰色遮罩与禁用图标。`
+  - `ui: 将宫殿板块未激活禁用图标改为红色，并进一步压缩“玩家 x”到宫殿板块圆圈之间的预留宽度，使标题栏对齐更紧凑。`
+  - `ui: 去除宫殿板块未激活禁用图标外围的额外圆形包裹，仅保留右上角红色禁用图标与大图遮罩中的红色禁用图标。`
+  - `ui: 微调宫殿板块未激活禁用图标在标题栏圆圈右上角的位置为略向左下偏移，并将大图遮罩中的禁用图标进一步放大以增强状态识别。`
+  - `ui: 轻微增加标题栏中“玩家 x”与宫殿板块圆圈之间的固定预留宽度，缓和两者过近的问题并保持跨玩家垂直对齐。`
+  - `ui: 对局页回合助推板在翻面后按当前持有者的 planning_card_id 叠加对应颜色标记，标记固定显示于翻面板块的水平中心与垂直 25% 位置，并随 booster_ids 与规划卡增量更新实时同步。`
+  - `ui: 将回合助推板翻面态玩家颜色标记进一步缩小到板面宽度的 30%，避免遮挡背面信息。`
+  - `fix: 修正回合助推板翻面态颜色标记被 bonus-cell 通用图片尺寸规则覆盖的问题，改为使用更高优先级的独立尺寸样式。`
+  - `ui: 将回合助推板翻面态玩家颜色标记继续上移 3%，使其更贴近翻面图片区上沿。`
+  - `ui: 将回合助推板翻面态玩家颜色标记在当前位置基础上放大一倍，板面宽度占比从 30% 提升到 60%。`
+  - `ui: 将回合助推板翻面态玩家颜色标记再上移 5% 到 17%，并将宽度从 60% 调整为 50%。`
+  - `ui: 将回合助推板翻面态玩家颜色标记宽度调回 60%，并在当前垂直位置基础上整体向左偏移 5%。`
+  - `ui: 将回合助推板翻面态玩家颜色标记水平位置向右回调 2%，避免左移过量。`
+  - `ui: 将回合助推板翻面态玩家颜色标记再向右微调 0.5%，并继续上移 5% 以贴近翻面图区顶部。`
+  - `ui: 将回合助推板翻面态玩家颜色标记垂直位置从 12% 回调到 15%。`
+  - `ui: 将标题栏中的 player-name 宽度调整为 3.15rem，并将 player-title 的间距收窄到 3px。`
+  - `ui: 初始板块配置弹窗左侧导航的完成对勾改为未完成时仅隐藏可见性但保留占位，避免先后选择派系与宫殿板块时文字发生横向位移，并保持现有布局尺寸不变。`
+  - `ui: 对局页玩家标题栏中的宫殿板块徽章在未分配时改为隐藏内容但保留原位宽度，避免派系胶囊贴近“玩家 x”并保持现有标题布局不变。`
+  - `feat: 在前端游戏状态 setup 中新增 round_booster_coin_counts，直接统计 game_state.all_available_object_dict['round_booster'][编号].immediate_effect 中精确匹配 ('money', 'get', 1) 的数量，并参与全量与增量同步。`
+  - `ui: 对局页正面的回合助推板在右上角叠加金币角标，实时显示该助推板当前累计的 1 金币数量，数量为 0 时不显示。`
+  - `docs: 同步更新前端状态映射文档中的 GameSetup 与状态提取示例，补充回合助推板累计金币计数字段与提取逻辑。`
+  - `fix: 对局页地图增量更新改为按格子合并 controller、building_id、is_neutral 等主建筑字段后再统一重绘，避免中立塔楼落子时先短暂请求错误的玩家色建筑图片 3-6.png 再被 0-6.png 覆盖。`
+- 验证方式：
+  - `python -m py_compile backend/game/utils/frontend_state_types.py backend/game/utils/game_state_manager.py`
+  - `cd frontend && npm run build`
+  - `运行 200 局启动阶段脚本，逐步比对 GameStateManager._extract_meta 与 request.game_state 的 setup 标志，确认两者全程一致。`
+
 ## 0.9.5.8
 - 日期：`2026-04-08`
 - 分支：`main`
@@ -175,3 +218,4 @@
   - `fix: 增加倒计时定时器清理逻辑，并延长后端状态轮询等待时间。`
 - 验证方式：
   - `cd frontend && npm run build`
+

@@ -35,6 +35,31 @@
                   <div class="player-title">
                     <span class="player-name">玩家 {{ player.id + 1 }}</span>
                     <span
+                      class="palace-tile-badge"
+                      :class="{
+                        'is-inactive': player.palaceTileId !== null && !player.isGotPalace,
+                        'is-hidden-placeholder': player.palaceTileId === null
+                      }"
+                      :tabindex="player.palaceTileId !== null ? 0 : -1"
+                      title=""
+                      :aria-label="player.palaceTileId !== null ? `预览${player.palaceTileId}号宫殿板块${player.isGotPalace ? '' : '（未激活）'}` : undefined"
+                      :aria-hidden="player.palaceTileId === null ? 'true' : 'false'"
+                      @mouseenter="handlePalaceTileMouseEnter(player.palaceTileId, player.isGotPalace, $event)"
+                      @mouseleave="handlePalaceTileMouseLeave"
+                      @focus="handlePalaceTileMouseEnter(player.palaceTileId, player.isGotPalace, $event)"
+                      @blur="handlePalaceTileMouseLeave"
+                      @keydown.esc.prevent="hideEntityPreview"
+                    >
+                      <span class="palace-tile-badge-value">{{ player.palaceTileId }}</span>
+                      <span
+                        v-if="!player.isGotPalace"
+                        class="palace-tile-badge-status"
+                        aria-hidden="true"
+                      >
+                        <i class="fas fa-ban"></i>
+                      </span>
+                    </span>
+                    <span
                       v-if="player.factionId !== null"
                       class="faction-badge"
                     >
@@ -390,6 +415,21 @@
                           <img :src="`/images/bonus/${bonus.backX}.png`" alt="助推板块背面">
                         </div>
                       </div>
+                      <img
+                        v-if="bonus.isFlipped && bonus.holderMarkId !== null"
+                        :src="getBonusHolderMarkSrc(bonus.holderMarkId)"
+                        alt=""
+                        aria-hidden="true"
+                        class="bonus-holder-mark"
+                      >
+                      <span
+                        v-if="!bonus.isFlipped && bonus.coinCount > 0"
+                        class="bonus-coin-badge"
+                        aria-hidden="true"
+                      >
+                        <i class="fas fa-coins"></i>
+                        <span class="bonus-coin-badge-text">x{{ bonus.coinCount }}</span>
+                      </span>
                       <span class="bonus-label" :aria-label="`回合助推板 ${bonus.x}`">{{ bonus.x }}</span>
                     </div>
                   </div>
@@ -559,17 +599,29 @@
       @mouseenter="cancelEntityPreviewHide"
       @mouseleave="scheduleEntityPreviewHide"
     >
-      <div
-        class="entity-preview-image"
-        :style="entityPreview.imageStyle"
-      ></div>
+      <div class="entity-preview-media">
+        <div
+          class="entity-preview-image"
+          :class="{ 'is-inactive': entityPreview.isInactive }"
+          :style="entityPreview.imageStyle"
+        ></div>
+        <div
+          v-if="entityPreview.isInactive"
+          class="entity-preview-image-overlay"
+          aria-hidden="true"
+        >
+          <span class="entity-preview-status-icon">
+            <i class="fas fa-ban"></i>
+          </span>
+        </div>
+      </div>
       <div class="entity-preview-name">{{ entityPreview.name }}</div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { computed, ref, reactive, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameStore } from '../stores/game'
 import Modal from '../components/Modal.vue'
@@ -684,6 +736,8 @@ function createDefaultPlayerDisplayState() {
   return {
     factionId: null,
     faction: '',
+    palaceTileId: null,
+    isGotPalace: false,
     planningCardId: null,
     planningCard: null,
     score: 20,
@@ -772,17 +826,26 @@ const roundStates = reactive({
 // 助推板块 - 动态初始化，根据实际人数调整 (num_players + 3)
 const bonusColumns = ref([])
 
+function createBonusColumnState(x = 0, previousBonus = null) {
+  return {
+    x,
+    backX: x === 0 ? 0 : x + 10,
+    isFlipped: previousBonus?.isFlipped ?? false,
+    holderMarkId: previousBonus?.holderMarkId ?? null,
+    coinCount: previousBonus?.coinCount ?? 0
+  }
+}
+
 // 初始化助推板块列
 function initBonusColumns(count) {
   const columns = []
   for (let i = 0; i < count; i++) {
-    columns.push({ x: 0, backX: 0, isFlipped: false })
+    columns.push(createBonusColumnState())
   }
   bonusColumns.value = columns
 }
 
 // 全局状态
-const globalStatus = ref('所有玩家已就绪，对局即将开始')
 const actionCount = ref(0)
 const actions = ref([])
 const actionLogs = ref([])
@@ -797,6 +860,7 @@ const gameMeta = reactive({
   setup_choice_is_completed: false,
   setup_build_is_completed: false
 })
+const globalStatus = computed(() => buildGlobalStatusFromMeta())
 
 // 规划卡与派系映射
 const planningCardIdToName = {
@@ -835,6 +899,12 @@ const factionSquareCropBackgroundSize = `${((factionSheetPixelWidth / factionTil
 const factionSquareCropPositions = Array.from({ length: factionTileCount }, (_, index) => Number(
   (((index * factionTilePixelWidth + factionSquareCropInsetPx) / (factionSheetPixelWidth - factionTilePixelHeight)) * 100).toFixed(4)
 ))
+const palaceTileBackgroundPositions = [
+  0, 5.8824, 11.7647, 17.6471, 23.5294, 29.4118, 35.2941, 41.1765,
+  47.0588, 52.9412, 58.8235, 64.7059, 70.5882, 76.4706, 82.3529, 88.2353, 94.1176, 100
+]
+const palaceTileBackgroundSize = '1800% 100%'
+const palaceTileAspectRatio = 142 / 74
 const factionTileAspectRatio = factionTilePixelWidth / factionTilePixelHeight
 const planningCardPreviewAspectRatio = 118 / 187
 const entityPreviewDelayMs = 300
@@ -844,12 +914,15 @@ const entityPreviewPaddingPx = 8
 const entityPreviewNameHeightPx = 30
 const factionPreviewCardWidthPx = 320
 const factionPreviewImageHeightPx = Math.round(factionPreviewCardWidthPx / factionTileAspectRatio)
+const palacePreviewCardWidthPx = 280
+const palacePreviewImageHeightPx = Math.round(palacePreviewCardWidthPx / palaceTileAspectRatio)
 const planningPreviewCardWidthPx = 176
 const planningPreviewImageHeightPx = Math.round(planningPreviewCardWidthPx / planningCardPreviewAspectRatio)
 const entityPreview = reactive({
   visible: false,
   name: '',
   imageStyle: {},
+  isInactive: false,
   imageHeight: 0,
   panelWidth: 0,
   top: 0,
@@ -878,6 +951,20 @@ function setPlayerPlanningCard(player, planningCardId) {
   player.planningCard = resolvedId ? planningCardIdToName[resolvedId] || null : null
 }
 
+function normalizePlanningCardId(planningCardId) {
+  const normalizedId = Number(planningCardId)
+  return Number.isInteger(normalizedId) && normalizedId >= 1 && normalizedId <= 7 ? normalizedId : null
+}
+
+function setPlayerPalaceTile(player, palaceTileId) {
+  const normalizedId = Number(palaceTileId)
+  player.palaceTileId = Number.isInteger(normalizedId) && normalizedId > 0 ? normalizedId : null
+}
+
+function setPlayerPalaceActivation(player, isGotPalace) {
+  player.isGotPalace = isGotPalace === true || isGotPalace === 1 || isGotPalace === '1' || isGotPalace === 'true'
+}
+
 function setPlayerFaction(player, factionId) {
   const normalizedId = Number(factionId)
   const resolvedId = Number.isInteger(normalizedId) && normalizedId > 0 ? normalizedId : null
@@ -887,6 +974,10 @@ function setPlayerFaction(player, factionId) {
 
 function getPlanningCardColor(planningCardId) {
   return planningCardId ? planningCardIdToColor[planningCardId] || 'transparent' : 'transparent'
+}
+
+function getBonusHolderMarkSrc(markId) {
+  return `/images/items/mark/${markId}.png`
 }
 
 function getFactionBadgeStyle(factionId) {
@@ -912,6 +1003,23 @@ function getFactionPreviewStyle(factionId) {
     backgroundImage: 'url(/assets/images/faction_tiles.jpg)',
     backgroundSize: factionTileBackgroundSize,
     backgroundPosition: `${factionTileBackgroundPositions[imageIndex]}% 50%`
+  }
+}
+
+function getPalacePreviewStyle(palaceTileId) {
+  if (!palaceTileId) {
+    return {}
+  }
+
+  const imageIndex = Number(palaceTileId) - 1
+  if (!Number.isInteger(imageIndex) || imageIndex < 0 || imageIndex >= 16) {
+    return {}
+  }
+
+  return {
+    backgroundImage: 'url(/assets/images/palace_tiles.jpg)',
+    backgroundSize: palaceTileBackgroundSize,
+    backgroundPosition: `${palaceTileBackgroundPositions[imageIndex]}% 50%`
   }
 }
 
@@ -957,11 +1065,12 @@ function hideEntityPreview() {
   entityPreview.visible = false
   entityPreview.name = ''
   entityPreview.imageStyle = {}
+  entityPreview.isInactive = false
   entityPreview.imageHeight = 0
   entityPreview.panelWidth = 0
 }
 
-function showEntityPreview({ name, imageStyle, cardWidth, imageHeight, anchorElement }) {
+function showEntityPreview({ name, imageStyle, isInactive = false, cardWidth, imageHeight, anchorElement }) {
   if (!anchorElement?.isConnected) {
     return
   }
@@ -983,6 +1092,7 @@ function showEntityPreview({ name, imageStyle, cardWidth, imageHeight, anchorEle
 
   entityPreview.name = name
   entityPreview.imageStyle = imageStyle
+  entityPreview.isInactive = Boolean(isInactive)
   entityPreview.imageHeight = imageHeight
   entityPreview.panelWidth = panelWidth
   entityPreview.left = left
@@ -1014,6 +1124,27 @@ function handlePlanningCardMouseEnter(planningCardId, planningCardName, event) {
 }
 
 function handlePlanningCardMouseLeave() {
+  clearEntityPreviewTimer()
+  scheduleEntityPreviewHide()
+}
+
+function handlePalaceTileMouseEnter(palaceTileId, isGotPalace, event) {
+  if (!palaceTileId) {
+    return
+  }
+
+  const isInactive = !isGotPalace
+  queueEntityPreview({
+    name: isInactive ? `${palaceTileId}号宫殿板块 · 未激活` : `${palaceTileId}号宫殿板块`,
+    imageStyle: getPalacePreviewStyle(palaceTileId),
+    isInactive,
+    cardWidth: palacePreviewCardWidthPx,
+    imageHeight: palacePreviewImageHeightPx,
+    anchorElement: event?.currentTarget
+  })
+}
+
+function handlePalaceTileMouseLeave() {
   clearEntityPreviewTimer()
   scheduleEntityPreviewHide()
 }
@@ -1086,7 +1217,6 @@ function syncRoundScoringProgress(roundValue) {
 }
 
 function syncRoundInfoFromMeta() {
-  globalStatus.value = buildGlobalStatusFromMeta()
   syncRoundScoringProgress(gameMeta.round)
 }
 
@@ -1251,6 +1381,14 @@ function applyPlayerState(player, backendPlayer) {
     setPlayerPlanningCard(player, backendPlayer.planning_card_id)
   }
 
+  if (Object.prototype.hasOwnProperty.call(backendPlayer, 'palace_tile_id')) {
+    setPlayerPalaceTile(player, backendPlayer.palace_tile_id)
+  }
+
+  if (Object.prototype.hasOwnProperty.call(backendPlayer, 'is_got_palace')) {
+    setPlayerPalaceActivation(player, backendPlayer.is_got_palace)
+  }
+
   if (Object.prototype.hasOwnProperty.call(backendPlayer, 'faction_id')) {
     setPlayerFaction(player, backendPlayer.faction_id)
   }
@@ -1338,9 +1476,16 @@ function applyPlayerFieldChange(player, remainingKeys, value, changeType = '') {
     switch (firstKey) {
       case 'planning_card_id':
         setPlayerPlanningCard(player, value)
+        syncBonusColumnsFromPlayers()
         return
       case 'faction_id':
         setPlayerFaction(player, value)
+        return
+      case 'palace_tile_id':
+        setPlayerPalaceTile(player, value)
+        return
+      case 'is_got_palace':
+        setPlayerPalaceActivation(player, value)
         return
       case 'boardscore':
         player.score = value
@@ -1914,15 +2059,11 @@ function setFinalRoundBonus(x) {
 
 function setBonusColumns(xList) {
   if (!Array.isArray(xList)) return false
-  const previousFlipByBoosterId = new Map(
-    bonusColumns.value.map((bonus) => [bonus.x, bonus.isFlipped])
+  const previousBonusByBoosterId = new Map(
+    bonusColumns.value.map((bonus) => [bonus.x, bonus])
   )
 
-  bonusColumns.value = xList.map((x) => ({
-    x,
-    backX: x === 0 ? 0 : x + 10,
-    isFlipped: previousFlipByBoosterId.get(x) ?? false
-  }))
+  bonusColumns.value = xList.map((x) => createBonusColumnState(x, previousBonusByBoosterId.get(x)))
   return true
 }
 
@@ -1931,6 +2072,47 @@ function flipSingleBonusColumn(index) {
   // 确保该索引存在
   if (!bonusColumns.value[index]) return false
   bonusColumns.value[index].isFlipped = !bonusColumns.value[index].isFlipped
+  return true
+}
+
+function normalizeRoundBoosterCoinCount(value) {
+  const normalizedValue = Number(value)
+  return Number.isInteger(normalizedValue) && normalizedValue > 0 ? normalizedValue : 0
+}
+
+function setRoundBoosterCoinCounts(roundBoosterCoinCounts) {
+  const normalizedCoinCountMap = new Map()
+
+  if (roundBoosterCoinCounts && typeof roundBoosterCoinCounts === 'object') {
+    Object.entries(roundBoosterCoinCounts).forEach(([boosterId, coinCount]) => {
+      const normalizedBoosterId = Number(boosterId)
+      if (!Number.isInteger(normalizedBoosterId) || normalizedBoosterId <= 0) {
+        return
+      }
+
+      normalizedCoinCountMap.set(normalizedBoosterId, normalizeRoundBoosterCoinCount(coinCount))
+    })
+  }
+
+  bonusColumns.value.forEach((bonus) => {
+    bonus.coinCount = normalizedCoinCountMap.get(bonus.x) ?? 0
+  })
+
+  return true
+}
+
+function setSingleRoundBoosterCoinCount(boosterId, coinCount) {
+  const normalizedBoosterId = Number(boosterId)
+  if (!Number.isInteger(normalizedBoosterId) || normalizedBoosterId <= 0) {
+    return false
+  }
+
+  const bonusColumn = bonusColumns.value.find((bonus) => bonus.x === normalizedBoosterId)
+  if (!bonusColumn) {
+    return false
+  }
+
+  bonusColumn.coinCount = normalizeRoundBoosterCoinCount(coinCount)
   return true
 }
 
@@ -1972,31 +2154,27 @@ function applyPlayerBoosterIdsChange(player, nextBoosterIds) {
   const nextLatestBoosterId = getLatestBoosterId(normalizedNextBoosterIds)
 
   player.booster_ids = [...normalizedNextBoosterIds]
-
-  if (previousLatestBoosterId === nextLatestBoosterId) {
-    return false
-  }
-
-  if (previousLatestBoosterId !== null) {
-    setBonusColumnFlipByBoosterId(previousLatestBoosterId, false)
-  }
-
-  if (nextLatestBoosterId !== null) {
-    setBonusColumnFlipByBoosterId(nextLatestBoosterId, true)
-  }
-
-  return true
+  syncBonusColumnsFromPlayers()
+  return previousLatestBoosterId !== nextLatestBoosterId
 }
 
 function syncBonusColumnsFromPlayers(playerStates = players.value) {
-  const currentHeldBoosterIds = new Set(
-    (Array.isArray(playerStates) ? playerStates : [])
-      .map((playerState) => getLatestBoosterId(playerState?.booster_ids))
-      .filter((boosterId) => boosterId !== null)
-  )
+  const heldBoosterMarkMap = new Map()
+
+  ;(Array.isArray(playerStates) ? playerStates : []).forEach((playerState) => {
+    const boosterId = getLatestBoosterId(playerState?.booster_ids)
+    if (boosterId === null) {
+      return
+    }
+
+    const holderMarkId = normalizePlanningCardId(playerState?.planningCardId ?? playerState?.planning_card_id)
+    heldBoosterMarkMap.set(boosterId, holderMarkId)
+  })
 
   bonusColumns.value.forEach((bonus) => {
-    bonus.isFlipped = currentHeldBoosterIds.has(bonus.x)
+    const isHeld = heldBoosterMarkMap.has(bonus.x)
+    bonus.isFlipped = isHeld
+    bonus.holderMarkId = isHeld ? heldBoosterMarkMap.get(bonus.x) ?? null : null
   })
 }
 
@@ -2103,6 +2281,10 @@ function applyFullState(state) {
     if (state.setup.selected_round_boosters) {
       setBonusColumns(state.setup.selected_round_boosters)
     }
+
+    if (state.setup.round_booster_coin_counts) {
+      setRoundBoosterCoinCounts(state.setup.round_booster_coin_counts)
+    }
   }
   
   // 应用玩家状态
@@ -2169,6 +2351,10 @@ function applyGameViewFullState(state) {
 
     if (state.setup.selected_round_boosters) {
       setBonusColumns(state.setup.selected_round_boosters)
+    }
+
+    if (state.setup.round_booster_coin_counts) {
+      setRoundBoosterCoinCounts(state.setup.round_booster_coin_counts)
     }
   }
 
@@ -2255,7 +2441,7 @@ function handleSSEMessage(message) {
       break
 
     case 'global_status':
-      globalStatus.value = data.message
+      // 对局状态统一由 meta 标志推导，避免被独立文案覆盖。
       break
 
     case 'log':
@@ -2369,13 +2555,39 @@ function handleSSEMessage(message) {
 
 // 应用增量变更到本地状态
 function applyIncrementalChanges(changes) {
+  const pendingBuildingRenders = new Set()
+
   for (const change of changes) {
-    applyGameViewChange(change.path, change.new_value, change.change_type)
+    applyGameViewChange(change.path, change.new_value, change.change_type, pendingBuildingRenders)
   }
+
+  pendingBuildingRenders.forEach((cellKey) => {
+    const [row, col] = cellKey.split('-').map((value) => Number.parseInt(value, 10))
+    if (Number.isInteger(row) && Number.isInteger(col)) {
+      renderBuildingForCell(row, col)
+    }
+  })
+}
+
+function queueBuildingRender(pendingBuildingRenders, row, col) {
+  pendingBuildingRenders?.add(`${row}-${col}`)
+}
+
+function shouldDeferBuildingRender(pendingBuildingRenders) {
+  return pendingBuildingRenders instanceof Set
+}
+
+function triggerBuildingRender(row, col, pendingBuildingRenders = null) {
+  if (shouldDeferBuildingRender(pendingBuildingRenders)) {
+    queueBuildingRender(pendingBuildingRenders, row, col)
+    return
+  }
+
+  renderBuildingForCell(row, col)
 }
 
 // 应用单个变更
-function applyGameViewChange(path, value, changeType) {
+function applyGameViewChange(path, value, changeType, pendingBuildingRenders = null) {
   if (!path) return
 
   const keys = path.split(/\.|\[|\]/).filter(k => k !== '')
@@ -2426,7 +2638,7 @@ function applyGameViewChange(path, value, changeType) {
     }
 
     if (field === 'building_id' || field === 'controller' || field === 'is_neutral') {
-      renderBuildingForCell(row, col)
+      triggerBuildingRender(row, col, pendingBuildingRenders)
     }
     return
   }
@@ -2442,6 +2654,12 @@ function applyGameViewChange(path, value, changeType) {
     } else if (setupKey === 'selected_round_boosters' && Array.isArray(value)) {
       setBonusColumns(value)
       syncBonusColumnsFromPlayers()
+    } else if (setupKey === 'round_booster_coin_counts') {
+      if (keys.length === 2 && value && typeof value === 'object') {
+        setRoundBoosterCoinCounts(value)
+      } else if (keys.length >= 3) {
+        setSingleRoundBoosterCoinCount(keys[2], changeType === 'removed' ? 0 : value)
+      }
     }
   }
 }
@@ -2837,19 +3055,91 @@ onUnmounted(() => {
   line-height: 1;
 }
 
+.palace-tile-badge {
+  --palace-tile-badge-size: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: var(--palace-tile-badge-size);
+  height: var(--palace-tile-badge-size);
+  border-radius: 50%;
+  background: rgba(18, 27, 40, 0.9);
+  border: 1px solid rgba(120, 160, 200, 0.32);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  box-sizing: border-box;
+  color: #dcecfb;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  cursor: zoom-in;
+  flex-shrink: 0;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, color 0.16s ease;
+}
+
+.palace-tile-badge-value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+.palace-tile-badge.is-inactive {
+  background: rgba(56, 60, 66, 0.88);
+  border-color: rgba(176, 184, 194, 0.24);
+  color: rgba(238, 241, 245, 0.86);
+}
+
+.palace-tile-badge.is-hidden-placeholder {
+  visibility: hidden;
+  pointer-events: none;
+  cursor: default;
+}
+
+.palace-tile-badge-status {
+  position: absolute;
+  top: -1px;
+  right: -2px;
+  color: #ef4444;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+}
+
+.palace-tile-badge-status i {
+  font-size: 8px;
+  line-height: 1;
+}
+
+.palace-tile-badge:hover,
+.palace-tile-badge:focus-visible {
+  outline: none;
+  border-color: rgba(149, 196, 230, 0.62);
+  box-shadow:
+    0 0 0 3px rgba(72, 122, 168, 0.2),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
 .player-title {
   font-size: 0.92rem;
   font-weight: 600;
   color: var(--text-primary);
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 3px;
   min-width: 0;
 }
 
 .player-name {
+  display: inline-flex;
+  align-items: center;
+  width: 3.15rem;
   white-space: nowrap;
   flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .entity-preview {
@@ -2864,6 +3154,10 @@ onUnmounted(() => {
   box-sizing: border-box;
 }
 
+.entity-preview-media {
+  position: relative;
+}
+
 .entity-preview-image {
   width: 100%;
   height: var(--entity-preview-image-height);
@@ -2871,6 +3165,33 @@ onUnmounted(() => {
   background-repeat: no-repeat;
   background-color: #242424;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.entity-preview-image.is-inactive {
+  filter: saturate(0.82);
+}
+
+.entity-preview-image-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  background: rgba(113, 120, 132, 0.42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.entity-preview-status-icon {
+  color: #ef4444;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-shadow: 0 6px 18px rgba(0, 0, 0, 0.36);
+}
+
+.entity-preview-status-icon i {
+  font-size: 4rem;
+  line-height: 1;
 }
 
 .entity-preview-name {
@@ -3611,6 +3932,47 @@ onUnmounted(() => {
   height: 100%;
   object-fit: contain;
   box-sizing: border-box;
+}
+
+.bonus-cell .bonus-holder-mark {
+  position: absolute;
+  top: 15%;
+  left: 47.5%;
+  width: 60%;
+  height: auto;
+  transform: translate(-50%, -50%);
+  z-index: 6;
+  pointer-events: none;
+  object-fit: contain;
+}
+
+.bonus-cell .bonus-coin-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: rgba(25, 32, 44, 0.92);
+  border: 1px solid rgba(247, 199, 74, 0.52);
+  color: #ffe08a;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.28);
+  z-index: 11;
+  pointer-events: none;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.bonus-cell .bonus-coin-badge i {
+  font-size: 0.62rem;
+}
+
+.bonus-cell .bonus-coin-badge-text {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
 .bonus-label {

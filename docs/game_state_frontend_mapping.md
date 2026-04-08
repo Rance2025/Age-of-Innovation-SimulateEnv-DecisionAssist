@@ -212,6 +212,7 @@ class GameSetup:
     selected_factions: List[int] = field(default_factory=list)
     selected_palace_tiles: List[int] = field(default_factory=list)
     selected_round_boosters: List[int] = field(default_factory=list)
+    round_booster_coin_counts: Dict[int, int] = field(default_factory=dict)
     round_scoring_order: List[int] = field(default_factory=list)
     final_scoring: int = 0
     ability_tiles_order: List[int] = field(default_factory=list)
@@ -397,7 +398,7 @@ class GameStateSyncManager:
         
         return FullGameState(
             meta=self._extract_meta(request, gs),
-            setup=self._extract_setup(gs.setup) if gs else GameSetup(),
+            setup=self._extract_setup(gs) if gs else GameSetup(),
             players=self._extract_players(gs.players) if gs else [],
             map_state=self._extract_map_state(gs.map_board_state) if gs else MapState(),
             display_board=self._extract_display_board(gs.display_board_state) if gs else DisplayBoardState(),
@@ -410,6 +411,7 @@ class GameStateSyncManager:
     def _extract_meta(self, request: 'ActionRequest', gs: Optional['GameStateBase']) -> GameMeta:
         """提取元信息"""
         setup_choice_is_completed = bool(gs and getattr(gs, 'setup_choice_is_completed', False))
+        setup_build_is_completed = bool(gs and getattr(gs, 'setup_build_is_completed', False))
         return GameMeta(
             round=gs.round if gs else 0,
             num_players=gs.num_players if gs else 3,
@@ -417,16 +419,18 @@ class GameStateSyncManager:
             action_type=request.action_type,
             is_game_over=request.is_game_over,
             setup_choice_is_completed=setup_choice_is_completed,
-            setup_build_is_completed=self._is_setup_build_completed(gs, setup_choice_is_completed)
+            setup_build_is_completed=setup_build_is_completed
         )
     
-    def _extract_setup(self, setup: 'GameSetup') -> GameSetup:
+    def _extract_setup(self, gs: 'GameStateBase') -> GameSetup:
         """提取游戏设置"""
+        setup = gs.setup
         return GameSetup(
             selected_planning_cards=list(setup.selected_planning_cards),
             selected_factions=list(setup.selected_factions),
             selected_palace_tiles=list(setup.selected_palace_tiles),
             selected_round_boosters=list(setup.selected_round_boosters),
+            round_booster_coin_counts=self._extract_round_booster_coin_counts(gs, setup.selected_round_boosters),
             round_scoring_order=list(setup.round_scoring_order),
             final_scoring=setup.final_scoring,
             ability_tiles_order=list(setup.ability_tiles_order),
@@ -435,6 +439,25 @@ class GameStateSyncManager:
             init_player_order=list(setup.init_player_order),
             current_global_books=dict(setup.current_global_books)
         )
+
+    def _extract_round_booster_coin_counts(
+        self,
+        gs: 'GameStateBase',
+        booster_ids: List[int]
+    ) -> Dict[int, int]:
+        """提取每张回合助推板正面累计的 ('money', 'get', 1) 次数。"""
+        all_available_object_dict = getattr(gs, 'all_available_object_dict', {}) or {}
+        round_boosters = all_available_object_dict.get('round_booster', {}) if isinstance(all_available_object_dict, dict) else {}
+
+        return {
+            booster_id: self._count_round_booster_single_coin_effect(round_boosters.get(booster_id))
+            for booster_id in booster_ids
+        }
+
+    def _count_round_booster_single_coin_effect(self, booster: Any) -> int:
+        """只统计 immediate_effect 中精确匹配 ('money', 'get', 1) 的元组个数。"""
+        immediate_effects = getattr(booster, 'immediate_effect', []) if booster is not None else []
+        return sum(1 for effect in immediate_effects if effect == ('money', 'get', 1))
     
     def _extract_players(self, players: List['PlayerState']) -> List[PlayerState]:
         """提取玩家状态列表"""

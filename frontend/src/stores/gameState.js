@@ -114,6 +114,7 @@ const createDefaultSetup = () => ({
   selected_factions: [],
   selected_palace_tiles: [],
   selected_round_boosters: [],
+  round_booster_coin_counts: {},
   round_scoring_order: [],
   final_scoring: 0,
   ability_tiles_order: [],

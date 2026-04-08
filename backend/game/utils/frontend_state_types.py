@@ -192,6 +192,7 @@ class GameSetup:
     selected_factions: List[int] = field(default_factory=list)           # 选中的派系
     selected_palace_tiles: List[int] = field(default_factory=list)       # 选中的宫殿瓦片
     selected_round_boosters: List[int] = field(default_factory=list)     # 选中的回合助推器
+    round_booster_coin_counts: Dict[int, int] = field(default_factory=dict)  # 每张回合助推板正面累计的 1 金币数量
     round_scoring_order: List[int] = field(default_factory=list)         # 轮次计分顺序
     final_scoring: int = 0                                               # 最终计分ID
     ability_tiles_order: List[int] = field(default_factory=list)         # 能力瓦片顺序

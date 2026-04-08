@@ -330,8 +330,9 @@
               <i :class="item.icon"></i>
               <span>{{ item.name }}</span>
               <i
-                v-if="initNavRandom[item.id] || (!initNavRandom[item.id] && isNavItemComplete(item.id))"
                 class="fas fa-check nav-complete-icon"
+                :class="{ 'is-hidden': !(initNavRandom[item.id] || (!initNavRandom[item.id] && isNavItemComplete(item.id))) }"
+                aria-hidden="true"
               ></i>
             </div>
             <label class="nav-toggle" @click.stop>
@@ -3080,6 +3081,10 @@ async function waitForGameStateReady(retries = 60, delay = 250) {
   font-size: 0.75rem;
   margin-left: auto;
   flex-shrink: 0;
+}
+
+.nav-item-left .nav-complete-icon.is-hidden {
+  visibility: hidden;
 }
 
 /* 悬停状态 */
