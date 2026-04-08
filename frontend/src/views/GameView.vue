@@ -678,6 +678,7 @@ const ACTION_LOG_LIMIT = 200
 const mapState = reactive({
   grid: createDefaultMapGrid()
 })
+const mapBuildingRenderTokens = new Map()
 
 function createDefaultPlayerDisplayState() {
   return {
@@ -705,7 +706,8 @@ function createDefaultPlayerDisplayState() {
     guild: 4,
     palace: 1,
     school: 3,
-    university: 1
+    university: 1,
+    booster_ids: []
   }
 }
 
@@ -787,11 +789,13 @@ const actionLogs = ref([])
 const tacticalLogs = ref([])
 const stateVersion = ref(0)
 const gameMeta = reactive({
-  round: 1,
+  round: 0,
   num_players: 3,
   current_player_id: -1,
   action_type: '',
-  is_game_over: false
+  is_game_over: false,
+  setup_choice_is_completed: false,
+  setup_build_is_completed: false
 })
 
 // 规划卡与派系映射
@@ -1050,13 +1054,46 @@ function scheduleEntityPreviewHide() {
 }
 
 function buildGlobalStatusFromMeta() {
-  return `第 ${gameMeta.round || 1} 回合`
+  const normalizedRound = Number(gameMeta.round)
+  if (!Number.isInteger(normalizedRound) || normalizedRound <= 0) {
+    if (gameMeta.setup_build_is_completed) {
+      return '初始效果结算阶段'
+    }
+
+    if (gameMeta.setup_choice_is_completed) {
+      return '初始建筑摆放阶段'
+    }
+
+    return '初始板块选择阶段'
+  }
+
+  return `第 ${normalizedRound} 回合`
+}
+
+function syncRoundScoringProgress(roundValue) {
+  const normalizedRound = Number(roundValue)
+  const currentActiveRound = Number.isInteger(normalizedRound) && normalizedRound >= 1 && normalizedRound <= 6
+    ? normalizedRound
+    : 0
+  const endedRoundCount = Number.isInteger(normalizedRound)
+    ? Math.max(0, Math.min(normalizedRound - 1, 6))
+    : 0
+
+  currentRound.value = currentActiveRound
+  for (let round = 1; round <= 6; round++) {
+    roundStates[round].isFlipped = round <= endedRoundCount
+  }
+}
+
+function syncRoundInfoFromMeta() {
+  globalStatus.value = buildGlobalStatusFromMeta()
+  syncRoundScoringProgress(gameMeta.round)
 }
 
 function applyMetaState(metaPatch) {
   if (!metaPatch || typeof metaPatch !== 'object') return
   Object.assign(gameMeta, metaPatch)
-  globalStatus.value = buildGlobalStatusFromMeta()
+  syncRoundInfoFromMeta()
 }
 
 function updateStateVersion(version) {
@@ -1093,6 +1130,34 @@ function buildPlayerStatusRows(player) {
 function getPlayerBuildingIconSrc(player, buildingId) {
   const planningCardId = player?.planningCardId ?? 0
   return `/images/buildings/${planningCardId}-${buildingId}.png`
+}
+
+function getMapBuildingColorId(controller) {
+  const normalizedController = Number(controller)
+  if (!Number.isInteger(normalizedController) || normalizedController < 0) {
+    return null
+  }
+
+  const planningCardId = players.value[normalizedController]?.planningCardId
+  if (Number.isInteger(planningCardId) && planningCardId > 0) {
+    return planningCardId
+  }
+
+  return normalizedController + 1
+}
+
+function getMapBuildingIconSrc(cell) {
+  const buildingId = Number(cell?.building_id)
+  if (!Number.isInteger(buildingId) || buildingId <= 0) {
+    return null
+  }
+
+  const colorId = cell?.is_neutral ? 0 : getMapBuildingColorId(cell?.controller)
+  if (!Number.isInteger(colorId) || colorId < 0) {
+    return null
+  }
+
+  return `/images/buildings/${colorId}-${buildingId}.png`
 }
 
 function getActionLogChannelLabel(playerId) {
@@ -1180,6 +1245,7 @@ function applyPlayerState(player, backendPlayer) {
   player.palace = backendPlayer.palace ?? player.palace
   player.school = backendPlayer.school ?? player.school
   player.university = backendPlayer.university ?? player.university
+  player.booster_ids = Array.isArray(backendPlayer.booster_ids) ? [...backendPlayer.booster_ids] : []
 
   if (Object.prototype.hasOwnProperty.call(backendPlayer, 'planning_card_id')) {
     setPlayerPlanningCard(player, backendPlayer.planning_card_id)
@@ -1234,23 +1300,36 @@ function clearPlacedElementsAt(row, col) {
   })
 }
 
+function nextBuildingRenderToken(row, col) {
+  const cellKey = `${row}-${col}`
+  const nextToken = (mapBuildingRenderTokens.get(cellKey) ?? 0) + 1
+  mapBuildingRenderTokens.set(cellKey, nextToken)
+  return nextToken
+}
+
+function isLatestBuildingRender(row, col, renderToken) {
+  return mapBuildingRenderTokens.get(`${row}-${col}`) === renderToken
+}
+
 function renderBuildingForCell(row, col) {
   const cell = ensureMapCell(row, col)
+  const renderToken = nextBuildingRenderToken(row, col)
 
   if (!cell.building_id || cell.building_id <= 0) {
     clearPlacedElementsAt(row, col)
     return
   }
 
-  const buildingType = buildingIdToType[cell.building_id]
-  if (!buildingType) return
+  const imageSrc = getMapBuildingIconSrc(cell)
+  if (!imageSrc) {
+    clearPlacedElementsAt(row, col)
+    return
+  }
 
-  const controller = cell.controller ?? 0
-  const planningCardId = players.value[controller]?.planningCardId ?? (controller + 1)
-  placeElement(row, col, planningCardId, buildingType, 'replace')
+  void placeElement(row, col, imageSrc, cell.building_id, 'replace', renderToken)
 }
 
-function applyPlayerFieldChange(player, remainingKeys, value) {
+function applyPlayerFieldChange(player, remainingKeys, value, changeType = '') {
   if (!remainingKeys.length) return
 
   const [firstKey, secondKey] = remainingKeys
@@ -1281,9 +1360,35 @@ function applyPlayerFieldChange(player, remainingKeys, value) {
       case 'shovel_level':
         player.shovel = value
         return
+      case 'booster_ids':
+        applyPlayerBoosterIdsChange(player, value)
+        return
       default:
         player[firstKey] = value
         return
+    }
+  }
+
+  if (firstKey === 'booster_ids') {
+    const boosterIndex = Number.parseInt(secondKey, 10)
+    if (Number.isInteger(boosterIndex) && boosterIndex >= 0) {
+      const nextBoosterIds = Array.isArray(player.booster_ids) ? [...player.booster_ids] : []
+
+      if (changeType === 'removed' || value === null || value === undefined) {
+        nextBoosterIds.splice(boosterIndex, 1)
+      } else {
+        nextBoosterIds[boosterIndex] = value
+      }
+
+      while (
+        nextBoosterIds.length > 0
+        && (nextBoosterIds[nextBoosterIds.length - 1] === undefined || nextBoosterIds[nextBoosterIds.length - 1] === null)
+      ) {
+        nextBoosterIds.pop()
+      }
+
+      applyPlayerBoosterIdsChange(player, nextBoosterIds)
+      return
     }
   }
 
@@ -1704,7 +1809,7 @@ function setHexHighlights(hexList) {
 
 // ========== 建筑放置功能 ==========
 
-async function placeElement(hexRow, hexCol, planningCardId, buildingType, mode = 'replace') {
+async function placeElement(hexRow, hexCol, imageSrc, buildingId, mode = 'replace', renderToken = null) {
   // 计算位置ID (A1, B2等)
   const positionId = getHexPositionId(hexRow, hexCol)
 
@@ -1736,14 +1841,14 @@ async function placeElement(hexRow, hexCol, planningCardId, buildingType, mode =
   const image = document.createElementNS('http://www.w3.org/2000/svg', 'image')
   image.setAttribute('class', 'hex-element')
   image.setAttribute('data-position', positionId)
-  image.setAttribute('data-card-id', planningCardId)
-  image.setAttribute('data-building-type', buildingType)
+  image.setAttribute('data-building-id', String(buildingId))
+  const planningCardId = imageSrc.replace(/-\d+\.png$/, '')
+  const buildingType = buildingId
 
   try {
     // 预加载图片获取原始尺寸
-    const imgUrl = `/images/buildings/${planningCardId}-${buildingType}.png`
     const img = new Image()
-    img.src = imgUrl
+    img.src = imageSrc
 
     await new Promise((resolve, reject) => {
       img.onload = resolve
@@ -1753,13 +1858,16 @@ async function placeElement(hexRow, hexCol, planningCardId, buildingType, mode =
     // 计算25%的尺寸
     const scaledWidth = img.naturalWidth * 0.25
     const scaledHeight = img.naturalHeight * 0.25
+    if (renderToken !== null && !isLatestBuildingRender(hexRow, hexCol, renderToken)) {
+      return false
+    }
 
     // 设置正确尺寸
     image.setAttribute('x', centerX - scaledWidth / 2)
     image.setAttribute('y', bottomY - scaledHeight)
     image.setAttribute('width', scaledWidth)
     image.setAttribute('height', scaledHeight)
-    image.setAttribute('href', imgUrl)
+    image.setAttribute('href', imageSrc)
 
     console.log(`已加载建筑: ${planningCardId}-${buildingType}.png`)
   } catch (error) {
@@ -1784,17 +1892,12 @@ function setRoundScoring(round, x) {
 
 function RoundScoringUpdate(round) {
   if (round < 1 || round > 6) return false
-  roundStates[round].currentX = 0
-  roundStates[round].isFlipped = true
-  // 自动强调下一回合
-  if (round >= 0 && round <= 5) {
-    emphasizeRound(round + 1)
-  }
+  syncRoundScoringProgress(round + 1)
   return true
 }
 
 function emphasizeRound(round) {
-  currentRound.value = round
+  currentRound.value = round >= 1 && round <= 6 ? round : 0
 }
 
 function clearAllEmphasis() {
@@ -1811,16 +1914,15 @@ function setFinalRoundBonus(x) {
 
 function setBonusColumns(xList) {
   if (!Array.isArray(xList)) return false
-  // 如果列数不够，自动扩展
-  while (bonusColumns.value.length < xList.length) {
-    bonusColumns.value.push({ x: 0, backX: 0, isFlipped: false })
-  }
-  xList.forEach((x, index) => {
-    if (index < bonusColumns.value.length) {
-      bonusColumns.value[index].x = x
-      bonusColumns.value[index].backX = x === 0 ? 0 : x + 10
-    }
-  })
+  const previousFlipByBoosterId = new Map(
+    bonusColumns.value.map((bonus) => [bonus.x, bonus.isFlipped])
+  )
+
+  bonusColumns.value = xList.map((x) => ({
+    x,
+    backX: x === 0 ? 0 : x + 10,
+    isFlipped: previousFlipByBoosterId.get(x) ?? false
+  }))
   return true
 }
 
@@ -1830,6 +1932,72 @@ function flipSingleBonusColumn(index) {
   if (!bonusColumns.value[index]) return false
   bonusColumns.value[index].isFlipped = !bonusColumns.value[index].isFlipped
   return true
+}
+
+function normalizeBoosterIds(boosterIds) {
+  if (!Array.isArray(boosterIds)) {
+    return []
+  }
+
+  return boosterIds
+    .map((boosterId) => Number(boosterId))
+    .filter((boosterId) => Number.isInteger(boosterId) && boosterId > 0)
+}
+
+function getLatestBoosterId(boosterIds) {
+  const normalizedBoosterIds = normalizeBoosterIds(boosterIds)
+  return normalizedBoosterIds.length > 0 ? normalizedBoosterIds[normalizedBoosterIds.length - 1] : null
+}
+
+function setBonusColumnFlipByBoosterId(boosterId, isFlipped) {
+  const normalizedBoosterId = Number(boosterId)
+  if (!Number.isInteger(normalizedBoosterId) || normalizedBoosterId <= 0) {
+    return false
+  }
+
+  const bonusColumn = bonusColumns.value.find((bonus) => bonus.x === normalizedBoosterId)
+  if (!bonusColumn) {
+    return false
+  }
+
+  bonusColumn.isFlipped = isFlipped
+  return true
+}
+
+function applyPlayerBoosterIdsChange(player, nextBoosterIds) {
+  if (!player) return false
+
+  const previousLatestBoosterId = getLatestBoosterId(player.booster_ids)
+  const normalizedNextBoosterIds = normalizeBoosterIds(nextBoosterIds)
+  const nextLatestBoosterId = getLatestBoosterId(normalizedNextBoosterIds)
+
+  player.booster_ids = [...normalizedNextBoosterIds]
+
+  if (previousLatestBoosterId === nextLatestBoosterId) {
+    return false
+  }
+
+  if (previousLatestBoosterId !== null) {
+    setBonusColumnFlipByBoosterId(previousLatestBoosterId, false)
+  }
+
+  if (nextLatestBoosterId !== null) {
+    setBonusColumnFlipByBoosterId(nextLatestBoosterId, true)
+  }
+
+  return true
+}
+
+function syncBonusColumnsFromPlayers(playerStates = players.value) {
+  const currentHeldBoosterIds = new Set(
+    (Array.isArray(playerStates) ? playerStates : [])
+      .map((playerState) => getLatestBoosterId(playerState?.booster_ids))
+      .filter((boosterId) => boosterId !== null)
+  )
+
+  bonusColumns.value.forEach((bonus) => {
+    bonus.isFlipped = currentHeldBoosterIds.has(bonus.x)
+  })
 }
 
 // ========== SSE 连接 ==========
@@ -1908,7 +2076,7 @@ async function fetchFullState(retries = 10, delay = 500) {
 function applyFullState(state) {
   // 应用元信息
   if (state.meta) {
-    globalStatus.value = `第 ${state.meta.round || 1} 回合`
+    applyMetaState(state.meta)
     
     // 根据玩家数量初始化玩家列表
     const numPlayers = state.meta.num_players || 3
@@ -1941,35 +2109,11 @@ function applyFullState(state) {
   if (state.players && Array.isArray(state.players)) {
     state.players.forEach((p, idx) => {
       if (idx < players.value.length) {
-        const player = players.value[idx]
-        // 更新资源
-        if (p.resources) {
-          player.money = p.resources.money ?? player.money
-          player.mineral = p.resources.ore ?? player.mineral
-          player.mibao = p.resources.meeples ?? player.mibao
-          player.allMeeples = p.resources.all_meeples ?? player.allMeeples
-          player.bridges = p.resources.all_bridges ?? player.bridges
-          player.bank = p.resources.bank_book ?? player.bank
-          player.law = p.resources.law_book ?? player.law
-          player.engineering = p.resources.engineering_book ?? player.engineering
-          player.medical = p.resources.medical_book ?? player.medical
-          player.magic1 = p.magics?.zone1 ?? player.magic1
-          player.magic2 = p.magics?.zone2 ?? player.magic2
-          player.magic3 = p.magics?.zone3 ?? player.magic3
-        }
-        if (p.buildings) {
-          player.workshop = p.buildings.workshop ?? player.workshop
-          player.guild = p.buildings.guild ?? player.guild
-          player.palace = p.buildings.palace ?? player.palace
-          player.school = p.buildings.school ?? player.school
-          player.university = p.buildings.university ?? player.university
-        }
-        // 更新得分
-        player.score = p.boardscore ?? player.score
-        setPlayerPlanningCard(player, p.planning_card_id)
-        setPlayerFaction(player, p.faction_id)
+        applyPlayerState(players.value[idx], p)
       }
     })
+
+    syncBonusColumnsFromPlayers(state.players)
   }
   
   // 应用可选行动
@@ -2034,6 +2178,8 @@ function applyGameViewFullState(state) {
         applyPlayerState(players.value[idx], playerState)
       }
     })
+
+    syncBonusColumnsFromPlayers(state.players)
   }
 
   setAvailableActions(state.available_actions)
@@ -2123,17 +2269,30 @@ function handleSSEMessage(message) {
 
     case 'terrain_update':
       if (data.row !== undefined && data.col !== undefined && data.terrain_type !== undefined) {
+        const cell = ensureMapCell(data.row, data.col)
+        cell.terrain = data.terrain_type
         setHexTerrain(data.row, data.col, data.terrain_type)
       }
       break
 
     case 'building_update':
       // 建筑更新处理
-      if (data.hex_row !== undefined && data.hex_col !== undefined && data.color !== undefined && data.id !== undefined) {
-        const buildingType = buildingIdToType[data.id]
-        if (buildingType) {
-          placeElement(data.hex_row, data.hex_col, data.color, buildingType, data.mode || 'replace')
+      if (data.hex_row !== undefined && data.hex_col !== undefined) {
+        const cell = ensureMapCell(data.hex_row, data.hex_col)
+
+        if (Object.prototype.hasOwnProperty.call(data, 'id')) {
+          cell.building_id = data.id
         }
+
+        if (Object.prototype.hasOwnProperty.call(data, 'color')) {
+          cell.controller = data.color
+        }
+
+        if (Object.prototype.hasOwnProperty.call(data, 'is_neutral')) {
+          cell.is_neutral = data.is_neutral
+        }
+
+        renderBuildingForCell(data.hex_row, data.hex_col)
       }
       break
 
@@ -2238,21 +2397,17 @@ function applyGameViewChange(path, value, changeType) {
   if (rootKey === 'players' && keys.length >= 2) {
     const playerIdx = Number.parseInt(keys[1], 10)
     if (playerIdx >= 0 && playerIdx < players.value.length) {
-      applyPlayerFieldChange(players.value[playerIdx], keys.slice(2), value)
+      applyPlayerFieldChange(players.value[playerIdx], keys.slice(2), value, changeType)
     }
     return
   }
 
   if (rootKey === 'meta' && keys.length >= 2) {
     const key = keys[1]
-    gameMeta[key] = value
+    applyMetaState({ [key]: value })
 
     if (key === 'num_players' && value > 0 && players.value.length !== value) {
       initPlayers(value)
-    }
-
-    if (key === 'round' || key === 'current_player_id' || key === 'action_type') {
-      globalStatus.value = buildGlobalStatusFromMeta()
     }
     return
   }
@@ -2270,7 +2425,7 @@ function applyGameViewChange(path, value, changeType) {
       return
     }
 
-    if (field === 'building_id' || field === 'controller') {
+    if (field === 'building_id' || field === 'controller' || field === 'is_neutral') {
       renderBuildingForCell(row, col)
     }
     return
@@ -2286,6 +2441,7 @@ function applyGameViewChange(path, value, changeType) {
       setFinalRoundBonus(value)
     } else if (setupKey === 'selected_round_boosters' && Array.isArray(value)) {
       setBonusColumns(value)
+      syncBonusColumnsFromPlayers()
     }
   }
 }

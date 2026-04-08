@@ -653,6 +653,7 @@ class GameStateBase:
         self.current_player_order = self.init_player_order.copy()                                               # 当前玩家顺位
         self.pass_order = list(reversed(self.current_player_order))                                             # 本回合玩家结束顺序
         self.setup_choice_is_completed:bool = False                                                             # 初始选择是否完成
+        self.setup_build_is_completed:bool = False                                                              # 初始建造是否完成
         self.check = self.init_check()                                                                          # 初始化检查函数
         self.adjust = self.init_adjust()                                                                        # 初始化调整函数
         self.all_detailed_actions = get_all_detailed_actions()                                                  # 所有具体行动

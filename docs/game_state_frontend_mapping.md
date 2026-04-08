@@ -59,6 +59,8 @@ class GameMeta:
     current_player_id: int = -1
     action_type: str = ""
     is_game_over: bool = False
+    setup_choice_is_completed: bool = False
+    setup_build_is_completed: bool = False
 
 @dataclass
 class Resources:
@@ -407,12 +409,15 @@ class GameStateSyncManager:
     
     def _extract_meta(self, request: 'ActionRequest', gs: Optional['GameStateBase']) -> GameMeta:
         """提取元信息"""
+        setup_choice_is_completed = bool(gs and getattr(gs, 'setup_choice_is_completed', False))
         return GameMeta(
             round=gs.round if gs else 0,
             num_players=gs.num_players if gs else 3,
             current_player_id=request.player_id,
             action_type=request.action_type,
-            is_game_over=request.is_game_over
+            is_game_over=request.is_game_over,
+            setup_choice_is_completed=setup_choice_is_completed,
+            setup_build_is_completed=self._is_setup_build_completed(gs, setup_choice_is_completed)
         )
     
     def _extract_setup(self, setup: 'GameSetup') -> GameSetup:
@@ -1507,6 +1512,8 @@ interface GameMeta {
   current_player_id: number
   action_type: string
   is_game_over: boolean
+  setup_choice_is_completed: boolean
+  setup_build_is_completed: boolean
 }
 
 interface Resources {
@@ -1599,7 +1606,9 @@ export const useGameStateStore = defineStore('gameState', () => {
       num_players: 3,
       current_player_id: -1,
       action_type: '',
-      is_game_over: false
+      is_game_over: false,
+      setup_choice_is_completed: false,
+      setup_build_is_completed: false
     },
     players: [],
     // ... 其他初始状态

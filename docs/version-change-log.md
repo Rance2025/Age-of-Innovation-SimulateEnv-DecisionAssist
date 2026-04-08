@@ -10,6 +10,7 @@
 - 分支：
 - 影响范围：
 - 更新内容：
+  - `type: 中文描述`
 - 验证方式：
 
 ## 模板
@@ -31,6 +32,38 @@
 - 验证方式：
 
 ## 版本记录
+
+## 0.9.5.8
+- 日期：`2026-04-08`
+- 分支：`main`
+- 影响范围：
+  - `backend/game/aoi_game/game_engine.py`
+  - `backend/game/aoi_game/game_state.py`
+  - `backend/game/utils/frontend_state_types.py`
+  - `backend/game/utils/game_state_manager.py`
+  - `frontend/src/views/GameView.vue`
+  - `frontend/src/stores/gameState.js`
+  - `docs/game_state_frontend_mapping.md`
+  - `docs/TODO.md`
+  - `docs/frontend_backend_alignment.md`
+  - `docs/version-change-log.md`
+- 更新内容：
+  - `feat: 在核心 game_state 与前端状态元信息中补充 setup_build_is_completed，并同步暴露 setup_choice_is_completed，供前端区分初始板块选择、初始建筑摆放和初始效果结算阶段。`
+  - `ui: 对局页回合信息框在 round=0 时按初始板块选择、初始建筑摆放、初始效果结算三个阶段显示状态文案，并在 round>=1 时恢复当前回合强调。`
+  - `fix: 回合计分板结束后改为仅翻面不替换正面图片，已翻面的轮次支持悬停翻回查看正面计分内容，同时全量状态可按当前 round 还原历次翻面进度。`
+  - `fix: 回合助推板改为基于 players[*].booster_ids 的全量/增量同步，拿取时翻背、归还时翻正，不再依赖旧的按索引盲翻事件。`
+  - `fix: 修正对局页地图建筑图片映射，增量更新时土地只刷新六边形地块颜色，建筑改为按控制者颜色/建筑id/是否中立选择正确图片资源。`
+  - `docs: 更新前端状态映射文档并移除不存在的 action_type: special 对齐项，避免继续沿用无效类型说明。`
+  - `docs: 在待办文档中补充地图增量渲染拆分规则，记录侧楼应作为独立渲染单元并暂缓实现。`
+  - `docs: 补充玩家标题栏分数与玩家状态面板全部可见数值的全量/增量对齐核查表，并将已打通项统一勾选。`
+  - `docs: 明确对局页玩家标题栏分数对应后端 boardscore（板面分），不是 total final score。`
+  - `docs: 将前后端对齐文档中的全量与增量更新流程修正为当前实际运行的 GameView.vue 直连 GET/SSE 链路。`
+- 验证方式：
+  - `python -m py_compile backend/game/aoi_game/game_engine.py backend/game/aoi_game/game_state.py backend/game/utils/frontend_state_types.py backend/game/utils/game_state_manager.py`
+  - `cd frontend && npm run build`
+  - `git diff -- docs/TODO.md docs/version-change-log.md`
+  - `rg -n "2.3.1|boardscore|applyPlayerState|applyPlayerFieldChange|5.1 全量更新流程" docs/frontend_backend_alignment.md`
+  - `git diff -- backend/game/aoi_game/game_engine.py backend/game/aoi_game/game_state.py backend/game/utils/frontend_state_types.py backend/game/utils/game_state_manager.py frontend/src/views/GameView.vue frontend/src/stores/gameState.js docs/game_state_frontend_mapping.md docs/frontend_backend_alignment.md docs/version-change-log.md`
 
 ## 0.9.5.7
 - 日期：`2026-04-08`

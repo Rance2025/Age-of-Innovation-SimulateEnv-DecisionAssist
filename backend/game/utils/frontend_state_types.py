@@ -23,8 +23,10 @@ class GameMeta:
     round: int = 0                      # 当前回合数
     num_players: int = 3                # 玩家数量
     current_player_id: int = -1         # 当前行动玩家ID（0=玩家1, 1=玩家2, 2=玩家3）
-    action_type: str = ""               # 当前行动类型 ("normal" / "special" / "immediate")
+    action_type: str = ""               # 当前行动类型 ("normal" / "immediate")
     is_game_over: bool = False          # 游戏是否结束
+    setup_choice_is_completed: bool = False  # 初始板块选择阶段是否完成
+    setup_build_is_completed: bool = False   # 初始建筑摆放阶段是否完成
 
 
 @dataclass

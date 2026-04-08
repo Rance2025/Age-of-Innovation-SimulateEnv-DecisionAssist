@@ -88,7 +88,7 @@ class GameEngine:
                     yield from self._normal_action_turn(player_idx)
             
             # 标记初始板块选择阶段完成，进入初始建筑摆放阶段
-            self.game_state.setup_choice_is_completed = True    
+            self.game_state.setup_choice_is_completed = True
 
             # 初始化初始建筑摆放顺序列表
             build_order = []
@@ -116,6 +116,9 @@ class GameEngine:
             # 按照初始建筑摆放顺序列表轮流进行初始建筑摆放行动
             for player_idx in build_order:
                 yield from self._normal_action_turn(player_idx)
+
+            # 标记初始建筑摆放阶段完成，进入初始效果结算阶段
+            self.game_state.setup_build_is_completed = True
 
             # 执行可能存在的初始效果
             for player_idx in self.game_state.pass_order:

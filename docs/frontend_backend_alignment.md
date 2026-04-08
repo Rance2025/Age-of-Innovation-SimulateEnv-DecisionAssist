@@ -2,7 +2,7 @@
 
 ## 文档信息
 - **创建日期**: 2026-04-07
-- **版本**: 2.0
+- **版本**: 2.1
 - **状态**: 基于实际代码实现
 
 ---
@@ -41,8 +41,9 @@ GameController._get_action_id()
 
 | 组件 | 文件路径 |
 |------|----------|
-| 前端主视图 | `frontend/src/views/GameView.vue` |
-| 前端状态Store | `frontend/src/stores/gameState.js` |
+| 前端主视图与状态同步 | `frontend/src/views/GameView.vue` |
+| 前端基础游戏Store | `frontend/src/stores/game.js` |
+| 前端状态模型参考 | `frontend/src/stores/gameState.js`（当前对局页未直接接入） |
 | 后端游戏控制器 | `backend/game/start_game.py` |
 | 后端状态管理器 | `backend/game/utils/game_state_manager.py` |
 | 后端数据类型 | `backend/game/utils/frontend_state_types.py` |
@@ -72,7 +73,6 @@ GameController._get_action_id()
 | [ ] | `current_player_id: 4` | `current_player_id: 4` | 玩家5卡片边框高亮，可选行动列表显示玩家5的行动 |
 | **行动类型** |
 | [ ] | `action_type: "normal"` | `action_type: "normal"` | 可选行动区域显示主行动选项 |
-| [ ] | `action_type: "special"` | `action_type: "special"` | 可选行动区域显示特殊行动选项 |
 | [ ] | `action_type: "immediate"` | `action_type: "immediate"` | 可选行动区域显示立即行动选项 |
 | **游戏结束** |
 | [ ] | `is_game_over: true` | `is_game_over: true` | 显示游戏结束画面，展示最终得分 |
@@ -134,41 +134,57 @@ GameController._get_action_id()
 
 ### 2.3 玩家状态 (PlayerState)
 
-| 状态 | 后端 yield 数据 | 前端接收数据 | 前端可视化行为 |
-|------|----------------|-------------|---------------|
-| [✅] | `planning_card_id: 1` | `planningCard: "平原"` | 玩家卡片左上角显示棕色圆形指示器 |
-| [✅] | `planning_card_id: 2` | `planningCard: "沼泽"` | 玩家卡片左上角显示灰色圆形指示器 |
-| [✅] | `planning_card_id: 3` | `planningCard: "湖泊"` | 玩家卡片左上角显示蓝色圆形指示器 |
-| [✅] | `planning_card_id: 4` | `planningCard: "森林"` | 玩家卡片左上角显示绿色圆形指示器 |
-| [✅] | `planning_card_id: 5` | `planningCard: "山脉"` | 玩家卡片左上角显示灰色圆形指示器 |
-| [✅] | `planning_card_id: 6` | `planningCard: "荒地"` | 玩家卡片左上角显示红色圆形指示器 |
-| [✅] | `planning_card_id: 7` | `planningCard: "沙漠"` | 玩家卡片左上角显示黄色圆形指示器 |
-| [✅] | `faction_id: 1` | `faction: "神佑者"` | 玩家名称旁显示派系徽章 |
-| [✅] | `faction_id: 2` | `faction: "猫人"` | 玩家名称旁显示派系徽章 |
-| [✅] | `faction_id: 3` | `faction: "哥布林"` | 玩家名称旁显示派系徽章 |
-| [✅] | `faction_id: 4` | `faction: "幻术师"` | 玩家名称旁显示派系徽章 |
-| [✅] | `faction_id: 5` | `faction: "发明家"` | 玩家名称旁显示派系徽章 |
-| [✅] | `faction_id: 6` | `faction: "蜥蜴人"` | 玩家名称旁显示派系徽章 |
-| [✅] | `faction_id: 7` | `faction: "鼹鼠"` | 玩家名称旁显示派系徽章 |
-| [✅] | `faction_id: 8` | `faction: "僧侣"` | 玩家名称旁显示派系徽章 |
-| [✅] | `faction_id: 9` | `faction: "航海家"` | 玩家名称旁显示派系徽章 |
-| [✅] | `faction_id: 10` | `faction: "奥马尔"` | 玩家名称旁显示派系徽章 |
-| [✅] | `faction_id: 11` | `faction: "哲学家"` | 玩家名称旁显示派系徽章 |
-| [✅] | `faction_id: 12` | `faction: "通灵师"` | 玩家名称旁显示派系徽章 |
-| [✅] | `resources.money: 15` | `money: 15` | 玩家状态区金币图标旁显示15 |
-| [✅] | `resources.ore: 5` | `mineral: 5` | 玩家状态区矿石图标旁显示5 |
-| [✅] | `resources.meeples: 3` | `mibao: 3` | 玩家状态区米宝图标旁显示3 |
-| [✅] | `resources.bank_book: 2` | `bank: 2` | 玩家状态区银行学书图标旁显示2 |
-| [✅] | `resources.law_book: 1` | `law: 1` | 玩家状态区法学书图标旁显示1 |
-| [✅] | `resources.engineering_book: 0` | `engineering: 0` | 玩家状态区工程学书图标旁显示0 |
-| [ ] | `resources.medical_book: 3` | `medical: 3` | 玩家状态区医学书图标旁显示3 |
-| [ ] | `magics.zone1: 5` | `magic1: 5` | 玩家状态区魔力1区显示5 |
-| [ ] | `magics.zone2: 7` | `magic2: 7` | 玩家状态区魔力2区显示7 |
-| [ ] | `magics.zone3: 3` | `magic3: 3` | 玩家状态区魔力3区显示3 |
-| [ ] | `boardscore: 25` | `score: 25` | 玩家卡片右上角显示25分 |
-| [ ] | `booster_ids: [1, 3]` | `booster_ids: [1, 3]` | 玩家已拿取的助推板块高亮显示 |
-| [ ] | `main_action_is_done: true` | `main_action_is_done: true` | 玩家状态区显示主行动已完成标记 |
-| [ ] | `ispass: true` | `ispass: true` | 玩家状态区显示已跳过标记 |
+**核查范围说明：**
+- 本节按 `frontend/src/views/GameView.vue` 当前实际渲染的玩家卡片核查。
+- “已打通”定义为：后端全量快照已提取、后端增量 diff 已产出、前端全量应用已映射、前端增量应用已映射、页面上确实有对应数值展示。
+- 玩家标题栏右上角分数 `score` 明确对应后端 `PlayerState.boardscore`（板面分），不是 `final_scores.total`，也不是 `trackscore`、`chainscore`、`resourcescore`。
+
+#### 2.3.1 玩家卡片可见数值核查
+
+| 状态 | 面板位置 | 后端字段 | 前端显示字段 | 全量更新 | 增量更新 | 说明 |
+|------|----------|----------|--------------|----------|----------|------|
+| [✅] | 标题栏右上角分数 | `players[i].boardscore` | `player.score` | `applyPlayerState()` | `applyPlayerFieldChange()` | 当前标题栏分数专指板面分 |
+| [✅] | 资源行-金币 | `players[i].resources.money` | `player.money` | `applyPlayerState()` | `applyPlayerFieldChange()` | 图标旁数字 |
+| [✅] | 资源行-矿石 | `players[i].resources.ore` | `player.mineral` | `applyPlayerState()` | `applyPlayerFieldChange()` | 前端别名为 `mineral` |
+| [✅] | 资源行-米宝当前值 | `players[i].resources.meeples` | `player.mibao` | `applyPlayerState()` | `applyPlayerFieldChange()` | 前端别名为 `mibao` |
+| [✅] | 资源行-米宝角标总量 | `players[i].resources.all_meeples` | `player.allMeeples` | `applyPlayerState()` | `applyPlayerFieldChange()` | 作为米宝图标角标显示 |
+| [✅] | 资源行-桥梁 | `players[i].resources.all_bridges` | `player.bridges` | `applyPlayerState()` | `applyPlayerFieldChange()` | 图标旁数字 |
+| [✅] | 建筑行-车间剩余 | `players[i].buildings.workshop` | `player.workshop` | `applyPlayerState()` | `applyPlayerFieldChange()` | 建筑图标旁数字 |
+| [✅] | 建筑行-工会剩余 | `players[i].buildings.guild` | `player.guild` | `applyPlayerState()` | `applyPlayerFieldChange()` | 建筑图标旁数字 |
+| [✅] | 建筑行-宫殿剩余 | `players[i].buildings.palace` | `player.palace` | `applyPlayerState()` | `applyPlayerFieldChange()` | 建筑图标旁数字 |
+| [✅] | 建筑行-学校剩余 | `players[i].buildings.school` | `player.school` | `applyPlayerState()` | `applyPlayerFieldChange()` | 建筑图标旁数字 |
+| [✅] | 建筑行-大学剩余 | `players[i].buildings.university` | `player.university` | `applyPlayerState()` | `applyPlayerFieldChange()` | 建筑图标旁数字 |
+| [✅] | 书本行-银行学书 | `players[i].resources.bank_book` | `player.bank` | `applyPlayerState()` | `applyPlayerFieldChange()` | 图标旁数字 |
+| [✅] | 书本行-法学书 | `players[i].resources.law_book` | `player.law` | `applyPlayerState()` | `applyPlayerFieldChange()` | 图标旁数字 |
+| [✅] | 书本行-工程学书 | `players[i].resources.engineering_book` | `player.engineering` | `applyPlayerState()` | `applyPlayerFieldChange()` | 图标旁数字 |
+| [✅] | 书本行-医学书 | `players[i].resources.medical_book` | `player.medical` | `applyPlayerState()` | `applyPlayerFieldChange()` | 图标旁数字 |
+| [✅] | 魔力/发展行-魔力1 | `players[i].magics.zone1` | `player.magic1` | `applyPlayerState()` | `applyPlayerFieldChange()` | 魔力圆盘右侧数字 |
+| [✅] | 魔力/发展行-魔力2 | `players[i].magics.zone2` | `player.magic2` | `applyPlayerState()` | `applyPlayerFieldChange()` | 魔力圆盘右侧数字 |
+| [✅] | 魔力/发展行-魔力3 | `players[i].magics.zone3` | `player.magic3` | `applyPlayerState()` | `applyPlayerFieldChange()` | 魔力圆盘右侧数字 |
+| [✅] | 魔力/发展行-城市数 | `players[i].citys_amount` | `player.cities` | `applyPlayerState()` | `applyPlayerFieldChange()` | 前端别名为 `cities` |
+| [✅] | 魔力/发展行-航海等级 | `players[i].navigation_level` | `player.navigation` | `applyPlayerState()` | `applyPlayerFieldChange()` | 图标旁数字 |
+| [✅] | 魔力/发展行-铲力等级 | `players[i].shovel_level` | `player.shovel` | `applyPlayerState()` | `applyPlayerFieldChange()` | 图标旁数字 |
+
+#### 2.3.2 非面板可见字段
+
+| 状态 | 后端字段 | 当前前端情况 | 说明 |
+|------|----------|--------------|------|
+| [✅] | `planning_card_id` | 已显示 | 玩家标题栏左侧圆点已映射并在全量/增量两条链路打通 |
+| [✅] | `faction_id` | 已显示 | 玩家标题栏派系徽章已映射并在全量/增量两条链路打通 |
+| [ ] | `booster_ids` | 未在当前玩家卡片中显示 | 后端已下发，当前玩家面板无对应高亮区 |
+| [ ] | `main_action_is_done` | 未在当前玩家卡片中显示 | 后端已下发，当前玩家面板无对应标记 |
+| [ ] | `ispass` | 未在当前玩家卡片中显示 | 后端已下发，当前玩家面板无对应标记 |
+| [ ] | `trackscore` | 未在当前玩家卡片中显示 | 当前标题栏分数不是科技轨分 |
+| [ ] | `chainscore` | 未在当前玩家卡片中显示 | 当前标题栏分数不是连锁分 |
+| [ ] | `resourcescore` | 未在当前玩家卡片中显示 | 当前标题栏分数不是资源分 |
+
+#### 2.3.3 玩家面板同步链路结论
+
+- [✅] 后端全量提取：`backend/game/utils/game_state_manager.py::_extract_single_player()` 已覆盖玩家面板全部可见数值字段。
+- [✅] 后端增量计算：`backend/game/utils/game_state_manager.py::_calculate_players_diff()` 会对上述普通数值字段逐项生成 `players[i].*` diff。
+- [✅] 前端全量应用：`frontend/src/views/GameView.vue::applyGameViewFullState()` 调用 `applyPlayerState()`，已覆盖标题栏分数和四行状态数值。
+- [✅] 前端增量应用：`frontend/src/views/GameView.vue::applyGameViewChange()` 调用 `applyPlayerFieldChange()`，已覆盖标题栏分数和四行状态数值。
+- [✅] 当前玩家标题栏分数字段定义：前端显示的是 `boardscore`，即板面分。
 
 ### 2.4 地图状态 (MapState)
 
@@ -325,25 +341,25 @@ else:
 
 ```
 1. 页面加载/刷新
-2. GameView.vue onMounted 调用 gameStateStore.init(gameId)
-3. gameStateStore 发送 GET /api/game/state
-4. 后端返回完整状态
-5. gameStateStore.applyFullState() 更新 store 状态
-6. GameView.vue 的 watch 监听到变化，同步到本地状态
-7. UI 更新显示
+2. GameView.vue onMounted 调用 fetchFullState()
+3. 前端 GET /api/game/state?client_version={stateVersion}
+4. 后端 GameStateManager.get_full_state() 返回完整 state
+5. 前端 applyGameViewFullState(state)
+6. applyGameViewFullState() 对 players 调用 applyPlayerState()
+7. 玩家标题栏分数与四行状态数值一次性按快照覆盖显示
 ```
 
 ### 5.2 增量更新流程
 
 ```
 1. 游戏引擎 yield ActionRequest
-2. GameStateManager.update_from_action_request() 计算 diff
-3. GameStateManager._push_to_frontend() 推送 SSE 消息
-4. 前端接收 SSE 消息
-5. gameStateStore.handleSSEMessage() 处理消息
-6. gameStateStore.applyChanges() 应用增量变更
-7. GameView.vue 的 watch 监听到变化，同步到本地状态
-8. UI 更新显示
+2. GameStateManager.update_from_action_request() 刷新当前完整状态
+3. GameStateManager.get_incremental_update() 调用 _calculate_optimized_diff()
+4. _calculate_players_diff() 生成 players[i].* 字段级 diff
+5. 后端通过 SSE 推送 type="incremental" + changes
+6. GameView.vue handleSSEMessage() 调用 applyIncrementalChanges()
+7. applyGameViewChange() 将 players[i].* 路径分发到 applyPlayerFieldChange()
+8. 玩家标题栏分数与四行状态数值按字段增量更新
 ```
 
 ### 5.3 增量更新路径格式
@@ -352,8 +368,16 @@ else:
 |----------|----------|
 | 回合数 | `meta.round` |
 | 当前玩家 | `meta.current_player_id` |
-| 玩家资源 | `players[0].resources.money` |
+| 标题栏分数（板面分） | `players[0].boardscore` |
+| 玩家金币 | `players[0].resources.money` |
+| 玩家医学书 | `players[0].resources.medical_book` |
+| 玩家米宝总量角标 | `players[0].resources.all_meeples` |
+| 玩家桥梁 | `players[0].resources.all_bridges` |
 | 玩家魔力 | `players[0].magics.zone1` |
+| 玩家城市数 | `players[0].citys_amount` |
+| 玩家航海等级 | `players[0].navigation_level` |
+| 玩家铲力等级 | `players[0].shovel_level` |
+| 玩家建筑剩余 | `players[0].buildings.workshop` |
 | 地图地形 | `map_state.grid[3][5].terrain` |
 | 地图建筑 | `map_state.grid[3][5].building_id` |
 | 地图控制者 | `map_state.grid[3][5].controller` |

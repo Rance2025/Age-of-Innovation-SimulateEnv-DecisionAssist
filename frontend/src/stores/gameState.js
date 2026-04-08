@@ -19,7 +19,9 @@ const createDefaultMeta = () => ({
   num_players: 3,
   current_player_id: -1,
   action_type: '',
-  is_game_over: false
+  is_game_over: false,
+  setup_choice_is_completed: false,
+  setup_build_is_completed: false
 })
 
 // 资源
