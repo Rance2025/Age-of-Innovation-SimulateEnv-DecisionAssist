@@ -212,6 +212,17 @@ class AvailableAction:
 
 
 @dataclass
+class ActionHistoryEntry:
+    """结构化行动记录"""
+    kind: str = "action"                # 记录类型（action / divider）
+    stage_key: str = ""                 # 所属阶段键
+    player_id: int = -1                 # 后端玩家ID（0开始）
+    action_type: str = ""               # 行动类型（normal / immediate）
+    action_id: Optional[int] = None     # 行动ID；阶段分割线为空
+    description: str = ""               # 行动描述文本
+
+
+@dataclass
 class FinalScore:
     """最终得分"""
     total: int = 0                      # 总分
@@ -230,6 +241,7 @@ class FullGameState:
     map_state: MapState = field(default_factory=MapState)
     display_board: DisplayBoardState = field(default_factory=DisplayBoardState)
     available_actions: List[AvailableAction] = field(default_factory=list)
+    action_history: List[ActionHistoryEntry] = field(default_factory=list)
     final_scores: Optional[Dict[int, FinalScore]] = None
 
 

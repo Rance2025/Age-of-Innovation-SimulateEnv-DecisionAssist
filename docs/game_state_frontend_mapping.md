@@ -230,6 +230,16 @@ class AvailableAction:
     description: str = ""
 
 @dataclass
+class ActionHistoryEntry:
+    """结构化行动记录"""
+    kind: str = "action"                # action / divider
+    stage_key: str = ""                 # 所属阶段键
+    player_id: int = -1
+    action_type: str = ""
+    action_id: Optional[int] = None
+    description: str = ""
+
+@dataclass
 class FinalScore:
     """最终得分"""
     total: int = 0
@@ -247,6 +257,7 @@ class FullGameState:
     map_state: MapState = field(default_factory=MapState)
     display_board: DisplayBoardState = field(default_factory=DisplayBoardState)
     available_actions: List[AvailableAction] = field(default_factory=list)
+    action_history: List[ActionHistoryEntry] = field(default_factory=list)
     final_scores: Optional[Dict[int, FinalScore]] = None
 
 @dataclass
@@ -403,6 +414,7 @@ class GameStateSyncManager:
             map_state=self._extract_map_state(gs.map_board_state) if gs else MapState(),
             display_board=self._extract_display_board(gs.display_board_state) if gs else DisplayBoardState(),
             available_actions=self._extract_available_actions(request.available_actions),
+            action_history=self._extract_action_history(gs) if gs else [],
             final_scores=self._extract_final_scores(request.final_scores) if request.is_game_over else None
         )
     
@@ -1974,7 +1986,25 @@ export const useGameStateStore = defineStore('gameState', () => {
       "bridges": { ... }
     },
     "display_board": { ... },
-    "available_actions": [ ... ]
+    "available_actions": [ ... ],
+    "action_history": [
+      {
+        "kind": "divider",
+        "stage_key": "setup-choice",
+        "player_id": -1,
+        "action_type": "divider",
+        "action_id": null,
+        "description": "初始板块选择阶段"
+      },
+      {
+        "kind": "action",
+        "stage_key": "setup-choice",
+        "player_id": 0,
+        "action_type": "normal",
+        "action_id": 1,
+        "description": "选择规划卡: 平原（棕）"
+      }
+    ]
   }
 }
 ```
@@ -2036,6 +2066,7 @@ export const useGameStateStore = defineStore('gameState', () => {
 | **版本号机制** | 每次状态更新递增，用于校验同步状态 |
 | **重连策略** | SSE断开时自动重新GET全量状态并重建连接 |
 | **available_actions** | 每次完整推送，不计算增量（直接替换整个列表） |
+| **action_history** | 由后端直接维护完整结构化历史，阶段分割线作为 `divider` 记录随列表整体推送 |
 | **set类型字段** | `controlled_map_ids`、`reachable_map_ids` 作为集合增量更新，计算 added/removed |
 
 ### 8.3 特殊字段增量策略

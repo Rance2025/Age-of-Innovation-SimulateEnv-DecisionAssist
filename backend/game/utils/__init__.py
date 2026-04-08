@@ -6,13 +6,13 @@
 from .frontend_state_types import (
     ChangeType, GameMeta, Resources, Magics, Buildings, Tracks,
     PlayerState, MapCell, MapState, ScienceTrackState, DisplayBoardState,
-    GameSetup, AvailableAction, FinalScore, FullGameState, StateDiff
+    GameSetup, AvailableAction, ActionHistoryEntry, FinalScore, FullGameState, StateDiff
 )
 from .game_state_manager import GameStateManager
 
 __all__ = [
     'ChangeType', 'GameMeta', 'Resources', 'Magics', 'Buildings', 'Tracks',
     'PlayerState', 'MapCell', 'MapState', 'ScienceTrackState', 'DisplayBoardState',
-    'GameSetup', 'AvailableAction', 'FinalScore', 'FullGameState', 'StateDiff',
+    'GameSetup', 'AvailableAction', 'ActionHistoryEntry', 'FinalScore', 'FullGameState', 'StateDiff',
     'GameStateManager'
 ]

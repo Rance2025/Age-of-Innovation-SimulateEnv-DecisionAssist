@@ -15,12 +15,39 @@ from datetime import datetime
 from .frontend_state_types import (
     GameMeta, GameSetup, PlayerState, Resources, Magics, Buildings, Tracks,
     MapState, MapCell, DisplayBoardState, ScienceTrackState,
-    AvailableAction, FinalScore, FullGameState, StateDiff, ChangeType
+    AvailableAction, ActionHistoryEntry, FinalScore, FullGameState, StateDiff, ChangeType
 )
 
 if TYPE_CHECKING:
     from ..aoi_game import ActionRequest
     from ..aoi_game.game_state import GameStateBase
+
+ACTION_LOG_STAGE_ORDER = (
+    'setup-choice',
+    'setup-build',
+    'setup-effect',
+    'round-1',
+    'round-2',
+    'round-3',
+    'round-4',
+    'round-5',
+    'round-6'
+)
+ACTION_LOG_STAGE_INDEX = {
+    stage_key: index
+    for index, stage_key in enumerate(ACTION_LOG_STAGE_ORDER)
+}
+ACTION_LOG_STAGE_LABELS = {
+    'setup-choice': '初始板块选择阶段',
+    'setup-build': '初始建筑摆放阶段',
+    'setup-effect': '初始效果结算阶段',
+    'round-1': '第 1 回合开始',
+    'round-2': '第 2 回合开始',
+    'round-3': '第 3 回合开始',
+    'round-4': '第 4 回合开始',
+    'round-5': '第 5 回合开始',
+    'round-6': '第 6 回合开始'
+}
 
 
 class GameStateManager:
@@ -49,6 +76,11 @@ class GameStateManager:
 
         # 消息推送回调函数
         self._message_callback: Optional[Callable[[Dict], None]] = None
+
+        # 后端维护的结构化行动历史，避免前端再自行推断阶段分割线
+        self._structured_action_history: List[ActionHistoryEntry] = []
+        self._last_raw_action_count: int = 0
+        self._last_action_log_stage_key: Optional[str] = None
 
     def set_message_callback(self, callback: Callable[[Dict], None]):
         """设置消息推送回调函数"""
@@ -147,6 +179,7 @@ class GameStateManager:
             map_state=self._extract_map_state(gs.map_board_state) if gs else MapState(),
             display_board=self._extract_display_board(gs.display_board_state) if gs else DisplayBoardState(),
             available_actions=self._extract_available_actions(request.available_actions),
+            action_history=self._extract_action_history(gs) if gs else [],
             final_scores=self._extract_final_scores(request.final_scores) if request.is_game_over else None
         )
     
@@ -162,6 +195,91 @@ class GameStateManager:
             is_game_over=request.is_game_over,
             setup_choice_is_completed=setup_choice_is_completed,
             setup_build_is_completed=setup_build_is_completed
+        )
+
+    def _get_action_log_stage_key(self, gs: 'GameStateBase') -> str:
+        """根据当前游戏状态返回行动记录阶段键。"""
+        round_value = getattr(gs, 'round', 0)
+        try:
+            normalized_round = int(round_value)
+        except (TypeError, ValueError):
+            normalized_round = 0
+
+        if 1 <= normalized_round <= 6:
+            return f'round-{normalized_round}'
+
+        if getattr(gs, 'setup_build_is_completed', False):
+            return 'setup-effect'
+
+        if getattr(gs, 'setup_choice_is_completed', False):
+            return 'setup-build'
+
+        return 'setup-choice'
+
+    def _get_action_log_stage_transition_path(self, from_stage_key: Optional[str], to_stage_key: str) -> List[str]:
+        """返回阶段切换过程中需要补入历史记录的阶段路径。"""
+        if from_stage_key is None or from_stage_key not in ACTION_LOG_STAGE_INDEX:
+            return [to_stage_key]
+
+        if to_stage_key not in ACTION_LOG_STAGE_INDEX:
+            return []
+
+        from_index = ACTION_LOG_STAGE_INDEX[from_stage_key]
+        to_index = ACTION_LOG_STAGE_INDEX[to_stage_key]
+        if to_index <= from_index:
+            return [to_stage_key]
+
+        return list(ACTION_LOG_STAGE_ORDER[from_index + 1:to_index + 1])
+
+    def _reset_action_history_tracking(self):
+        """重置后端结构化行动历史缓存。"""
+        self._structured_action_history = []
+        self._last_raw_action_count = 0
+        self._last_action_log_stage_key = None
+
+    def _append_action_history_divider(self, stage_key: str):
+        """在结构化行动历史中追加阶段分割线。"""
+        if stage_key not in ACTION_LOG_STAGE_LABELS:
+            return
+
+        last_entry = self._structured_action_history[-1] if self._structured_action_history else None
+        if (
+            last_entry is not None
+            and last_entry.kind == 'divider'
+            and last_entry.stage_key == stage_key
+        ):
+            return
+
+        self._structured_action_history.append(ActionHistoryEntry(
+            kind='divider',
+            stage_key=stage_key,
+            player_id=-1,
+            action_type='divider',
+            action_id=None,
+            description=ACTION_LOG_STAGE_LABELS[stage_key]
+        ))
+
+    def _build_action_history_action_entry(
+        self,
+        record: Any,
+        detailed_actions: Dict[Any, Any],
+        stage_key: str
+    ) -> Optional[ActionHistoryEntry]:
+        """将底层 action_history 记录转换为前端可直接消费的结构化记录。"""
+        if not isinstance(record, (list, tuple)) or len(record) < 3:
+            return None
+
+        player_id, action_type, action_id = record[:3]
+        action_detail = detailed_actions.get(action_id, {}) if isinstance(detailed_actions, dict) else {}
+        description = action_detail.get('description', f'action {action_id}')
+
+        return ActionHistoryEntry(
+            kind='action',
+            stage_key=stage_key,
+            player_id=player_id,
+            action_type=action_type,
+            action_id=action_id,
+            description=description
         )
     
     def _extract_setup(self, gs: 'GameStateBase') -> GameSetup:
@@ -315,6 +433,41 @@ class GameStateManager:
     def _extract_available_actions(self, actions: Dict[int, str]) -> List[AvailableAction]:
         """提取可选行动"""
         return [AvailableAction(action_id=k, description=v) for k, v in actions.items()]
+
+    def _extract_action_history(self, gs: 'GameStateBase') -> List[ActionHistoryEntry]:
+        """提取结构化行动记录，并在后端直接维护阶段分割线。"""
+        raw_history = list(getattr(gs, 'action_history', []) or [])
+        detailed_actions = getattr(gs, 'all_detailed_actions', {}) or {}
+        current_stage_key = self._get_action_log_stage_key(gs)
+        raw_action_count = len(raw_history)
+
+        if raw_action_count < self._last_raw_action_count:
+            self._reset_action_history_tracking()
+
+        if not self._structured_action_history:
+            self._append_action_history_divider(current_stage_key)
+
+        previous_stage_key = self._last_action_log_stage_key or current_stage_key
+        new_records = raw_history[self._last_raw_action_count:]
+        for record in new_records:
+            action_entry = self._build_action_history_action_entry(
+                record,
+                detailed_actions,
+                previous_stage_key
+            )
+            if action_entry is not None:
+                self._structured_action_history.append(action_entry)
+
+        transition_path = []
+        if current_stage_key != previous_stage_key:
+            transition_path = self._get_action_log_stage_transition_path(previous_stage_key, current_stage_key)
+
+        for stage_key in transition_path:
+            self._append_action_history_divider(stage_key)
+
+        self._last_raw_action_count = raw_action_count
+        self._last_action_log_stage_key = current_stage_key
+        return copy.deepcopy(self._structured_action_history)
     
     def _extract_final_scores(self, scores: Dict[int, Dict[str, int]]) -> Dict[int, FinalScore]:
         """提取最终得分"""
@@ -390,7 +543,17 @@ class GameStateManager:
                 new_actions,
                 ChangeType.MODIFIED
             ))
-        
+
+        old_action_history = old_state.get('action_history', [])
+        new_action_history = new_dict.get('action_history', [])
+        if old_action_history != new_action_history:
+            diffs.append(StateDiff(
+                'action_history',
+                old_action_history,
+                new_action_history,
+                ChangeType.MODIFIED
+            ))
+
         # 7. 对比 final_scores
         diffs.extend(self._calculate_object_diff(
             'final_scores',

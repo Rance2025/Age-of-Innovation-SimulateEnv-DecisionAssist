@@ -495,21 +495,43 @@
         <!-- 可选行动区 -->
         <div class="action-section">
           <div class="action-header">
-            <div class="action-title">
-              <i class="fas fa-play-circle"></i>
-              <div>可选行动</div>
+            <div class="action-title-group">
+              <div class="action-title">
+                <i class="fas fa-play-circle"></i>
+                <div>可选行动</div>
+              </div>
+              <div class="action-subtitle">当前为 {{ currentActionOwnerLabel }} 的 {{ currentActionModeLabel }} 行动阶段</div>
             </div>
-            <div class="action-count">共<span id="action-count">{{ actionCount }}</span>条</div>
+            <div class="action-header-meta">
+              <div class="action-owner-chip">
+                <span class="action-owner-dot" :style="{ backgroundColor: currentActionPlayerColor }"></span>
+                <span>{{ currentActionOwnerLabel }}</span>
+              </div>
+              <div class="action-mode-chip">{{ currentActionModeLabel }}</div>
+              <div class="action-count">共<span id="action-count">{{ actionCount }}</span>项</div>
+            </div>
           </div>
           <div id="action-content" class="action-content">
-            <div
+            <button
               v-for="(action, idx) in actions"
-              :key="idx"
+              :key="`${action.id}-${idx}`"
+              type="button"
               class="action-item"
               :data-color="action.color"
-              @click="selectAction(action.id)"
+              :class="{
+                'is-submitting': pendingActionId === action.id,
+                'is-disabled': pendingActionId !== null && pendingActionId !== action.id
+              }"
+              :disabled="pendingActionId !== null"
+              @click="selectAction(action)"
             >
-              <span class="action-id">{{ action.id }}</span>: {{ action.text }}
+              <span class="action-item-top">
+                <span class="action-id">{{ action.id }}</span>
+              </span>
+              <span class="action-item-text">{{ action.text }}</span>
+            </button>
+            <div v-if="actions.length === 0" class="panel-empty-state">
+              等待后端推送新的可选行动。
             </div>
           </div>
         </div>
@@ -519,24 +541,164 @@
       <!-- 最右侧：统一行动记录 (14%) -->
       <div class="action-log-section">
         <div class="action-log-header">
-          <div class="action-title">
-            <i class="fas fa-stream"></i>
-            <div>行动记录</div>
+          <div class="action-title-group">
+            <div class="action-title">
+              <i class="fas fa-stream"></i>
+              <div>行动记录</div>
+            </div>
           </div>
-          <div class="action-count">共<span id="action-log-count">{{ actionLogs.length }}</span>条</div>
+          <div class="action-log-toolbar">
+            <div class="action-count">
+              <span id="action-log-count">{{ filteredActionLogs.length }}</span> / {{ renderedActionLogs.length }} 条
+            </div>
+            <div class="action-log-filter">
+              <button
+                type="button"
+                class="action-filter-btn"
+                :class="{ 'is-active': actionLogFilterModalOpen || hasActiveActionLogFilters }"
+                @click.stop="openActionLogFilterModal"
+              >
+                <i class="fas fa-filter"></i>
+                <span>筛选</span>
+                <span v-if="actionLogActiveFilterCount > 0" class="action-filter-badge">
+                  {{ actionLogActiveFilterCount }}
+                </span>
+              </button>
+              <div
+                v-if="actionLogFilterModalOpen"
+                class="action-filter-popup"
+                @click.stop
+              >
+                <div class="action-filter-section">
+                  <div class="action-filter-section-title">按记录检索</div>
+                  <div class="action-filter-search-grid">
+                    <label class="action-filter-search-field">
+                      <span class="action-filter-search-label">行动编号</span>
+                      <input
+                        v-model="draftActionLogActionIdFilter"
+                        type="text"
+                        inputmode="numeric"
+                        class="action-filter-search-input"
+                        placeholder="例如 65"
+                      >
+                    </label>
+                    <label class="action-filter-search-field">
+                      <span class="action-filter-search-label">本局序号</span>
+                      <input
+                        v-model="draftActionLogUidFilter"
+                        type="text"
+                        class="action-filter-search-input"
+                        placeholder="例如 act.001"
+                      >
+                    </label>
+                  </div>
+                </div>
+                <div class="action-filter-section">
+                  <div class="action-filter-section-title">按玩家筛选</div>
+                  <div class="action-filter-options">
+                    <button
+                      v-for="playerOption in actionLogPlayerFilterOptions"
+                      :key="playerOption.id"
+                      type="button"
+                      class="action-filter-option"
+                      :class="{ 'is-active': draftActionLogPlayerFilters.includes(playerOption.id) }"
+                      @click="toggleDraftActionLogPlayer(playerOption.id)"
+                    >
+                      <span
+                        class="action-filter-player-dot"
+                        :style="{ backgroundColor: playerOption.color }"
+                      ></span>
+                      <span>{{ playerOption.label }}</span>
+                    </button>
+                  </div>
+                </div>
+                <div class="action-filter-section">
+                  <div class="action-filter-section-title">按行动类型筛选</div>
+                  <div class="action-filter-options">
+                    <button
+                      v-for="typeOption in ACTION_LOG_TYPE_OPTIONS"
+                      :key="typeOption.id"
+                      type="button"
+                      class="action-filter-option"
+                      :class="{ 'is-active': draftActionLogTypeFilters.includes(typeOption.id) }"
+                      @click="toggleDraftActionLogType(typeOption.id)"
+                    >
+                      <span>{{ typeOption.label }}</span>
+                    </button>
+                  </div>
+                </div>
+                <div class="action-filter-section">
+                  <div class="action-filter-section-title">按阶段筛选</div>
+                  <div class="action-filter-stage-groups">
+                    <div
+                      v-for="stageGroup in ACTION_LOG_STAGE_FILTER_GROUPS"
+                      :key="stageGroup.id"
+                      class="action-filter-stage-group"
+                    >
+                      <div class="action-filter-stage-group-header">
+                        <span class="action-filter-stage-group-title">{{ stageGroup.label }}</span>
+                      </div>
+                      <div
+                        class="action-filter-options"
+                        :class="{ 'is-compact-rounds': stageGroup.id === 'rounds' }"
+                      >
+                        <button
+                          v-for="stageOption in stageGroup.options"
+                          :key="stageOption.id"
+                          type="button"
+                          class="action-filter-option"
+                          :class="{
+                            'is-active': draftActionLogStageFilters.includes(stageOption.id),
+                            'is-round-chip': stageGroup.id === 'rounds'
+                          }"
+                          @click="toggleDraftActionLogStage(stageOption.id)"
+                        >
+                          <span>{{ stageOption.label }}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="action-filter-actions">
+                  <button type="button" class="action-filter-footer-btn is-ghost" @click="clearDraftActionLogFilters">
+                    重置
+                  </button>
+                  <button type="button" class="action-filter-footer-btn is-primary" @click="applyActionLogFilters">
+                    应用
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
         <div id="action-log-content" class="action-log-content">
-          <div
-            v-for="(log, idx) in actionLogs"
-            :key="`${log.channelLabel}-${idx}-${log.text}`"
-            class="log-item action-log-item"
-            :data-color="log.color"
+          <template
+            v-for="log in filteredActionLogs"
+            :key="log.uid"
           >
-            <div class="action-log-meta">
-              <span class="action-log-channel">{{ log.channelLabel }}</span>
-              <span class="action-log-index">#{{ idx + 1 }}</span>
+            <div
+              v-if="log.kind === 'divider'"
+              class="action-log-divider"
+              :title="buildActionLogEntryTitle(log)"
+            >
+              <span class="action-log-divider-line"></span>
+              <span class="action-log-divider-text">{{ log.description }}</span>
+              <span class="action-log-divider-line"></span>
             </div>
-            <div class="action-log-text">{{ log.text }}</div>
+            <div
+              v-else
+              class="action-log-entry"
+              :class="[`is-${log.kind}`, `is-${log.actionType}`]"
+              :style="getActionLogEntryStyle(log)"
+              :title="buildActionLogEntryTitle(log)"
+            >
+              <span class="action-log-player-dot"></span>
+              <span class="action-log-record-id">{{ log.uid }}</span>
+              <span class="action-log-text">{{ log.description }}</span>
+            </div>
+          </template>
+          <div v-if="filteredActionLogs.length === 0" class="panel-empty-state">
+            当前筛选条件下还没有记录。
           </div>
         </div>
       </div>
@@ -727,6 +889,58 @@ const PLAYER_STATUS_ROWS = [
   ]
 ]
 const ACTION_LOG_LIMIT = 200
+const ACTION_LOG_TYPE_OPTIONS = Object.freeze([
+  { id: 'normal', label: 'normal' },
+  { id: 'immediate', label: 'immediate' }
+])
+const ACTION_LOG_STAGE_DEFINITIONS = Object.freeze([
+  { id: 'setup-choice', label: '初始板块选择阶段', dividerLabel: '初始板块选择阶段' },
+  { id: 'setup-build', label: '初始建筑摆放阶段', dividerLabel: '初始建筑摆放阶段' },
+  { id: 'setup-effect', label: '初始效果结算阶段', dividerLabel: '初始效果结算阶段' },
+  { id: 'round-1', label: '第 1 回合开始', dividerLabel: '第 1 回合开始' },
+  { id: 'round-2', label: '第 2 回合开始', dividerLabel: '第 2 回合开始' },
+  { id: 'round-3', label: '第 3 回合开始', dividerLabel: '第 3 回合开始' },
+  { id: 'round-4', label: '第 4 回合开始', dividerLabel: '第 4 回合开始' },
+  { id: 'round-5', label: '第 5 回合开始', dividerLabel: '第 5 回合开始' },
+  { id: 'round-6', label: '第 6 回合开始', dividerLabel: '第 6 回合开始' }
+])
+const ACTION_LOG_STAGE_FILTER_GROUPS = Object.freeze([
+  {
+    id: 'setup',
+    label: '初始阶段',
+    options: [
+      { id: 'setup-choice', label: '板块选择' },
+      { id: 'setup-build', label: '建筑摆放' },
+      { id: 'setup-effect', label: '效果结算' }
+    ]
+  },
+  {
+    id: 'rounds',
+    label: '正式轮次',
+    options: Array.from({ length: 6 }, (_, index) => ({
+      id: `round-${index + 1}`,
+      label: String(index + 1)
+    }))
+  }
+])
+const ACTION_LOG_STAGE_MAP = Object.freeze(Object.fromEntries(
+  ACTION_LOG_STAGE_DEFINITIONS.map((stage, index) => [stage.id, { ...stage, index }])
+))
+const NAMED_LOG_COLORS = {
+  default: '#5cbef0',
+  blue: '#35a0d5',
+  orange: '#f1a61b',
+  purple: '#ad32ef',
+  pink: '#e57ea9',
+  celeste: '#82d8d0',
+  red: '#cc2828',
+  green: '#37af37',
+  yellow: '#e8e83d',
+  grey: '#a1a1a1',
+  brown: '#85491d',
+  black: '#595959',
+  white: '#ffffff'
+}
 const mapState = reactive({
   grid: createDefaultMapGrid()
 })
@@ -850,6 +1064,18 @@ const actionCount = ref(0)
 const actions = ref([])
 const actionLogs = ref([])
 const tacticalLogs = ref([])
+const pendingActionId = ref(null)
+const actionLogFilterModalOpen = ref(false)
+const appliedActionLogPlayerFilters = ref([])
+const appliedActionLogTypeFilters = ref([])
+const appliedActionLogStageFilters = ref([])
+const appliedActionLogActionIdFilter = ref('')
+const appliedActionLogUidFilter = ref('')
+const draftActionLogPlayerFilters = ref([])
+const draftActionLogTypeFilters = ref([])
+const draftActionLogStageFilters = ref([])
+const draftActionLogActionIdFilter = ref('')
+const draftActionLogUidFilter = ref('')
 const stateVersion = ref(0)
 const gameMeta = reactive({
   round: 0,
@@ -861,6 +1087,86 @@ const gameMeta = reactive({
   setup_build_is_completed: false
 })
 const globalStatus = computed(() => buildGlobalStatusFromMeta())
+const actionLogPlayerFilterOptions = computed(() => players.value.map((player) => ({
+  id: player.id,
+  label: `玩家 ${player.id + 1}`,
+  color: getActionLogPlayerColor(player.id)
+})))
+const renderedActionLogs = computed(() => Array.isArray(actionLogs.value) ? actionLogs.value : [])
+const normalizedAppliedActionLogActionIdFilter = computed(() => normalizeActionLogSearchValue(appliedActionLogActionIdFilter.value))
+const normalizedAppliedActionLogUidFilter = computed(() => normalizeActionLogSearchValue(appliedActionLogUidFilter.value))
+const hasActiveActionLogFilters = computed(() => (
+  appliedActionLogPlayerFilters.value.length > 0
+  || appliedActionLogTypeFilters.value.length > 0
+  || appliedActionLogStageFilters.value.length > 0
+  || normalizedAppliedActionLogActionIdFilter.value.length > 0
+  || normalizedAppliedActionLogUidFilter.value.length > 0
+))
+const actionLogActiveFilterCount = computed(() => (
+  appliedActionLogPlayerFilters.value.length
+  + appliedActionLogTypeFilters.value.length
+  + appliedActionLogStageFilters.value.length
+  + (normalizedAppliedActionLogActionIdFilter.value.length > 0 ? 1 : 0)
+  + (normalizedAppliedActionLogUidFilter.value.length > 0 ? 1 : 0)
+))
+const filteredActionLogs = computed(() => {
+  const actionIdFilter = normalizedAppliedActionLogActionIdFilter.value
+  const uidFilter = normalizedAppliedActionLogUidFilter.value
+  const hasSpecificActionFilters = (
+    appliedActionLogPlayerFilters.value.length > 0
+    || appliedActionLogTypeFilters.value.length > 0
+    || actionIdFilter.length > 0
+    || uidFilter.length > 0
+  )
+
+  return renderedActionLogs.value.filter((entry) => {
+    if (entry.kind === 'divider') {
+      if (hasSpecificActionFilters) {
+        return false
+      }
+
+      return appliedActionLogStageFilters.value.length === 0
+        || appliedActionLogStageFilters.value.includes(entry.stageKey)
+    }
+
+    if (appliedActionLogPlayerFilters.value.length > 0 && !appliedActionLogPlayerFilters.value.includes(entry.playerId)) {
+      return false
+    }
+
+    if (appliedActionLogTypeFilters.value.length > 0 && !appliedActionLogTypeFilters.value.includes(entry.actionType)) {
+      return false
+    }
+
+    if (appliedActionLogStageFilters.value.length > 0 && !appliedActionLogStageFilters.value.includes(entry.stageKey)) {
+      return false
+    }
+
+    if (actionIdFilter.length > 0 && entry.actionIdText !== actionIdFilter) {
+      return false
+    }
+
+    if (uidFilter.length > 0 && !entry.uid.toLowerCase().includes(uidFilter)) {
+      return false
+    }
+
+    return true
+  })
+})
+const currentActionOwnerLabel = computed(() => {
+  const normalizedCurrentPlayerId = normalizeActionLogPlayerId(gameMeta.current_player_id)
+  return normalizedCurrentPlayerId === null ? '等待后端' : getActionLogPlayerLabel(normalizedCurrentPlayerId)
+})
+const currentActionPlayerColor = computed(() => {
+  const normalizedCurrentPlayerId = normalizeActionLogPlayerId(gameMeta.current_player_id)
+  return normalizedCurrentPlayerId === null ? '#64748b' : getCurrentActionOwnerColor(normalizedCurrentPlayerId)
+})
+const currentActionModeLabel = computed(() => {
+  if (!gameMeta.action_type) {
+    return '待定'
+  }
+
+  return formatActionModeLabel(gameMeta.action_type)
+})
 
 // 规划卡与派系映射
 const planningCardIdToName = {
@@ -949,6 +1255,7 @@ function setPlayerPlanningCard(player, planningCardId) {
   const resolvedId = Number.isInteger(normalizedId) && normalizedId > 0 ? normalizedId : null
   player.planningCardId = resolvedId
   player.planningCard = resolvedId ? planningCardIdToName[resolvedId] || null : null
+  refreshActionLogPlayerColors(player.id)
 }
 
 function normalizePlanningCardId(planningCardId) {
@@ -1201,6 +1508,40 @@ function buildGlobalStatusFromMeta() {
   return `第 ${normalizedRound} 回合`
 }
 
+function getActionLogStageDefinition(stageKey) {
+  return ACTION_LOG_STAGE_MAP[stageKey] || ACTION_LOG_STAGE_MAP['setup-choice']
+}
+
+function getCurrentActionLogStageKey(metaLike = gameMeta) {
+  const normalizedRound = Number(metaLike?.round)
+  if (Number.isInteger(normalizedRound) && normalizedRound >= 1 && normalizedRound <= 6) {
+    return `round-${normalizedRound}`
+  }
+
+  if (metaLike?.setup_build_is_completed) {
+    return 'setup-effect'
+  }
+
+  if (metaLike?.setup_choice_is_completed) {
+    return 'setup-build'
+  }
+
+  return 'setup-choice'
+}
+
+function getCurrentActionLogStage(metaLike = gameMeta) {
+  return getActionLogStageDefinition(getCurrentActionLogStageKey(metaLike))
+}
+
+function normalizeActionLogSearchValue(value) {
+  return typeof value === 'string' ? value.trim().toLowerCase() : ''
+}
+
+function resetActionLogHistory() {
+  actionLogs.value = []
+  systemRecordSequence = 0
+}
+
 function syncRoundScoringProgress(roundValue) {
   const normalizedRound = Number(roundValue)
   const currentActiveRound = Number.isInteger(normalizedRound) && normalizedRound >= 1 && normalizedRound <= 6
@@ -1234,8 +1575,9 @@ function updateStateVersion(version) {
 }
 
 function normalizeAction(action, idx) {
+  const normalizedActionId = Number(action?.action_id ?? action?.id)
   return {
-    id: action?.action_id ?? action?.id ?? idx,
+    id: Number.isInteger(normalizedActionId) ? normalizedActionId : idx,
     text: action?.description ?? action?.text ?? '',
     color: action?.color || 'default'
   }
@@ -1247,6 +1589,292 @@ function setAvailableActions(rawActions) {
     : []
   actions.value = nextActions
   actionCount.value = nextActions.length
+}
+
+let systemRecordSequence = 0
+
+function normalizeActionType(actionType) {
+  if (actionType === 'normal' || actionType === 'immediate') {
+    return actionType
+  }
+
+  return 'system'
+}
+
+function formatActionModeLabel(actionType) {
+  return normalizeActionType(actionType)
+}
+
+function normalizeActionLogPlayerId(playerId) {
+  const normalizedPlayerId = Number(playerId)
+  return Number.isInteger(normalizedPlayerId) && normalizedPlayerId >= 0
+    ? normalizedPlayerId
+    : null
+}
+
+function resolveNamedLogColor(colorName) {
+  if (typeof colorName !== 'string' || !colorName) {
+    return NAMED_LOG_COLORS.default
+  }
+
+  return NAMED_LOG_COLORS[colorName] || NAMED_LOG_COLORS.default
+}
+
+function getPlayerResolvedPlanningColor(playerId) {
+  const normalizedPlayerId = normalizeActionLogPlayerId(playerId)
+  if (normalizedPlayerId === null) {
+    return 'transparent'
+  }
+
+  const planningCardId = normalizePlanningCardId(players.value[normalizedPlayerId]?.planningCardId)
+  return planningCardId ? planningCardIdToColor[planningCardId] || 'transparent' : 'transparent'
+}
+
+function getActionLogPlayerColor(playerId) {
+  const normalizedPlayerId = normalizeActionLogPlayerId(playerId)
+  if (normalizedPlayerId === null) {
+    return '#64748b'
+  }
+
+  return getPlayerResolvedPlanningColor(normalizedPlayerId)
+}
+
+function getCurrentActionOwnerColor(playerId) {
+  const resolvedPlanningColor = getPlayerResolvedPlanningColor(playerId)
+  return resolvedPlanningColor === 'transparent' ? '#64748b' : resolvedPlanningColor
+}
+
+function getActionLogPlayerLabel(playerId) {
+  const normalizedPlayerId = normalizeActionLogPlayerId(playerId)
+  if (normalizedPlayerId === null) {
+    return '系统'
+  }
+
+  return `玩家 ${normalizedPlayerId + 1}`
+}
+
+function createSystemActionLogRecordId() {
+  systemRecordSequence += 1
+  return `sys.${String(systemRecordSequence).padStart(3, '0')}`
+}
+
+function prependActionLogRecord(record) {
+  actionLogs.value.unshift(record)
+
+  if (actionLogs.value.length > ACTION_LOG_LIMIT) {
+    actionLogs.value.splice(ACTION_LOG_LIMIT)
+  }
+}
+
+function refreshActionLogPlayerColors(targetPlayerId = null) {
+  const normalizedTargetPlayerId = targetPlayerId === null
+    ? null
+    : normalizeActionLogPlayerId(targetPlayerId)
+
+  actionLogs.value = actionLogs.value.map((entry) => {
+    if (entry.kind === 'divider' || entry.playerId === null) {
+      return entry
+    }
+
+    if (normalizedTargetPlayerId !== null && entry.playerId !== normalizedTargetPlayerId) {
+      return entry
+    }
+
+    const nextPlayerColor = getActionLogPlayerColor(entry.playerId)
+    const nextAccentColor = entry.accentColor === entry.playerColor
+      ? nextPlayerColor
+      : entry.accentColor
+
+    if (entry.playerColor === nextPlayerColor && entry.accentColor === nextAccentColor) {
+      return entry
+    }
+
+    return {
+      ...entry,
+      playerColor: nextPlayerColor,
+      accentColor: nextAccentColor
+    }
+  })
+}
+
+function appendActionLogEntry(playerId, payload) {
+  const text = payload?.content ?? payload?.message ?? ''
+  if (!text) return
+
+  const currentStage = getCurrentActionLogStage()
+  const normalizedPlayerId = normalizeActionLogPlayerId(playerId)
+  const playerColor = normalizedPlayerId === null
+    ? resolveNamedLogColor(payload?.color)
+    : getActionLogPlayerColor(normalizedPlayerId)
+  const accentColor = payload?.color ? resolveNamedLogColor(payload.color) : playerColor
+
+  prependActionLogRecord({
+    uid: createSystemActionLogRecordId(),
+    kind: 'system',
+    actionId: null,
+    actionIdText: '',
+    playerId: normalizedPlayerId,
+    playerLabel: getActionLogPlayerLabel(normalizedPlayerId),
+    playerColor,
+    accentColor,
+    actionType: 'system',
+    stageKey: currentStage.id,
+    stageLabel: currentStage.label,
+    description: text
+  })
+}
+
+function normalizeActionHistoryDividerEntry(entry, dividerSequence) {
+  const stageDefinition = getActionLogStageDefinition(entry?.stage_key)
+
+  return {
+    uid: `div.${stageDefinition.id}.${String(dividerSequence).padStart(3, '0')}`,
+    kind: 'divider',
+    actionId: null,
+    actionIdText: '',
+    playerId: null,
+    playerLabel: '',
+    playerColor: 'transparent',
+    accentColor: '#64748b',
+    actionType: 'divider',
+    stageKey: stageDefinition.id,
+    stageLabel: stageDefinition.label,
+    description: entry?.description || stageDefinition.dividerLabel
+  }
+}
+
+function normalizeActionHistoryEntry(entry, actionSequence) {
+  const stageDefinition = getActionLogStageDefinition(entry?.stage_key)
+  const normalizedPlayerId = normalizeActionLogPlayerId(entry?.player_id)
+  const normalizedActionType = normalizeActionType(entry?.action_type)
+  const normalizedActionId = Number(entry?.action_id)
+
+  return {
+    uid: `act.${String(actionSequence).padStart(3, '0')}`,
+    kind: 'action',
+    actionId: Number.isInteger(normalizedActionId) ? normalizedActionId : null,
+    actionIdText: Number.isInteger(normalizedActionId) ? String(normalizedActionId) : '',
+    playerId: normalizedPlayerId,
+    playerLabel: getActionLogPlayerLabel(normalizedPlayerId),
+    playerColor: getActionLogPlayerColor(normalizedPlayerId),
+    accentColor: getActionLogPlayerColor(normalizedPlayerId),
+    actionType: normalizedActionType,
+    stageKey: stageDefinition.id,
+    stageLabel: stageDefinition.label,
+    description: entry?.description || '未提供行动描述'
+  }
+}
+
+function setActionLogsFromHistory(rawHistory) {
+  const normalizedHistory = Array.isArray(rawHistory) ? rawHistory : []
+  const systemLogs = actionLogs.value.filter((entry) => entry?.kind === 'system')
+  let actionSequence = 0
+  let dividerSequence = 0
+
+  const normalizedLogs = normalizedHistory.map((entry) => {
+    if (entry?.kind === 'divider') {
+      dividerSequence += 1
+      return normalizeActionHistoryDividerEntry(entry, dividerSequence)
+    }
+
+    actionSequence += 1
+    return normalizeActionHistoryEntry(entry, actionSequence)
+  }).reverse()
+
+  actionLogs.value = [...systemLogs, ...normalizedLogs]
+  systemRecordSequence = systemLogs.length
+}
+
+function toggleFilterValue(listRef, value) {
+  if (listRef.value.includes(value)) {
+    listRef.value = listRef.value.filter((item) => item !== value)
+    return
+  }
+
+  listRef.value = [...listRef.value, value]
+}
+
+function openActionLogFilterModal() {
+  if (actionLogFilterModalOpen.value) {
+    actionLogFilterModalOpen.value = false
+    return
+  }
+
+  draftActionLogPlayerFilters.value = [...appliedActionLogPlayerFilters.value]
+  draftActionLogTypeFilters.value = [...appliedActionLogTypeFilters.value]
+  draftActionLogStageFilters.value = [...appliedActionLogStageFilters.value]
+  draftActionLogActionIdFilter.value = appliedActionLogActionIdFilter.value
+  draftActionLogUidFilter.value = appliedActionLogUidFilter.value
+  actionLogFilterModalOpen.value = true
+}
+
+function toggleDraftActionLogPlayer(playerId) {
+  toggleFilterValue(draftActionLogPlayerFilters, playerId)
+}
+
+function toggleDraftActionLogType(actionType) {
+  toggleFilterValue(draftActionLogTypeFilters, actionType)
+}
+
+function toggleDraftActionLogStage(stageKey) {
+  toggleFilterValue(draftActionLogStageFilters, stageKey)
+}
+
+function clearDraftActionLogFilters() {
+  draftActionLogPlayerFilters.value = []
+  draftActionLogTypeFilters.value = []
+  draftActionLogStageFilters.value = []
+  draftActionLogActionIdFilter.value = ''
+  draftActionLogUidFilter.value = ''
+}
+
+function applyActionLogFilters() {
+  appliedActionLogPlayerFilters.value = [...draftActionLogPlayerFilters.value]
+  appliedActionLogTypeFilters.value = [...draftActionLogTypeFilters.value]
+  appliedActionLogStageFilters.value = [...draftActionLogStageFilters.value]
+  appliedActionLogActionIdFilter.value = normalizeActionLogSearchValue(draftActionLogActionIdFilter.value)
+  appliedActionLogUidFilter.value = normalizeActionLogSearchValue(draftActionLogUidFilter.value)
+  actionLogFilterModalOpen.value = false
+}
+
+function getActionLogEntryStyle(log) {
+  const playerColor = typeof log?.playerColor === 'string' && log.playerColor ? log.playerColor : 'transparent'
+  return {
+    '--log-player-color': playerColor,
+    '--log-player-dot-shadow': playerColor === 'transparent'
+      ? 'none'
+      : '0 0 0 1px rgba(255, 255, 255, 0.08)'
+  }
+}
+
+function buildActionLogEntryTitle(log) {
+  const titleLines = []
+
+  if (log.kind !== 'divider') {
+    titleLines.push(`本局序号 ${log.uid}`)
+  }
+
+  if (log.stageLabel) {
+    titleLines.push(log.stageLabel)
+  }
+
+  if (log.playerLabel) {
+    titleLines.push(log.playerLabel)
+  }
+
+  if (Number.isInteger(log.actionId)) {
+    titleLines.push(`行动编号 ${log.actionId}`)
+  }
+
+  if (log.kind === 'action' || log.kind === 'system') {
+    titleLines.push(log.actionType)
+  }
+
+  if (log.description && titleLines[titleLines.length - 1] !== log.description) {
+    titleLines.push(log.description)
+  }
+
+  return titleLines.join('\n')
 }
 
 function buildPlayerStatusRows(player) {
@@ -1288,33 +1916,6 @@ function getMapBuildingIconSrc(cell) {
   }
 
   return `/images/buildings/${colorId}-${buildingId}.png`
-}
-
-function getActionLogChannelLabel(playerId) {
-  if (playerId === 0) {
-    return '系统'
-  }
-
-  if (Number.isInteger(playerId) && playerId > 0) {
-    return `玩家 ${playerId}`
-  }
-
-  return '记录'
-}
-
-function appendActionLogEntry(playerId, payload) {
-  const text = payload?.content ?? payload?.message ?? ''
-  if (!text) return
-
-  actionLogs.value.push({
-    channelLabel: getActionLogChannelLabel(playerId),
-    text,
-    color: payload?.color || 'default'
-  })
-
-  if (actionLogs.value.length > ACTION_LOG_LIMIT) {
-    actionLogs.value.splice(0, actionLogs.value.length - ACTION_LOG_LIMIT)
-  }
 }
 
 function applyPlayerState(player, backendPlayer) {
@@ -1622,12 +2223,12 @@ watch(actions, () => {
   })
 }, { deep: true })
 
-// 监听玩家日志变化，自动滚动到底部
-watch(() => actionLogs.value.length, () => {
+// 监听行动记录变化，保持最新记录显示在最上方
+watch(filteredActionLogs, () => {
   nextTick(() => {
     const actionLogContent = document.getElementById('action-log-content')
     if (actionLogContent) {
-      actionLogContent.scrollTop = actionLogContent.scrollHeight
+      actionLogContent.scrollTop = 0
     }
   })
 })
@@ -1676,6 +2277,7 @@ async function handleEndGame() {
 
     // 清理前端状态
     gameStore.endGame()
+    resetActionLogHistory()
 
     // 关闭SSE连接
     if (eventSource) {
@@ -1693,6 +2295,7 @@ function handleResetSettings() {
   if (confirmState.value === 'reset') {
     confirmState.value = null
     gameMenuOpen.value = false
+    resetActionLogHistory()
     setTimeout(() => router.push('/setup'), 500)
   } else {
     confirmState.value = 'reset'
@@ -1761,18 +2364,34 @@ async function submitActionAndSync(actionId) {
 
     if (!response.ok || data.status !== 'success') {
       console.error('命令发送失败:', data.error || data.message || response.statusText)
-      return false
+      return { submitted: false, synced: false }
     }
 
-    return await syncStateAfterActionSubmission(previousVersion)
+    const synced = await syncStateAfterActionSubmission(previousVersion)
+    return { submitted: true, synced }
   } catch (error) {
     console.error('命令发送失败:', error)
-    return false
+    return { submitted: false, synced: false }
   }
 }
 
-function selectAction(actionId) {
-  void submitActionAndSync(actionId)
+async function selectAction(action) {
+  if (!action || pendingActionId.value !== null) {
+    return
+  }
+
+  const actionId = Number(action.id)
+  if (!Number.isInteger(actionId)) {
+    return
+  }
+
+  pendingActionId.value = actionId
+
+  try {
+    await submitActionAndSync(actionId)
+  } finally {
+    pendingActionId.value = null
+  }
 }
 
 function getHexPoints(x, y, size) {
@@ -2305,6 +2924,8 @@ function applyFullState(state) {
       text: action.description || ''
     }))
   }
+
+  setActionLogsFromHistory(state.action_history)
   
   // 应用地图状态
   if (state.map_state && state.map_state.grid) {
@@ -2369,6 +2990,7 @@ function applyGameViewFullState(state) {
   }
 
   setAvailableActions(state.available_actions)
+  setActionLogsFromHistory(state.action_history)
 
   if (state.map_state && state.map_state.grid) {
     resetMapState(state.map_state.grid)
@@ -2416,6 +3038,7 @@ function connectSSE() {
       localStorage.removeItem('gameSettings')
       // 重置游戏状态
       gameStore.endGame()
+      resetActionLogHistory()
       // 返回首页
       router.push('/')
       return
@@ -2606,6 +3229,11 @@ function applyGameViewChange(path, value, changeType, pendingBuildingRenders = n
     return
   }
 
+  if (rootKey === 'action_history') {
+    setActionLogsFromHistory(value)
+    return
+  }
+
   if (rootKey === 'players' && keys.length >= 2) {
     const playerIdx = Number.parseInt(keys[1], 10)
     if (playerIdx >= 0 && playerIdx < players.value.length) {
@@ -2687,6 +3315,11 @@ function applySingleChange(path, value, changeType) {
         text: action.description || ''
       }))
     }
+    return
+  }
+
+  if (rootKey === 'action_history') {
+    setActionLogsFromHistory(value)
     return
   }
 
@@ -2784,8 +3417,12 @@ function updateNestedObject(obj, keys, value) {
 // 点击外部关闭菜单
 function handleDocumentClick(e) {
   const tooltipContainer = e.target.closest('.terrain-tooltip-container')
+  const actionLogFilterContainer = e.target.closest('.action-log-filter')
   if (!tooltipContainer && terrainTooltipOpen.value) {
     terrainTooltipOpen.value = false
+  }
+  if (!actionLogFilterContainer && actionLogFilterModalOpen.value) {
+    actionLogFilterModalOpen.value = false
   }
 }
 
@@ -3056,7 +3693,7 @@ onUnmounted(() => {
 }
 
 .palace-tile-badge {
-  --palace-tile-badge-size: 20px;
+  --palace-tile-badge-size: 22px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -3083,12 +3720,6 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   min-width: 0;
-}
-
-.palace-tile-badge.is-inactive {
-  background: rgba(56, 60, 66, 0.88);
-  border-color: rgba(176, 184, 194, 0.24);
-  color: rgba(238, 241, 245, 0.86);
 }
 
 .palace-tile-badge.is-hidden-placeholder {
@@ -3239,6 +3870,27 @@ onUnmounted(() => {
   grid-template-columns: repeat(var(--stat-columns), minmax(0, 1fr));
   align-items: center;
   min-height: var(--player-stat-row-height);
+  position: relative;
+}
+
+.stat-row + .stat-row::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: 10px;
+  right: 10px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.025) 14%,
+    rgba(255, 255, 255, 0.055) 50%,
+    rgba(255, 255, 255, 0.025) 86%,
+    transparent 100%
+  );
+  transform: scaleY(0.5);
+  transform-origin: center;
+  pointer-events: none;
 }
 
 .stat-item {
@@ -3356,6 +4008,9 @@ onUnmounted(() => {
 
 .stat-badge {
   position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   top: -5px;
   right: -7px;
   min-width: 13px;
@@ -3367,7 +4022,7 @@ onUnmounted(() => {
   color: #dcecfb;
   font-size: 0.54rem;
   font-weight: 700;
-  line-height: 11px;
+  line-height: 1;
   text-align: center;
   box-sizing: border-box;
 }
@@ -4076,7 +4731,7 @@ onUnmounted(() => {
 }
 
 .global-status {
-  background-color: var(--bg-secondary);
+  background-color: #171717;
   border-radius: var(--border-radius);
   padding: 18px calc(var(--panel-padding) + 2px);
   border: 1px solid var(--border);
@@ -4087,13 +4742,13 @@ onUnmounted(() => {
 }
 
 .status-title {
-  font-size: 0.95rem;
-  color: var(--accent);
+  font-size: 1rem;
+  color: var(--text-primary);
   margin-bottom: 10px;
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .status-title i {
@@ -4231,25 +4886,35 @@ onUnmounted(() => {
 }
 
 .action-section {
-  background-color: var(--bg-secondary);
-  border-radius: var(--border-radius);
   flex: 1;
-  display: flex;
-  flex-direction: column;
+  min-height: 0;
+}
+
+.action-section,
+.action-log-section {
+  background-color: #171717;
+  border-radius: var(--border-radius);
   border: 1px solid var(--border);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .action-header {
-  padding: 10px calc(var(--panel-padding) + 2px);
-  background-color: var(--bg-tertiary);
-  border-bottom: 1px solid var(--border);
+  padding: 14px calc(var(--panel-padding) + 2px) 10px;
+  background: transparent;
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
-  gap: 10px;
+  align-items: flex-start;
+  gap: 12px;
   flex-wrap: wrap;
-  min-height: 36px;
+}
+
+.action-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
 
 .action-title {
@@ -4258,26 +4923,71 @@ onUnmounted(() => {
   color: var(--text-primary);
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .action-title i {
   color: var(--accent);
 }
 
+.action-subtitle {
+  font-size: 0.73rem;
+  line-height: 1.4;
+  color: rgba(198, 211, 224, 0.72);
+}
+
+.action-header-meta,
+.action-log-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.action-owner-chip,
+.action-mode-chip,
 .action-count {
-  color: var(--text-secondary);
-  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 0 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(120, 160, 200, 0.28);
+  background: rgba(14, 22, 34, 0.78);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  color: rgba(220, 236, 251, 0.88);
+  font-size: 0.74rem;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  box-sizing: border-box;
+}
+
+.action-owner-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.08);
+}
+
+.action-mode-chip {
+  font-family: 'Consolas', monospace;
+  letter-spacing: 0.02em;
 }
 
 .action-content {
   flex: 1;
-  padding: calc(var(--panel-padding) + 2px);
+  min-height: 0;
+  padding: 0 14px 14px;
   overflow-y: auto;
-  font-size: 0.84rem;
-  line-height: 1.5;
-  color: var(--text-secondary);
-  background-color: var(--bg-primary);
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .action-content::-webkit-scrollbar {
@@ -4294,109 +5004,456 @@ onUnmounted(() => {
 }
 
 .action-item {
+  --action-accent-color: rgba(92, 190, 240, 0.85);
+  appearance: none;
+  width: 100%;
+  padding: 12px 13px 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
   background-color: var(--bg-tertiary);
-  border-left: 3px solid var(--accent);
-  padding: 8px 9px;
-  margin-bottom: 6px;
-  border-radius: 0 10px 10px 0;
-  font-family: 'Consolas', monospace;
-  font-size: 0.8rem;
-  line-height: 1.3;
-  white-space: pre-wrap;
-  word-wrap: break-word;
+  color: var(--text-primary);
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+  box-sizing: border-box;
+  font: inherit;
+  position: relative;
+  overflow: hidden;
 }
 
-.action-item:hover {
-  background-color: var(--bg-hover);
+.action-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--action-accent-color);
+}
+
+.action-item:hover:not(:disabled) {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+}
+
+.action-item:focus-visible,
+.action-filter-btn:focus-visible,
+.action-filter-option:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(92, 190, 240, 0.35);
+}
+
+.action-item:disabled {
+  cursor: wait;
+}
+
+.action-item.is-disabled {
+  opacity: 0.56;
+}
+
+.action-item.is-submitting {
+  border-color: rgba(92, 190, 240, 0.72);
+  box-shadow: 0 0 0 2px rgba(92, 190, 240, 0.22);
+}
+
+.action-item-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .action-id {
-  font-weight: bold;
-  color: var(--accent);
-  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(92, 190, 240, 0.12);
+  color: #cde8fb;
+  font-family: 'Consolas', monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
 }
 
-.action-item[data-color='red'] { border-left-color: #cc2828; }
-.action-item[data-color='green'] { border-left-color: #37af37; }
-.action-item[data-color='blue'] { border-left-color: #35a0d5; }
-.action-item[data-color='yellow'] { border-left-color: #e8e83d; }
-.action-item[data-color='grey'] { border-left-color: #a1a1a1; }
-.action-item[data-color='brown'] { border-left-color: #85491d; }
-.action-item[data-color='black'] { border-left-color: #595959; }
-.action-item[data-color='white'] { border-left-color: #ffffff; }
+.action-item-text {
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.action-item[data-color='red'] { --action-accent-color: #cc2828; }
+.action-item[data-color='green'] { --action-accent-color: #37af37; }
+.action-item[data-color='blue'] { --action-accent-color: #35a0d5; }
+.action-item[data-color='yellow'] { --action-accent-color: #e8e83d; }
+.action-item[data-color='grey'] { --action-accent-color: #a1a1a1; }
+.action-item[data-color='brown'] { --action-accent-color: #85491d; }
+.action-item[data-color='black'] { --action-accent-color: #595959; }
+.action-item[data-color='white'] { --action-accent-color: #ffffff; }
 
 .action-log-section {
   width: 19%;
   height: 100%;
-  display: flex;
-  flex-direction: column;
-  background-color: var(--bg-secondary);
-  border-radius: var(--border-radius);
-  border: 1px solid var(--border);
-  overflow: hidden;
+  min-height: 0;
 }
 
 .action-log-header {
-  padding: 10px calc(var(--panel-padding) + 2px);
-  background-color: var(--bg-tertiary);
-  border-bottom: 1px solid var(--border);
+  position: relative;
+  padding: 14px calc(var(--panel-padding) + 2px) 10px;
+  background: transparent;
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
-  gap: 10px;
+  align-items: center;
+  gap: 12px;
   flex-wrap: wrap;
-  min-height: 36px;
 }
 
 .action-log-content {
   flex: 1;
-  padding: calc(var(--panel-padding) + 2px);
+  min-height: 0;
+  padding: 0 14px 14px;
   overflow-y: auto;
-  background-color: var(--bg-primary);
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .action-log-content::-webkit-scrollbar {
-  width: 6px;
+  display: none;
 }
 
-.action-log-item {
-  border-left-width: 3px;
-  cursor: default;
+.action-log-filter {
+  position: relative;
 }
 
-.action-log-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-
-.action-log-channel {
+.action-filter-btn {
+  appearance: none;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(120, 160, 200, 0.28);
+  background: rgba(14, 22, 34, 0.78);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  color: rgba(220, 236, 251, 0.88);
   display: inline-flex;
   align-items: center;
-  min-width: 0;
-  padding: 2px 7px;
-  border-radius: 999px;
-  background: rgba(0, 123, 255, 0.12);
-  color: var(--accent);
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  gap: 8px;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1;
 }
 
-.action-log-index {
-  flex-shrink: 0;
+.action-filter-btn i {
+  font-size: 0.76rem;
+}
+
+.action-filter-btn:hover,
+.action-filter-btn.is-active {
+  border-color: var(--accent);
+  background: rgba(18, 27, 40, 0.92);
+  color: #ffffff;
+}
+
+.action-filter-badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(92, 190, 240, 0.16);
+  color: #dcecfb;
+  font-size: 0.68rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.action-filter-popup {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 276px;
+  max-width: calc(100vw - 40px);
+  padding: 14px;
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.action-filter-section-title {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.action-filter-section {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.action-filter-section + .action-filter-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.action-filter-search-grid {
+  display: grid;
+  gap: 9px;
+}
+
+.action-filter-search-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.action-filter-search-label,
+.action-filter-stage-group-title {
   color: var(--text-secondary);
   font-size: 0.68rem;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.action-filter-stage-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.action-filter-stage-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.action-filter-search-input {
+  width: 100%;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: 0.76rem;
+  line-height: 1.2;
+  box-sizing: border-box;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.action-filter-search-input::placeholder {
+  color: rgba(198, 211, 224, 0.46);
+}
+
+.action-filter-search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(92, 190, 240, 0.12);
+}
+
+.action-filter-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.action-filter-options.is-compact-rounds {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.action-filter-option {
+  appearance: none;
+  width: auto;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.action-filter-option.is-round-chip {
+  flex: 1 1 0;
+  min-width: 0;
+  justify-content: center;
+  padding: 0;
+}
+
+.action-filter-option:hover,
+.action-filter-option.is-active {
+  border-color: var(--accent);
+  background: rgba(92, 190, 240, 0.14);
+  color: #dcecfb;
+  box-shadow: 0 0 0 2px rgba(92, 190, 240, 0.06);
+}
+
+.action-filter-player-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.06);
+}
+
+.action-filter-footer-btn {
+  min-width: 92px;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+}
+
+.action-filter-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.action-filter-footer-btn.is-ghost {
+  flex: 1;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.action-filter-footer-btn.is-ghost:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+
+.action-filter-footer-btn.is-primary {
+  flex: 1;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.action-filter-footer-btn.is-primary:hover {
+  background: #0069d9;
+  border-color: #0069d9;
+}
+
+.action-log-divider {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 24px;
+  color: rgba(198, 211, 224, 0.72);
+}
+
+.action-log-divider-line {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(120, 160, 200, 0.26), transparent);
+}
+
+.action-log-divider-text {
+  color: rgba(198, 211, 224, 0.78);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.action-log-entry {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 7px 10px;
+  background-color: var(--bg-tertiary);
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  box-sizing: border-box;
+  transition: border-color 0.18s ease, background-color 0.18s ease;
+}
+
+.action-log-entry:hover {
+  border-color: rgba(0, 123, 255, 0.42);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.action-log-entry.is-system {
+  border-color: rgba(121, 139, 160, 0.22);
+}
+
+.action-log-record-id {
+  color: #cde8fb;
+  font-family: 'Consolas', monospace;
+  font-size: 0.69rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.action-log-player-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--log-player-color);
+  box-shadow: var(--log-player-dot-shadow, 0 0 0 1px rgba(255, 255, 255, 0.08));
 }
 
 .action-log-text {
   color: var(--text-primary);
   font-size: 0.78rem;
-  line-height: 1.45;
+  line-height: 1.35;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-empty-state {
+  min-height: 112px;
+  padding: 20px 16px;
+  border-radius: 12px;
+  border: 1px dashed rgba(120, 160, 200, 0.18);
+  background-color: var(--bg-tertiary);
+  color: rgba(198, 211, 224, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  line-height: 1.6;
 }
 
 /* 滚动条优化 */
