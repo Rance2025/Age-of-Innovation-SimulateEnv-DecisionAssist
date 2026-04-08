@@ -1,7 +1,7 @@
 <template>
   <div class="game-page">
     <div class="main-container">
-      <!-- 左侧：玩家面板 (28%) -->
+      <!-- 左侧：玩家面板 -->
       <div class="players-monitor">
         <div class="monitor-header">
           <i class="fas fa-users"></i>
@@ -63,114 +63,54 @@
               </div>
               <div class="player-status">
                 <div class="player-stats">
-                  <!-- 第一行：资源数量 -->
-                  <div class="stat-row">
-                    <div class="stat-item">
-                      <div class="stat-content">
-                        <i class="fas fa-coins stat-icon"></i>
-                        <span class="stat-value">{{ player.money }}</span>
-                      </div>
-                    </div>
-                    <div class="stat-item">
-                      <div class="stat-content">
-                        <i class="fas fa-cube stat-icon"></i>
-                        <span class="stat-value">{{ player.mineral }}</span>
-                      </div>
-                    </div>
-                    <div class="stat-item">
-                      <div class="stat-content">
-                        <i class="fas fa-user stat-icon"></i>
-                        <span class="stat-value">{{ player.mibao }}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <!-- 第二行：书籍数量 -->
-                  <div class="stat-row">
-                    <div class="stat-item">
-                      <div class="stat-content">
-                        <i class="fas fa-university stat-icon"></i>
-                        <span class="stat-value">{{ player.bank }}</span>
-                      </div>
-                    </div>
-                    <div class="stat-item">
-                      <div class="stat-content">
-                        <i class="fas fa-gavel stat-icon"></i>
-                        <span class="stat-value">{{ player.law }}</span>
-                      </div>
-                    </div>
-                    <div class="stat-item">
-                      <div class="stat-content">
-                        <i class="fas fa-cog stat-icon"></i>
-                        <span class="stat-value">{{ player.engineering }}</span>
-                      </div>
-                    </div>
-                    <div class="stat-item">
-                      <div class="stat-content">
-                        <i class="fas fa-heartbeat stat-icon"></i>
-                        <span class="stat-value">{{ player.medical }}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <!-- 第三行：三区魔力 -->
-                  <div class="stat-row">
-                    <div class="stat-item">
-                      <div class="stat-content">
-                        <div class="icon-stack">
-                          <i class="fa-solid fa-circle icon-background"></i>
-                          <i class="fa-solid fa-1 icon-foreground"></i>
-                        </div>
-                        <span class="stat-value">{{ player.magic1 }}</span>
-                      </div>
-                    </div>
-                    <div class="stat-item">
-                      <div class="stat-content">
-                        <div class="icon-stack">
-                          <i class="fa-solid fa-circle icon-background"></i>
-                          <i class="fa-solid fa-2 icon-foreground"></i>
-                        </div>
-                        <span class="stat-value">{{ player.magic2 }}</span>
-                      </div>
-                    </div>
-                    <div class="stat-item">
-                      <div class="stat-content">
-                        <div class="icon-stack">
-                          <i class="fa-solid fa-circle icon-background"></i>
-                          <i class="fa-solid fa-3 icon-foreground"></i>
-                        </div>
-                        <span class="stat-value">{{ player.magic3 }}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <!-- 第四行：其他状态 -->
-                  <div class="stat-row">
-                    <div class="stat-item">
-                      <div class="stat-content">
-                        <i class="fas fa-city stat-icon"></i>
-                        <span class="stat-value">{{ player.cities }}</span>
-                      </div>
-                    </div>
-                    <div class="stat-item">
-                      <div class="stat-content">
-                        <i class="fas fa-ship stat-icon"></i>
-                        <span class="stat-value">{{ player.navigation }}</span>
-                      </div>
-                    </div>
-                    <div class="stat-item">
-                      <div class="stat-content">
-                        <i class="fas fa-digging stat-icon"></i>
-                        <span class="stat-value">{{ player.shovel }}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div class="player-log" :id="'player-log-' + (player.id + 1)">
                   <div
-                    v-for="(log, idx) in player.logs"
-                    :key="idx"
-                    class="log-item"
-                    :data-color="log.color"
+                    v-for="(row, rowIndex) in buildPlayerStatusRows(player)"
+                    :key="`player-${player.id}-row-${rowIndex}`"
+                    class="stat-row"
+                    :style="{ '--stat-columns': row.length }"
+                    :class="{
+                      'is-building-row': row.some((item) => item.type === 'building'),
+                      'is-wide-row': row.length >= 5,
+                      'is-ultra-wide-row': row.length >= 6
+                    }"
                   >
-                    {{ log.text }}
+                    <div
+                      v-for="item in row"
+                      :key="item.key"
+                      class="stat-item"
+                      :title="item.label"
+                    >
+                      <div class="stat-content">
+                        <div class="stat-icon-wrapper">
+                          <img
+                            v-if="item.type === 'building'"
+                            :src="getPlayerBuildingIconSrc(player, item.buildingId)"
+                            :alt="item.label"
+                            class="stat-image"
+                          >
+                          <div
+                            v-else-if="item.type === 'magic'"
+                            class="icon-stack"
+                            aria-hidden="true"
+                          >
+                            <span class="magic-disc"></span>
+                            <span class="magic-disc-label">{{ item.magicValue }}</span>
+                          </div>
+                          <i
+                            v-else
+                            :class="[item.iconClass, 'stat-icon']"
+                            aria-hidden="true"
+                          ></i>
+                          <span
+                            v-if="item.badgeValue !== null && item.badgeValue !== undefined"
+                            class="stat-badge"
+                          >
+                            {{ item.badgeValue }}
+                          </span>
+                        </div>
+                        <span class="stat-value">{{ item.value }}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -179,7 +119,7 @@
         </div>
       </div>
 
-      <!-- 中间区域 (47%) -->
+      <!-- 中间区域 -->
       <div class="middle-section">
         <div class="middle-header">
           <i class="fas fa-gamepad"></i>
@@ -450,7 +390,7 @@
                           <img :src="`/images/bonus/${bonus.backX}.png`" alt="助推板块背面">
                         </div>
                       </div>
-                      <span class="bonus-label">回合助推板 {{ bonus.x }}</span>
+                      <span class="bonus-label" :aria-label="`回合助推板 ${bonus.x}`">{{ bonus.x }}</span>
                     </div>
                   </div>
                 </div>
@@ -495,7 +435,7 @@
         </div>
       </div>
 
-      <!-- 右侧：全局信息区 (25%) -->
+      <!-- 右侧：全局信息区 -->
       <div class="global-section">
         <!-- 顶部全局状态 -->
         <div class="global-status">
@@ -534,6 +474,31 @@
           </div>
         </div>
 
+      </div>
+
+      <!-- 最右侧：统一行动记录 (14%) -->
+      <div class="action-log-section">
+        <div class="action-log-header">
+          <div class="action-title">
+            <i class="fas fa-stream"></i>
+            <div>行动记录</div>
+          </div>
+          <div class="action-count">共<span id="action-log-count">{{ actionLogs.length }}</span>条</div>
+        </div>
+        <div id="action-log-content" class="action-log-content">
+          <div
+            v-for="(log, idx) in actionLogs"
+            :key="`${log.channelLabel}-${idx}-${log.text}`"
+            class="log-item action-log-item"
+            :data-color="log.color"
+          >
+            <div class="action-log-meta">
+              <span class="action-log-channel">{{ log.channelLabel }}</span>
+              <span class="action-log-index">#{{ idx + 1 }}</span>
+            </div>
+            <div class="action-log-text">{{ log.text }}</div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -680,14 +645,42 @@ function createDefaultMapGrid() {
 // ========== 玩家数据 ==========
 // 动态根据 num_players 初始化，支持 3-5 人局
 const players = ref([])
+const PLAYER_STATUS_ROWS = [
+  [
+    { key: 'money', label: '金币', type: 'icon', iconClass: 'fas fa-coins' },
+    { key: 'mineral', label: '矿石', type: 'icon', iconClass: 'fas fa-cube' },
+    { key: 'mibao', label: '米宝', type: 'icon', iconClass: 'fas fa-user', badgeKey: 'allMeeples' },
+    { key: 'bridges', label: '桥梁', type: 'icon', iconClass: 'fas fa-bridge-water' }
+  ],
+  [
+    { key: 'workshop', label: '车间剩余', type: 'building', buildingId: 1 },
+    { key: 'guild', label: '工会剩余', type: 'building', buildingId: 2 },
+    { key: 'palace', label: '宫殿剩余', type: 'building', buildingId: 3 },
+    { key: 'school', label: '学校剩余', type: 'building', buildingId: 4 },
+    { key: 'university', label: '大学剩余', type: 'building', buildingId: 5 }
+  ],
+  [
+    { key: 'bank', label: '银行', type: 'icon', iconClass: 'fas fa-university' },
+    { key: 'law', label: '法学', type: 'icon', iconClass: 'fas fa-gavel' },
+    { key: 'engineering', label: '工程', type: 'icon', iconClass: 'fas fa-cog' },
+    { key: 'medical', label: '医学', type: 'icon', iconClass: 'fas fa-heartbeat' }
+  ],
+  [
+    { key: 'magic1', label: '魔力1', type: 'magic', magicValue: '1' },
+    { key: 'magic2', label: '魔力2', type: 'magic', magicValue: '2' },
+    { key: 'magic3', label: '魔力3', type: 'magic', magicValue: '3' },
+    { key: 'cities', label: '城市', type: 'icon', iconClass: 'fas fa-city' },
+    { key: 'navigation', label: '航海', type: 'icon', iconClass: 'fas fa-ship' },
+    { key: 'shovel', label: '铲力', type: 'icon', iconClass: 'fas fa-digging' }
+  ]
+]
+const ACTION_LOG_LIMIT = 200
 const mapState = reactive({
   grid: createDefaultMapGrid()
 })
 
-// 创建默认玩家对象
-function createDefaultPlayer(id) {
+function createDefaultPlayerDisplayState() {
   return {
-    id,
     factionId: null,
     faction: '',
     planningCardId: null,
@@ -706,7 +699,21 @@ function createDefaultPlayer(id) {
     cities: 0,
     navigation: 0,
     shovel: 3,
-    logs: []
+    allMeeples: 7,
+    bridges: 3,
+    workshop: 9,
+    guild: 4,
+    palace: 1,
+    school: 3,
+    university: 1
+  }
+}
+
+// 创建默认玩家对象
+function createDefaultPlayer(id) {
+  return {
+    id,
+    ...createDefaultPlayerDisplayState()
   }
 }
 
@@ -776,6 +783,7 @@ function initBonusColumns(count) {
 const globalStatus = ref('所有玩家已就绪，对局即将开始')
 const actionCount = ref(0)
 const actions = ref([])
+const actionLogs = ref([])
 const tacticalLogs = ref([])
 const stateVersion = ref(0)
 const gameMeta = reactive({
@@ -1074,13 +1082,58 @@ function setAvailableActions(rawActions) {
   actionCount.value = nextActions.length
 }
 
+function buildPlayerStatusRows(player) {
+  return PLAYER_STATUS_ROWS.map((row) => row.map((definition) => ({
+    ...definition,
+    value: player?.[definition.key] ?? 0,
+    badgeValue: definition.badgeKey ? player?.[definition.badgeKey] ?? 0 : null
+  })))
+}
+
+function getPlayerBuildingIconSrc(player, buildingId) {
+  const planningCardId = player?.planningCardId ?? 0
+  return `/images/buildings/${planningCardId}-${buildingId}.png`
+}
+
+function getActionLogChannelLabel(playerId) {
+  if (playerId === 0) {
+    return '系统'
+  }
+
+  if (Number.isInteger(playerId) && playerId > 0) {
+    return `玩家 ${playerId}`
+  }
+
+  return '记录'
+}
+
+function appendActionLogEntry(playerId, payload) {
+  const text = payload?.content ?? payload?.message ?? ''
+  if (!text) return
+
+  actionLogs.value.push({
+    channelLabel: getActionLogChannelLabel(playerId),
+    text,
+    color: payload?.color || 'default'
+  })
+
+  if (actionLogs.value.length > ACTION_LOG_LIMIT) {
+    actionLogs.value.splice(0, actionLogs.value.length - ACTION_LOG_LIMIT)
+  }
+}
+
 function applyPlayerState(player, backendPlayer) {
   if (!player || !backendPlayer) return
+
+  // 先回到后端约定的默认展示值，避免同人数新局沿用上一局的旧资源。
+  Object.assign(player, createDefaultPlayerDisplayState())
 
   if (backendPlayer.resources) {
     player.money = backendPlayer.resources.money ?? player.money
     player.mineral = backendPlayer.resources.ore ?? player.mineral
     player.mibao = backendPlayer.resources.meeples ?? player.mibao
+    player.allMeeples = backendPlayer.resources.all_meeples ?? player.allMeeples
+    player.bridges = backendPlayer.resources.all_bridges ?? player.bridges
     player.bank = backendPlayer.resources.bank_book ?? player.bank
     player.law = backendPlayer.resources.law_book ?? player.law
     player.engineering = backendPlayer.resources.engineering_book ?? player.engineering
@@ -1096,6 +1149,11 @@ function applyPlayerState(player, backendPlayer) {
   player.money = backendPlayer.money ?? player.money
   player.mineral = backendPlayer.mineral ?? player.mineral
   player.mibao = backendPlayer.mibao ?? player.mibao
+  player.allMeeples = backendPlayer.allMeeples ?? player.allMeeples
+  player.allMeeples = backendPlayer.all_meeples ?? player.allMeeples
+  player.bridges = backendPlayer.bridges ?? player.bridges
+  player.bridges = backendPlayer.allBridges ?? player.bridges
+  player.bridges = backendPlayer.all_bridges ?? player.bridges
   player.bank = backendPlayer.bank ?? player.bank
   player.law = backendPlayer.law ?? player.law
   player.engineering = backendPlayer.engineering ?? player.engineering
@@ -1112,6 +1170,16 @@ function applyPlayerState(player, backendPlayer) {
   player.navigation = backendPlayer.navigation ?? player.navigation
   player.shovel = backendPlayer.shovel_level ?? player.shovel
   player.shovel = backendPlayer.shovel ?? player.shovel
+  player.workshop = backendPlayer.buildings?.workshop ?? player.workshop
+  player.guild = backendPlayer.buildings?.guild ?? player.guild
+  player.palace = backendPlayer.buildings?.palace ?? player.palace
+  player.school = backendPlayer.buildings?.school ?? player.school
+  player.university = backendPlayer.buildings?.university ?? player.university
+  player.workshop = backendPlayer.workshop ?? player.workshop
+  player.guild = backendPlayer.guild ?? player.guild
+  player.palace = backendPlayer.palace ?? player.palace
+  player.school = backendPlayer.school ?? player.school
+  player.university = backendPlayer.university ?? player.university
 
   if (Object.prototype.hasOwnProperty.call(backendPlayer, 'planning_card_id')) {
     setPlayerPlanningCard(player, backendPlayer.planning_card_id)
@@ -1198,6 +1266,12 @@ function applyPlayerFieldChange(player, remainingKeys, value) {
       case 'boardscore':
         player.score = value
         return
+      case 'all_meeples':
+        player.allMeeples = value
+        return
+      case 'all_bridges':
+        player.bridges = value
+        return
       case 'citys_amount':
         player.cities = value
         return
@@ -1223,6 +1297,12 @@ function applyPlayerFieldChange(player, remainingKeys, value) {
         return
       case 'meeples':
         player.mibao = value
+        return
+      case 'all_meeples':
+        player.allMeeples = value
+        return
+      case 'all_bridges':
+        player.bridges = value
         return
       case 'bank_book':
         player.bank = value
@@ -1257,6 +1337,28 @@ function applyPlayerFieldChange(player, remainingKeys, value) {
     }
   }
 
+  if (firstKey === 'buildings') {
+    switch (secondKey) {
+      case 'workshop':
+        player.workshop = value
+        return
+      case 'guild':
+        player.guild = value
+        return
+      case 'palace':
+        player.palace = value
+        return
+      case 'school':
+        player.school = value
+        return
+      case 'university':
+        player.university = value
+        return
+      default:
+        break
+    }
+  }
+
   updateNestedObject(player, remainingKeys, value)
 }
 
@@ -1271,14 +1373,12 @@ watch(actions, () => {
 }, { deep: true })
 
 // 监听玩家日志变化，自动滚动到底部
-watch(() => players.value.map(p => p.logs.length), () => {
+watch(() => actionLogs.value.length, () => {
   nextTick(() => {
-    players.value.forEach(player => {
-      const logPanel = document.getElementById(`player-log-${player.id + 1}`)
-      if (logPanel) {
-        logPanel.scrollTop = logPanel.scrollHeight
-      }
-    })
+    const actionLogContent = document.getElementById('action-log-content')
+    if (actionLogContent) {
+      actionLogContent.scrollTop = actionLogContent.scrollHeight
+    }
   })
 })
 
@@ -1847,6 +1947,8 @@ function applyFullState(state) {
           player.money = p.resources.money ?? player.money
           player.mineral = p.resources.ore ?? player.mineral
           player.mibao = p.resources.meeples ?? player.mibao
+          player.allMeeples = p.resources.all_meeples ?? player.allMeeples
+          player.bridges = p.resources.all_bridges ?? player.bridges
           player.bank = p.resources.bank_book ?? player.bank
           player.law = p.resources.law_book ?? player.law
           player.engineering = p.resources.engineering_book ?? player.engineering
@@ -1854,6 +1956,13 @@ function applyFullState(state) {
           player.magic1 = p.magics?.zone1 ?? player.magic1
           player.magic2 = p.magics?.zone2 ?? player.magic2
           player.magic3 = p.magics?.zone3 ?? player.magic3
+        }
+        if (p.buildings) {
+          player.workshop = p.buildings.workshop ?? player.workshop
+          player.guild = p.buildings.guild ?? player.guild
+          player.palace = p.buildings.palace ?? player.palace
+          player.school = p.buildings.school ?? player.school
+          player.university = p.buildings.university ?? player.university
         }
         // 更新得分
         player.score = p.boardscore ?? player.score
@@ -2004,20 +2113,7 @@ function handleSSEMessage(message) {
       break
 
     case 'log':
-      // channel 0 是可选行动框，1-3 对应玩家1-3的log框
-      if (player_id === 0) {
-        // channel 0: 可选行动框
-        actions.value.push({
-          text: data.content,
-          color: data.color || 'default'
-        })
-      } else if (player_id >= 1 && player_id <= players.value.length) {
-        // channel 1-3: 对应 player_id 0-2
-        players.value[player_id - 1].logs.push({
-          text: data.content,
-          color: data.color || 'default'
-        })
-      }
+      appendActionLogEntry(player_id, data)
       break
 
     case 'actions':
@@ -2351,7 +2447,7 @@ onUnmounted(() => {
 .game-page {
   --game-page-padding: 24px 48px 36px 48px;
   --game-column-gap: 18px;
-  --game-section-inset: 8px;
+  --game-section-inset: 0px;
   --game-content-gap: 16px;
   width: 100%;
   height: calc(100vh - 56px);
@@ -2372,9 +2468,9 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
-/* ===== 左侧：玩家监控区 (28%) ===== */
+/* ===== 左侧：玩家面板 ===== */
 .players-monitor {
-  width: 28%;
+  width: 17%;
   height: 100%;
   overflow: hidden;
   background-color: #171717;
@@ -2415,8 +2511,8 @@ onUnmounted(() => {
 .player-grid {
   display: flex;
   flex-direction: column;
-  gap: var(--game-content-gap);
-  padding: var(--game-content-gap);
+  gap: 12px;
+  padding: 12px 10px;
   flex: 1;
   overflow-y: auto;
   max-height: 100%;
@@ -2427,15 +2523,23 @@ onUnmounted(() => {
 }
 
 .player-card {
+  --player-header-height: 42px;
+  --player-stat-icon-size: 15px;
+  --player-stat-icon-box-size: 18px;
+  --player-building-icon-size: 18px;
+  --player-stat-gap: 4px;
+  --player-stat-value-size: 0.94rem;
+  --player-stat-row-height: 31px;
   background-color: var(--bg-tertiary);
   border-radius: var(--border-radius);
   border: 1px solid var(--border);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  height: 32.3%;
+  height: auto;
+  min-height: 0;
   flex-shrink: 0;
-  transition: height 0.3s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .player-card:hover {
@@ -2444,17 +2548,17 @@ onUnmounted(() => {
 }
 
 .player-card.collapsed {
-  height: 50px;
+  min-height: var(--player-header-height);
 }
 
 .player-card.collapsed .player-status {
+  max-height: 0;
   opacity: 0;
 }
 
 .player-header {
-  padding: 9px calc(var(--panel-padding) + 1px);
-  background-color: var(--bg-tertiary);
-  border-bottom: 1px solid var(--border);
+  padding: 6px 12px;
+  background-color: transparent;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -2462,18 +2566,18 @@ onUnmounted(() => {
   user-select: none;
   transition: background-color 0.2s;
   flex-shrink: 0;
-  height: 50px;
+  height: var(--player-header-height);
   box-sizing: border-box;
 }
 
 .player-header:hover {
-  background-color: rgba(77, 166, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.02);
 }
 
 .player-header-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -2481,15 +2585,15 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   flex-shrink: 0;
 }
 
 .planning-card-circle {
   display: block;
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
   border-radius: 50%;
   background-color: transparent;
   border: 1px solid transparent;
@@ -2513,18 +2617,18 @@ onUnmounted(() => {
 }
 
 .faction-badge {
-  --faction-badge-height: 32px;
+  --faction-badge-height: 27px;
   --faction-badge-border: 1px;
   --faction-badge-gap: 3px;
   --faction-badge-avatar-size: calc(var(--faction-badge-height) - var(--faction-badge-border) * 2 - var(--faction-badge-gap) * 2);
-  --faction-badge-text-gap: 8px;
+  --faction-badge-text-gap: 6px;
   display: inline-grid;
   grid-template-columns: var(--faction-badge-avatar-size) auto;
   column-gap: var(--faction-badge-text-gap);
   align-items: center;
   min-width: 0;
   height: var(--faction-badge-height);
-  padding: var(--faction-badge-gap) 12px var(--faction-badge-gap) var(--faction-badge-gap);
+  padding: var(--faction-badge-gap) 8px var(--faction-badge-gap) var(--faction-badge-gap);
   border-radius: 999px;
   background: rgba(14, 22, 34, 0.78);
   border: var(--faction-badge-border) solid rgba(120, 160, 200, 0.28);
@@ -2572,18 +2676,18 @@ onUnmounted(() => {
   color: var(--text-primary);
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 600;
   line-height: 1;
 }
 
 .player-title {
-  font-size: 1rem;
+  font-size: 0.92rem;
   font-weight: 600;
   color: var(--text-primary);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
   min-width: 0;
 }
 
@@ -2629,63 +2733,95 @@ onUnmounted(() => {
   padding: 0;
   border: none;
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: 1.04rem;
 }
 
 .player-status {
-  flex: 1;
-  display: flex;
+  flex: 0 0 auto;
   overflow: hidden;
-  min-height: 0;
-  transition: opacity 0.3s ease;
+  max-height: 172px;
+  transition: max-height 0.28s ease, opacity 0.22s ease;
   opacity: 1;
 }
 
 .player-stats {
-  flex: 1;
-  padding: var(--panel-padding);
-  border-right: 1px solid var(--border);
-  overflow: hidden;
-  background-color: var(--bg-elevated);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 12px 10px;
+  overflow: visible;
+  background-color: transparent;
+}
+
+.player-stats::-webkit-scrollbar {
+  width: 6px;
 }
 
 .stat-row {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
-  border-bottom: 2px solid var(--border);
-}
-
-.stat-row:last-child {
-  border-bottom: none;
-  margin-bottom: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--stat-columns), minmax(0, 1fr));
+  align-items: center;
+  min-height: var(--player-stat-row-height);
 }
 
 .stat-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  flex: 1;
-  border-right: 1px solid var(--border);
-  margin-top: 6px;
-  margin-bottom: 6px;
+  justify-content: center;
+  min-width: 0;
+  margin: 0;
+  padding: 0 2px;
 }
 
-.stat-item:last-child {
-  border-right: none;
+.stat-row.is-building-row .stat-content {
+  gap: var(--player-stat-gap);
+}
+
+.stat-row.is-wide-row .stat-content {
+  gap: var(--player-stat-gap);
 }
 
 .stat-content {
   display: flex;
   align-items: center;
-  gap: 6px;
   justify-content: center;
+  gap: var(--player-stat-gap);
   width: 100%;
 }
 
+.stat-icon-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--player-stat-icon-box-size);
+  height: var(--player-stat-icon-box-size);
+  line-height: 1;
+  flex-shrink: 0;
+}
+
 .stat-icon {
-  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: var(--player-stat-icon-size);
+  flex-shrink: 0;
+  text-align: center;
+  line-height: 1;
+}
+
+.stat-icon::before {
+  display: block;
+  line-height: 1;
+}
+
+.stat-image {
+  width: var(--player-building-icon-size);
+  height: var(--player-building-icon-size);
+  object-fit: contain;
   flex-shrink: 0;
 }
 
@@ -2702,58 +2838,73 @@ onUnmounted(() => {
 
 .icon-stack {
   position: relative;
-  display: inline-block;
-  width: 1.5em;
-  height: 1.5em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--player-stat-icon-box-size);
+  height: var(--player-stat-icon-box-size);
   flex-shrink: 0;
 }
 
-.icon-background {
-  position: absolute;
-  top: 0;
-  left: 0;
-  font-size: 1.5em;
-  color: #e4e4e4;
+.magic-disc {
+  display: block;
+  width: var(--player-stat-icon-size);
+  height: var(--player-stat-icon-size);
+  border-radius: 50%;
+  background: #e4e4e4;
+  flex-shrink: 0;
 }
 
-.icon-foreground {
+.magic-disc-label {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 0.7em;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
   color: #0a0a0a;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .stat-value {
-  font-size: 1rem;
+  font-size: var(--player-stat-value-size);
   font-weight: 700;
   color: var(--text-primary);
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 
-.player-log {
-  flex: 1.5;
-  padding: var(--panel-padding);
-  overflow-y: auto;
-  font-size: 0.8rem;
-  line-height: 1.4;
-  color: var(--text-secondary);
-  background-color: var(--bg-secondary);
-}
-
-.player-log::-webkit-scrollbar {
-  display: none;
+.stat-badge {
+  position: absolute;
+  top: -5px;
+  right: -7px;
+  min-width: 13px;
+  height: 13px;
+  padding: 0 2px;
+  border-radius: 999px;
+  background: rgba(22, 28, 39, 0.96);
+  border: 1px solid rgba(92, 190, 240, 0.65);
+  color: #dcecfb;
+  font-size: 0.54rem;
+  font-weight: 700;
+  line-height: 11px;
+  text-align: center;
+  box-sizing: border-box;
 }
 
 .log-item {
   background-color: var(--bg-tertiary);
   border-left: 2px solid var(--accent);
-  padding: 6px;
-  margin-bottom: 4px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  border-radius: 0 10px 10px 0;
   font-family: 'Consolas', monospace;
   white-space: pre-wrap;
   word-wrap: break-word;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .log-item[data-color='blue'] { border-left-color: #007bff; }
@@ -2766,11 +2917,11 @@ onUnmounted(() => {
   background-color: rgba(77, 166, 255, 0.1);
 }
 
-/* ===== 中间区域：游戏区域 (47%) ===== */
+/* ===== 中间区域：游戏区域 ===== */
 .middle-section {
   background-color: #171717;
   border-radius: var(--border-radius);
-  width: 47%;
+  width: 43%;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -3055,7 +3206,7 @@ onUnmounted(() => {
 .map-container-full {
   width: 100%;
   max-height: 100%;
-  padding: 5px;
+  padding: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3308,19 +3459,28 @@ onUnmounted(() => {
 
 .bonus-label {
   position: absolute;
-  bottom: 6px;
-  left: 8px;
-  right: 8px;
-  font-size: 0.6rem;
-  color: #ededed;
-  background: rgba(0, 0, 0, 0.5);
-  padding: 2px 4px;
-  border-radius: 4px;
+  bottom: 3px;
+  left: 3px;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.58rem;
+  font-weight: 800;
+  color: #f7fbff;
+  background: var(--accent);
+  border: 1px solid var(--accent-light);
+  border-radius: 50%;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.22);
   z-index: 10;
   pointer-events: none;
   text-align: center;
   white-space: nowrap;
-  min-width: 0px;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
 }
 
 /* 战术地图 */
@@ -3388,12 +3548,12 @@ onUnmounted(() => {
   display: none;
 }
 
-/* ===== 右侧：全局信息区 (25%) ===== */
+/* ===== 右侧：全局信息区 (21%) ===== */
 .global-section {
   display: flex;
   flex-direction: column;
   gap: var(--game-column-gap);
-  width: 25%;
+  width: 21%;
   height: 100%;
 }
 
@@ -3423,11 +3583,11 @@ onUnmounted(() => {
 }
 
 .status-content {
-  font-size: 1.1rem;
+  font-size: 1.02rem;
   color: var(--text-primary);
   line-height: 1.6;
   overflow: hidden;
-  display: flex;
+  display: block;
   white-space: pre-wrap;
   word-wrap: break-word;
 }
@@ -3569,6 +3729,8 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
   min-height: 36px;
 }
 
@@ -3594,7 +3756,7 @@ onUnmounted(() => {
   flex: 1;
   padding: calc(var(--panel-padding) + 2px);
   overflow-y: auto;
-  font-size: 0.9rem;
+  font-size: 0.84rem;
   line-height: 1.5;
   color: var(--text-secondary);
   background-color: var(--bg-primary);
@@ -3616,9 +3778,9 @@ onUnmounted(() => {
 .action-item {
   background-color: var(--bg-tertiary);
   border-left: 3px solid var(--accent);
-  padding: 6px 8px;
-  margin-bottom: 4px;
-  border-radius: 0 2px 2px 0;
+  padding: 8px 9px;
+  margin-bottom: 6px;
+  border-radius: 0 10px 10px 0;
   font-family: 'Consolas', monospace;
   font-size: 0.8rem;
   line-height: 1.3;
@@ -3647,6 +3809,78 @@ onUnmounted(() => {
 .action-item[data-color='black'] { border-left-color: #595959; }
 .action-item[data-color='white'] { border-left-color: #ffffff; }
 
+.action-log-section {
+  width: 19%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-secondary);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.action-log-header {
+  padding: 10px calc(var(--panel-padding) + 2px);
+  background-color: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-height: 36px;
+}
+
+.action-log-content {
+  flex: 1;
+  padding: calc(var(--panel-padding) + 2px);
+  overflow-y: auto;
+  background-color: var(--bg-primary);
+}
+
+.action-log-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.action-log-item {
+  border-left-width: 3px;
+  cursor: default;
+}
+
+.action-log-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.action-log-channel {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(0, 123, 255, 0.12);
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.action-log-index {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+}
+
+.action-log-text {
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
 /* 滚动条优化 */
 ::-webkit-scrollbar {
   width: 6px;
@@ -3665,21 +3899,35 @@ onUnmounted(() => {
   background: rgba(150, 150, 150, 0.7);
 }
 
-.player-log::-webkit-scrollbar-thumb,
-.action-content::-webkit-scrollbar-thumb {
+.player-stats::-webkit-scrollbar-thumb,
+.action-content::-webkit-scrollbar-thumb,
+.action-log-content::-webkit-scrollbar-thumb {
   background: var(--accent);
 }
 
 /* 响应式 */
-@media (max-width: 1200px) {
+@media (max-width: 1400px) {
+  .main-container {
+    flex-wrap: wrap;
+    height: auto;
+    overflow-y: auto;
+    align-content: flex-start;
+  }
+
   .players-monitor {
-    width: 25%;
+    width: 34%;
+    min-height: 420px;
   }
+
   .middle-section {
-    width: 50%;
+    width: 64%;
+    min-height: 420px;
   }
-  .global-section {
-    width: 25%;
+
+  .global-section,
+  .action-log-section {
+    width: calc(50% - 1px);
+    min-height: 320px;
   }
 }
 
@@ -3687,7 +3935,7 @@ onUnmounted(() => {
   .game-page {
     --game-page-padding: 18px;
     --game-column-gap: 18px;
-    --game-section-inset: 9px;
+    --game-section-inset: 0px;
     --game-content-gap: 13px;
   }
 
@@ -3699,7 +3947,8 @@ onUnmounted(() => {
 
   .players-monitor,
   .middle-section,
-  .global-section {
+  .global-section,
+  .action-log-section {
     width: 100%;
     height: auto;
     min-height: 400px;

@@ -136,13 +136,13 @@ GameController._get_action_id()
 
 | 状态 | 后端 yield 数据 | 前端接收数据 | 前端可视化行为 |
 |------|----------------|-------------|---------------|
-| [ ] | `planning_card_id: 1` | `planningCard: "平原"` | 玩家卡片左上角显示棕色圆形指示器 |
-| [ ] | `planning_card_id: 2` | `planningCard: "沼泽"` | 玩家卡片左上角显示灰色圆形指示器 |
-| [ ] | `planning_card_id: 3` | `planningCard: "湖泊"` | 玩家卡片左上角显示蓝色圆形指示器 |
-| [ ] | `planning_card_id: 4` | `planningCard: "森林"` | 玩家卡片左上角显示绿色圆形指示器 |
-| [ ] | `planning_card_id: 5` | `planningCard: "山脉"` | 玩家卡片左上角显示灰色圆形指示器 |
-| [ ] | `planning_card_id: 6` | `planningCard: "荒地"` | 玩家卡片左上角显示红色圆形指示器 |
-| [ ] | `planning_card_id: 7` | `planningCard: "沙漠"` | 玩家卡片左上角显示黄色圆形指示器 |
+| [✅] | `planning_card_id: 1` | `planningCard: "平原"` | 玩家卡片左上角显示棕色圆形指示器 |
+| [✅] | `planning_card_id: 2` | `planningCard: "沼泽"` | 玩家卡片左上角显示灰色圆形指示器 |
+| [✅] | `planning_card_id: 3` | `planningCard: "湖泊"` | 玩家卡片左上角显示蓝色圆形指示器 |
+| [✅] | `planning_card_id: 4` | `planningCard: "森林"` | 玩家卡片左上角显示绿色圆形指示器 |
+| [✅] | `planning_card_id: 5` | `planningCard: "山脉"` | 玩家卡片左上角显示灰色圆形指示器 |
+| [✅] | `planning_card_id: 6` | `planningCard: "荒地"` | 玩家卡片左上角显示红色圆形指示器 |
+| [✅] | `planning_card_id: 7` | `planningCard: "沙漠"` | 玩家卡片左上角显示黄色圆形指示器 |
 | [✅] | `faction_id: 1` | `faction: "神佑者"` | 玩家名称旁显示派系徽章 |
 | [✅] | `faction_id: 2` | `faction: "猫人"` | 玩家名称旁显示派系徽章 |
 | [✅] | `faction_id: 3` | `faction: "哥布林"` | 玩家名称旁显示派系徽章 |

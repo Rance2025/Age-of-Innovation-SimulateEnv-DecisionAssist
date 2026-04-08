@@ -2145,7 +2145,7 @@ class GameStateBase:
             'ability_tile': get_ability_tile
         }
 
-        def adjust(player_id: int, list_to_be_adjusted) -> None:
+        def adjust(player_id: int, list_to_be_adjusted):
             for adjust_item, *adjust_args in list_to_be_adjusted:
                 if adjust_item not in all_adjust_list:
                     raise ValueError(f'非法状态调整对象：{adjust_item}')
