@@ -477,19 +477,17 @@
 
       <!-- 右侧：全局信息区 -->
       <div class="global-section">
-        <!-- 顶部全局状态 -->
-        <div class="global-status">
-          <div class="status-title">
-            <i class="fas fa-info-circle"></i>
-            <div>对局状态</div>
+        <div class="control-center-section">
+          <div class="control-center-header">
+            <div class="action-title">
+              <i class="fas fa-sliders-h"></i>
+              <div>控制中台</div>
+            </div>
+            <div class="control-center-subtitle">功能暂空</div>
           </div>
-          <!-- 更多菜单按钮 -->
-          <div class="more-menu-container">
-            <button class="more-menu-btn" @click="openGameMenu">
-              <i class="fas fa-bars"></i>
-            </button>
+          <div class="control-center-content">
+            <div class="control-center-placeholder">预留后续中台控制能力。</div>
           </div>
-          <div class="status-content" id="global-status-content">{{ globalStatus }}</div>
         </div>
 
         <!-- 可选行动区 -->
@@ -500,7 +498,7 @@
                 <i class="fas fa-play-circle"></i>
                 <div>可选行动</div>
               </div>
-              <div class="action-subtitle">当前为 {{ currentActionOwnerLabel }} 的 {{ currentActionModeLabel }} 行动阶段</div>
+              <div class="action-subtitle">{{ actionSubtitle }}</div>
             </div>
             <div class="action-header-meta">
               <div class="action-owner-chip">
@@ -530,8 +528,8 @@
               </span>
               <span class="action-item-text">{{ action.text }}</span>
             </button>
-            <div v-if="actions.length === 0" class="panel-empty-state">
-              等待后端推送新的可选行动。
+            <div v-if="actions.length === 0" class="panel-empty-state panel-empty-state--action">
+              {{ actionEmptyStateMessage }}
             </div>
           </div>
         </div>
@@ -540,165 +538,194 @@
 
       <!-- 最右侧：统一行动记录 (14%) -->
       <div class="action-log-section">
-        <div class="action-log-header">
-          <div class="action-title-group">
-            <div class="action-title">
-              <i class="fas fa-stream"></i>
-              <div>行动记录</div>
+        <div class="global-status">
+          <div class="status-header">
+            <div class="status-title">
+              <i class="fas fa-info-circle"></i>
+              <div>对局状态</div>
             </div>
+            <button class="more-menu-btn" @click="openGameMenu">
+              <i class="fas fa-bars"></i>
+            </button>
           </div>
-          <div class="action-log-toolbar">
-            <div class="action-count">
-              <span id="action-log-count">{{ filteredActionLogs.length }}</span> / {{ renderedActionLogs.length }} 条
-            </div>
-            <div class="action-log-filter">
+          <div
+            class="status-body"
+            :class="{ 'has-detail-action': gameMeta.is_game_over && hasFinalScores }"
+          >
+            <div class="status-content" id="global-status-content">{{ globalStatus }}</div>
+            <div v-if="gameMeta.is_game_over && hasFinalScores" class="status-actions">
               <button
                 type="button"
-                class="action-filter-btn"
-                :class="{ 'is-active': actionLogFilterModalOpen || hasActiveActionLogFilters }"
-                @click.stop="openActionLogFilterModal"
+                class="status-detail-btn"
+                @click="openFinalScoreModal"
               >
-                <i class="fas fa-filter"></i>
-                <span>筛选</span>
-                <span v-if="actionLogActiveFilterCount > 0" class="action-filter-badge">
-                  {{ actionLogActiveFilterCount }}
-                </span>
+                查看最终比分
               </button>
-              <div
-                v-if="actionLogFilterModalOpen"
-                class="action-filter-popup"
-                @click.stop
-              >
-                <div class="action-filter-section">
-                  <div class="action-filter-section-title">按记录检索</div>
-                  <div class="action-filter-search-grid">
-                    <label class="action-filter-search-field">
-                      <span class="action-filter-search-label">行动编号</span>
-                      <input
-                        v-model="draftActionLogActionIdFilter"
-                        type="text"
-                        inputmode="numeric"
-                        class="action-filter-search-input"
-                        placeholder="例如 65"
-                      >
-                    </label>
-                    <label class="action-filter-search-field">
-                      <span class="action-filter-search-label">本局序号</span>
-                      <input
-                        v-model="draftActionLogUidFilter"
-                        type="text"
-                        class="action-filter-search-input"
-                        placeholder="例如 act.001"
-                      >
-                    </label>
-                  </div>
-                </div>
-                <div class="action-filter-section">
-                  <div class="action-filter-section-title">按玩家筛选</div>
-                  <div class="action-filter-options">
-                    <button
-                      v-for="playerOption in actionLogPlayerFilterOptions"
-                      :key="playerOption.id"
-                      type="button"
-                      class="action-filter-option"
-                      :class="{ 'is-active': draftActionLogPlayerFilters.includes(playerOption.id) }"
-                      @click="toggleDraftActionLogPlayer(playerOption.id)"
-                    >
-                      <span
-                        class="action-filter-player-dot"
-                        :style="{ backgroundColor: playerOption.color }"
-                      ></span>
-                      <span>{{ playerOption.label }}</span>
-                    </button>
-                  </div>
-                </div>
-                <div class="action-filter-section">
-                  <div class="action-filter-section-title">按行动类型筛选</div>
-                  <div class="action-filter-options">
-                    <button
-                      v-for="typeOption in ACTION_LOG_TYPE_OPTIONS"
-                      :key="typeOption.id"
-                      type="button"
-                      class="action-filter-option"
-                      :class="{ 'is-active': draftActionLogTypeFilters.includes(typeOption.id) }"
-                      @click="toggleDraftActionLogType(typeOption.id)"
-                    >
-                      <span>{{ typeOption.label }}</span>
-                    </button>
-                  </div>
-                </div>
-                <div class="action-filter-section">
-                  <div class="action-filter-section-title">按阶段筛选</div>
-                  <div class="action-filter-stage-groups">
-                    <div
-                      v-for="stageGroup in ACTION_LOG_STAGE_FILTER_GROUPS"
-                      :key="stageGroup.id"
-                      class="action-filter-stage-group"
-                    >
-                      <div class="action-filter-stage-group-header">
-                        <span class="action-filter-stage-group-title">{{ stageGroup.label }}</span>
-                      </div>
-                      <div
-                        class="action-filter-options"
-                        :class="{ 'is-compact-rounds': stageGroup.id === 'rounds' }"
-                      >
-                        <button
-                          v-for="stageOption in stageGroup.options"
-                          :key="stageOption.id"
-                          type="button"
-                          class="action-filter-option"
-                          :class="{
-                            'is-active': draftActionLogStageFilters.includes(stageOption.id),
-                            'is-round-chip': stageGroup.id === 'rounds'
-                          }"
-                          @click="toggleDraftActionLogStage(stageOption.id)"
+            </div>
+          </div>
+        </div>
+
+        <div class="action-log-panel">
+          <div class="action-log-header">
+            <div class="action-title-group">
+              <div class="action-title">
+                <i class="fas fa-stream"></i>
+                <div>行动记录</div>
+              </div>
+            </div>
+            <div class="action-log-toolbar">
+              <div class="action-count action-log-count-chip">
+                <span id="action-log-count">{{ filteredActionLogs.length }}</span> / {{ renderedActionLogs.length }} 条
+              </div>
+              <div class="action-log-filter">
+                <button
+                  type="button"
+                  class="action-filter-btn"
+                  :class="{ 'is-active': actionLogFilterModalOpen || hasActiveActionLogFilters }"
+                  @click.stop="openActionLogFilterModal"
+                >
+                  <i class="fas fa-filter"></i>
+                  <span>筛选</span>
+                  <span v-if="actionLogActiveFilterCount > 0" class="action-filter-badge">
+                    {{ actionLogActiveFilterCount }}
+                  </span>
+                </button>
+                <div
+                  v-if="actionLogFilterModalOpen"
+                  class="action-filter-popup"
+                  @click.stop
+                >
+                  <div class="action-filter-section">
+                    <div class="action-filter-section-title">按记录检索</div>
+                    <div class="action-filter-search-grid">
+                      <label class="action-filter-search-field">
+                        <span class="action-filter-search-label">行动编号</span>
+                        <input
+                          v-model="draftActionLogActionIdFilter"
+                          type="text"
+                          inputmode="numeric"
+                          class="action-filter-search-input"
+                          placeholder="例如 65"
                         >
-                          <span>{{ stageOption.label }}</span>
-                        </button>
+                      </label>
+                      <label class="action-filter-search-field">
+                        <span class="action-filter-search-label">本局序号</span>
+                        <input
+                          v-model="draftActionLogUidFilter"
+                          type="text"
+                          class="action-filter-search-input"
+                          placeholder="例如 act.001"
+                        >
+                      </label>
+                    </div>
+                  </div>
+                  <div class="action-filter-section">
+                    <div class="action-filter-section-title">按玩家筛选</div>
+                    <div class="action-filter-options">
+                      <button
+                        v-for="playerOption in actionLogPlayerFilterOptions"
+                        :key="playerOption.id"
+                        type="button"
+                        class="action-filter-option"
+                        :class="{ 'is-active': draftActionLogPlayerFilters.includes(playerOption.id) }"
+                        @click="toggleDraftActionLogPlayer(playerOption.id)"
+                      >
+                        <span
+                          class="action-filter-player-dot"
+                          :style="{ backgroundColor: playerOption.color }"
+                        ></span>
+                        <span>{{ playerOption.label }}</span>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="action-filter-section">
+                    <div class="action-filter-section-title">按行动类型筛选</div>
+                    <div class="action-filter-options">
+                      <button
+                        v-for="typeOption in ACTION_LOG_TYPE_OPTIONS"
+                        :key="typeOption.id"
+                        type="button"
+                        class="action-filter-option"
+                        :class="{ 'is-active': draftActionLogTypeFilters.includes(typeOption.id) }"
+                        @click="toggleDraftActionLogType(typeOption.id)"
+                      >
+                        <span>{{ typeOption.label }}</span>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="action-filter-section">
+                    <div class="action-filter-section-title">按阶段筛选</div>
+                    <div class="action-filter-stage-groups">
+                      <div
+                        v-for="stageGroup in ACTION_LOG_STAGE_FILTER_GROUPS"
+                        :key="stageGroup.id"
+                        class="action-filter-stage-group"
+                      >
+                        <div class="action-filter-stage-group-header">
+                          <span class="action-filter-stage-group-title">{{ stageGroup.label }}</span>
+                        </div>
+                        <div
+                          class="action-filter-options"
+                          :class="{ 'is-compact-rounds': stageGroup.id === 'rounds' }"
+                        >
+                          <button
+                            v-for="stageOption in stageGroup.options"
+                            :key="stageOption.id"
+                            type="button"
+                            class="action-filter-option"
+                            :class="{
+                              'is-active': draftActionLogStageFilters.includes(stageOption.id),
+                              'is-round-chip': stageGroup.id === 'rounds'
+                            }"
+                            @click="toggleDraftActionLogStage(stageOption.id)"
+                          >
+                            <span>{{ stageOption.label }}</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-                <div class="action-filter-actions">
-                  <button type="button" class="action-filter-footer-btn is-ghost" @click="clearDraftActionLogFilters">
-                    重置
-                  </button>
-                  <button type="button" class="action-filter-footer-btn is-primary" @click="applyActionLogFilters">
-                    应用
-                  </button>
+                  <div class="action-filter-actions">
+                    <button type="button" class="action-filter-footer-btn is-ghost" @click="clearDraftActionLogFilters">
+                      重置
+                    </button>
+                    <button type="button" class="action-filter-footer-btn is-primary" @click="applyActionLogFilters">
+                      应用
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-        <div id="action-log-content" class="action-log-content">
-          <template
-            v-for="log in filteredActionLogs"
-            :key="log.uid"
-          >
-            <div
-              v-if="log.kind === 'divider'"
-              class="action-log-divider"
-              :title="buildActionLogEntryTitle(log)"
+          <div id="action-log-content" class="action-log-content">
+            <template
+              v-for="log in filteredActionLogs"
+              :key="log.uid"
             >
-              <span class="action-log-divider-line"></span>
-              <span class="action-log-divider-text">{{ log.description }}</span>
-              <span class="action-log-divider-line"></span>
+              <div
+                v-if="log.kind === 'divider'"
+                class="action-log-divider"
+                :title="buildActionLogEntryTitle(log)"
+              >
+                <span class="action-log-divider-line"></span>
+                <span class="action-log-divider-text">{{ log.description }}</span>
+                <span class="action-log-divider-line"></span>
+              </div>
+              <div
+                v-else
+                class="action-log-entry"
+                :class="[`is-${log.kind}`, `is-${log.actionType}`]"
+                :style="getActionLogEntryStyle(log)"
+                :title="buildActionLogEntryTitle(log)"
+              >
+                <span class="action-log-player-dot"></span>
+                <span class="action-log-record-id">{{ log.uid }}</span>
+                <span class="action-log-text">{{ log.description }}</span>
+              </div>
+            </template>
+            <div v-if="filteredActionLogs.length === 0" class="panel-empty-state panel-empty-state--log">
+              当前筛选条件下还没有记录
             </div>
-            <div
-              v-else
-              class="action-log-entry"
-              :class="[`is-${log.kind}`, `is-${log.actionType}`]"
-              :style="getActionLogEntryStyle(log)"
-              :title="buildActionLogEntryTitle(log)"
-            >
-              <span class="action-log-player-dot"></span>
-              <span class="action-log-record-id">{{ log.uid }}</span>
-              <span class="action-log-text">{{ log.description }}</span>
-            </div>
-          </template>
-          <div v-if="filteredActionLogs.length === 0" class="panel-empty-state">
-            当前筛选条件下还没有记录。
           </div>
         </div>
       </div>
@@ -753,6 +780,43 @@
         </div>
       </button>
     </div>
+    </Modal>
+
+    <Modal
+      v-model="finalScoreModalOpen"
+      title="最终比分"
+      :show-close="true"
+      :close-on-overlay="true"
+    >
+      <div class="final-score-modal">
+        <div v-if="hasFinalScores" class="final-score-table">
+          <div class="final-score-grid final-score-header">
+            <span>玩家</span>
+            <span>总分</span>
+            <span>板块</span>
+            <span>连锁</span>
+            <span>轨道</span>
+            <span>资源</span>
+          </div>
+          <div
+            v-for="entry in finalScoreEntries"
+            :key="entry.playerId"
+            class="final-score-grid final-score-row"
+            :class="{ 'is-winner': entry.isWinner }"
+          >
+            <span class="final-score-player">
+              <span class="final-score-player-dot" :style="{ backgroundColor: entry.playerColor }"></span>
+              <span>玩家 {{ entry.playerId + 1 }}</span>
+            </span>
+            <span class="final-score-total">{{ entry.total }}</span>
+            <span>{{ entry.board }}</span>
+            <span>{{ entry.chain }}</span>
+            <span>{{ entry.track }}</span>
+            <span>{{ entry.resource }}</span>
+          </div>
+        </div>
+        <div v-else class="final-score-empty">最终比分尚未同步。</div>
+      </div>
     </Modal>
     <div
       v-if="entityPreview.visible"
@@ -1064,6 +1128,8 @@ const actionCount = ref(0)
 const actions = ref([])
 const actionLogs = ref([])
 const tacticalLogs = ref([])
+const finalScores = ref(null)
+const finalScoreModalOpen = ref(false)
 const pendingActionId = ref(null)
 const actionLogFilterModalOpen = ref(false)
 const appliedActionLogPlayerFilters = ref([])
@@ -1153,19 +1219,75 @@ const filteredActionLogs = computed(() => {
   })
 })
 const currentActionOwnerLabel = computed(() => {
+  if (gameMeta.is_game_over) {
+    return '游戏结束'
+  }
+
   const normalizedCurrentPlayerId = normalizeActionLogPlayerId(gameMeta.current_player_id)
   return normalizedCurrentPlayerId === null ? '等待后端' : getActionLogPlayerLabel(normalizedCurrentPlayerId)
 })
 const currentActionPlayerColor = computed(() => {
+  if (gameMeta.is_game_over) {
+    return '#94a3b8'
+  }
+
   const normalizedCurrentPlayerId = normalizeActionLogPlayerId(gameMeta.current_player_id)
   return normalizedCurrentPlayerId === null ? '#64748b' : getCurrentActionOwnerColor(normalizedCurrentPlayerId)
 })
 const currentActionModeLabel = computed(() => {
+  if (gameMeta.is_game_over) {
+    return '终局'
+  }
+
   if (!gameMeta.action_type) {
     return '待定'
   }
 
   return formatActionModeLabel(gameMeta.action_type)
+})
+const actionSubtitle = computed(() => {
+  if (gameMeta.is_game_over) {
+    return '本局已结束'
+  }
+
+  return `当前为 ${currentActionOwnerLabel.value} 的 ${currentActionModeLabel.value} 行动阶段`
+})
+const finalScoreEntries = computed(() => {
+  if (!finalScores.value || typeof finalScores.value !== 'object') {
+    return []
+  }
+
+  const entries = Object.entries(finalScores.value).map(([playerId, score]) => {
+    const normalizedPlayerId = normalizeActionLogPlayerId(playerId)
+    if (normalizedPlayerId === null || !score || typeof score !== 'object') {
+      return null
+    }
+
+    return {
+      playerId: normalizedPlayerId,
+      playerColor: getCurrentActionOwnerColor(normalizedPlayerId),
+      total: normalizeFinalScoreValue(score.total),
+      board: normalizeFinalScoreValue(score.board),
+      chain: normalizeFinalScoreValue(score.chain),
+      track: normalizeFinalScoreValue(score.track),
+      resource: normalizeFinalScoreValue(score.resource)
+    }
+  }).filter(Boolean).sort((left, right) => left.playerId - right.playerId)
+
+  const highestTotal = entries.reduce((currentMax, entry) => Math.max(currentMax, entry.total), Number.NEGATIVE_INFINITY)
+
+  return entries.map((entry) => ({
+    ...entry,
+    isWinner: Number.isFinite(highestTotal) && entry.total === highestTotal
+  }))
+})
+const hasFinalScores = computed(() => finalScoreEntries.value.length > 0)
+const actionEmptyStateMessage = computed(() => {
+  if (gameMeta.is_game_over) {
+    return '本局已结束'
+  }
+
+  return '等待后端推送新的可选行动。'
 })
 
 // 规划卡与派系映射
@@ -1492,6 +1614,10 @@ function scheduleEntityPreviewHide() {
 }
 
 function buildGlobalStatusFromMeta() {
+  if (gameMeta.is_game_over) {
+    return '游戏结束'
+  }
+
   const normalizedRound = Number(gameMeta.round)
   if (!Number.isInteger(normalizedRound) || normalizedRound <= 0) {
     if (gameMeta.setup_build_is_completed) {
@@ -1563,6 +1689,12 @@ function syncRoundInfoFromMeta() {
 
 function applyMetaState(metaPatch) {
   if (!metaPatch || typeof metaPatch !== 'object') return
+
+  if (Object.prototype.hasOwnProperty.call(metaPatch, 'is_game_over') && metaPatch.is_game_over === false) {
+    finalScoreModalOpen.value = false
+    finalScores.value = null
+  }
+
   Object.assign(gameMeta, metaPatch)
   syncRoundInfoFromMeta()
 }
@@ -1589,6 +1721,29 @@ function setAvailableActions(rawActions) {
     : []
   actions.value = nextActions
   actionCount.value = nextActions.length
+}
+
+function normalizeFinalScoreValue(value) {
+  const normalizedValue = Number(value)
+  return Number.isFinite(normalizedValue) ? normalizedValue : 0
+}
+
+function setFinalScores(rawScores) {
+  if (!rawScores || typeof rawScores !== 'object') {
+    finalScores.value = null
+    finalScoreModalOpen.value = false
+    return
+  }
+
+  finalScores.value = rawScores
+}
+
+function openFinalScoreModal() {
+  if (!hasFinalScores.value) {
+    return
+  }
+
+  finalScoreModalOpen.value = true
 }
 
 let systemRecordSequence = 0
@@ -2918,14 +3073,10 @@ function applyFullState(state) {
   }
   
   // 应用可选行动
-  if (state.available_actions && Array.isArray(state.available_actions)) {
-    actions.value = state.available_actions.map((action, idx) => ({
-      id: action.action_id || idx,
-      text: action.description || ''
-    }))
-  }
+  setAvailableActions(state.available_actions)
 
   setActionLogsFromHistory(state.action_history)
+  setFinalScores(state.final_scores)
   
   // 应用地图状态
   if (state.map_state && state.map_state.grid) {
@@ -2991,6 +3142,7 @@ function applyGameViewFullState(state) {
 
   setAvailableActions(state.available_actions)
   setActionLogsFromHistory(state.action_history)
+  setFinalScores(state.final_scores)
 
   if (state.map_state && state.map_state.grid) {
     resetMapState(state.map_state.grid)
@@ -3169,6 +3321,9 @@ function handleSSEMessage(message) {
     case 'game_over':
       // 游戏结束
       console.log('游戏结束:', data)
+      applyMetaState({ is_game_over: true })
+      setFinalScores(data?.final_scores)
+      setAvailableActions([])
       break
 
     default:
@@ -3231,6 +3386,11 @@ function applyGameViewChange(path, value, changeType, pendingBuildingRenders = n
 
   if (rootKey === 'action_history') {
     setActionLogsFromHistory(value)
+    return
+  }
+
+  if (rootKey === 'final_scores') {
+    setFinalScores(changeType === 'removed' ? null : value)
     return
   }
 
@@ -3320,6 +3480,11 @@ function applySingleChange(path, value, changeType) {
 
   if (rootKey === 'action_history') {
     setActionLogsFromHistory(value)
+    return
+  }
+
+  if (rootKey === 'final_scores') {
+    setFinalScores(changeType === 'removed' ? null : value)
     return
   }
 
@@ -4733,62 +4898,111 @@ onUnmounted(() => {
 .global-status {
   background-color: #171717;
   border-radius: var(--border-radius);
-  padding: 18px calc(var(--panel-padding) + 2px);
+  padding: 14px calc(var(--panel-padding) + 2px) 12px;
   border: 1px solid var(--border);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  position: relative;
+  gap: 10px;
+}
+
+.status-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .status-title {
   font-size: 1rem;
   color: var(--text-primary);
-  margin-bottom: 10px;
   display: flex;
   align-items: center;
   gap: 8px;
   font-weight: 600;
+  min-width: 0;
 }
 
 .status-title i {
   color: var(--accent);
 }
 
-.status-content {
-  font-size: 1.02rem;
-  color: var(--text-primary);
-  line-height: 1.6;
-  overflow: hidden;
-  display: block;
-  white-space: pre-wrap;
-  word-wrap: break-word;
+.status-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
 }
 
-/* 更多菜单 */
-.more-menu-container {
-  position: absolute;
-  top: 14px;
-  right: 14px;
+.status-body.has-detail-action {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.status-content {
+  font-size: 0.98rem;
+  color: var(--text-primary);
+  line-height: 1.45;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  min-height: 34px;
+  min-width: 0;
+}
+
+.status-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.status-detail-btn {
+  appearance: none;
+  min-height: 30px;
+  padding: 0 12px;
+  border: 1px solid rgba(92, 190, 240, 0.34);
+  border-radius: 999px;
+  background: rgba(14, 22, 34, 0.82);
+  color: #dcecfb;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+}
+
+.status-detail-btn:hover {
+  border-color: var(--accent);
+  background: rgba(18, 27, 40, 0.96);
+  color: #ffffff;
 }
 
 .more-menu-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
+  width: 30px;
+  height: 30px;
   border: none;
+  padding: 0;
   background: transparent;
-  color: var(--text-secondary);
+  color: #ffffff;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  flex-shrink: 0;
+  transition: opacity 0.18s ease;
 }
 
 .more-menu-btn:hover {
-  background: var(--bg-tertiary);
-  color: var(--accent);
+  background: transparent;
+  color: #ffffff;
+  opacity: 0.74;
+}
+
+.more-menu-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
 }
 
 /* 游戏菜单弹窗样式 */
@@ -4890,8 +5104,9 @@ onUnmounted(() => {
   min-height: 0;
 }
 
+.control-center-section,
 .action-section,
-.action-log-section {
+.action-log-panel {
   background-color: #171717;
   border-radius: var(--border-radius);
   border: 1px solid var(--border);
@@ -4900,13 +5115,70 @@ onUnmounted(() => {
   flex-direction: column;
 }
 
+.action-section,
+.action-log-panel {
+  --action-toolbar-pill-width: 96px;
+  --action-toolbar-pill-height: 32px;
+  --action-toolbar-pill-gap: 7px;
+  --action-toolbar-pill-border: rgba(255, 255, 255, 0.08);
+  --action-toolbar-pill-border-hover: rgba(255, 255, 255, 0.14);
+  --action-toolbar-pill-border-active: rgba(255, 255, 255, 0.2);
+  --action-toolbar-pill-bg: rgba(94, 100, 107, 0.24);
+  --action-toolbar-pill-bg-hover: rgba(104, 111, 118, 0.32);
+  --action-toolbar-pill-bg-active: rgba(114, 121, 128, 0.4);
+  --action-toolbar-pill-text: rgba(229, 235, 242, 0.92);
+}
+
+.control-center-section {
+  min-height: 182px;
+}
+
+.control-center-header {
+  padding: 14px calc(var(--panel-padding) + 2px) 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.control-center-subtitle {
+  font-size: 0.73rem;
+  line-height: 1.4;
+  color: rgba(198, 211, 224, 0.72);
+}
+
+.control-center-content {
+  padding: 0 14px 14px;
+  flex: 1;
+}
+
+.control-center-placeholder {
+  min-height: 110px;
+  padding: 22px 16px;
+  border-radius: 12px;
+  border: 1px dashed rgba(120, 160, 200, 0.18);
+  background-color: var(--bg-tertiary);
+  color: rgba(198, 211, 224, 0.68);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+
+.action-section {
+  --action-toolbar-pill-width: 84px;
+  --action-toolbar-pill-height: 28px;
+  --action-toolbar-pill-gap: 8px;
+}
+
 .action-header {
   padding: 14px calc(var(--panel-padding) + 2px) 10px;
   background: transparent;
   display: flex;
-  justify-content: space-between;
   align-items: flex-start;
-  gap: 12px;
+  justify-content: space-between;
+  gap: 14px 12px;
   flex-wrap: wrap;
 }
 
@@ -4914,6 +5186,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  flex: 1 1 180px;
   min-width: 0;
 }
 
@@ -4924,51 +5197,88 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+}
+
+.action-title > div {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .action-title i {
   color: var(--accent);
+  flex-shrink: 0;
 }
 
 .action-subtitle {
   font-size: 0.73rem;
-  line-height: 1.4;
+  line-height: 1.35;
   color: rgba(198, 211, 224, 0.72);
+  max-width: 100%;
+  word-break: keep-all;
 }
 
 .action-header-meta,
 .action-log-toolbar {
-  display: flex;
+  display: grid;
   align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  flex-wrap: wrap;
+  justify-content: stretch;
+  gap: var(--action-toolbar-pill-gap);
+  width: min(100%, calc(var(--action-toolbar-pill-width) * var(--action-toolbar-pill-count) + var(--action-toolbar-pill-gap) * (var(--action-toolbar-pill-count) - 1)));
+  min-width: 0;
+}
+
+.action-header-meta {
+  --action-toolbar-pill-count: 3;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-left: 0;
+}
+
+.action-log-toolbar {
+  --action-toolbar-pill-count: 2;
+  width: min(100%, calc(var(--action-log-count-width) + var(--action-toolbar-pill-width) + var(--action-toolbar-pill-gap)));
+  grid-template-columns: minmax(var(--action-log-count-width), 1fr) var(--action-toolbar-pill-width);
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.action-owner-chip,
+.action-mode-chip,
+.action-count,
+.action-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  height: var(--action-toolbar-pill-height);
+  padding: 0 8px;
+  gap: 5px;
+  border-radius: 999px;
+  border: 1px solid var(--action-toolbar-pill-border);
+  background: var(--action-toolbar-pill-bg);
+  color: var(--action-toolbar-pill-text);
+  line-height: 1;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  box-sizing: border-box;
+  white-space: nowrap;
+  transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+  overflow: hidden;
 }
 
 .action-owner-chip,
 .action-mode-chip,
 .action-count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  min-height: 32px;
-  padding: 0 11px;
-  border-radius: 999px;
-  border: 1px solid rgba(120, 160, 200, 0.28);
-  background: rgba(14, 22, 34, 0.78);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  color: rgba(220, 236, 251, 0.88);
-  font-size: 0.74rem;
-  font-weight: 600;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-  box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 .action-owner-dot {
-  width: 9px;
-  height: 9px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.08);
@@ -5100,6 +5410,18 @@ onUnmounted(() => {
   width: 19%;
   height: 100%;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--game-column-gap);
+}
+
+.action-log-panel {
+  --action-log-count-width: 112px;
+  --action-toolbar-pill-width: 78px;
+  --action-toolbar-pill-height: 28px;
+  --action-toolbar-pill-gap: 6px;
+  flex: 1;
+  min-height: 0;
 }
 
 .action-log-header {
@@ -5107,10 +5429,14 @@ onUnmounted(() => {
   padding: 14px calc(var(--panel-padding) + 2px) 10px;
   background: transparent;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: nowrap;
+}
+
+.action-log-header .action-title-group {
+  flex: 1 1 auto;
 }
 
 .action-log-content {
@@ -5132,51 +5458,68 @@ onUnmounted(() => {
 
 .action-log-filter {
   position: relative;
+  width: 100%;
+  min-width: 0;
 }
 
 .action-filter-btn {
   appearance: none;
-  min-height: 32px;
-  padding: 0 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(120, 160, 200, 0.28);
-  background: rgba(14, 22, 34, 0.78);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  color: rgba(220, 236, 251, 0.88);
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
   cursor: pointer;
-  transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease;
-  font-size: 0.82rem;
-  font-weight: 600;
-  line-height: 1;
+  position: relative;
+  width: 100%;
+  overflow: visible;
+}
+
+#action-count,
+#action-log-count {
+  font-weight: 700;
+  color: #f5f8fb;
+}
+
+.action-log-count-chip {
+  cursor: default;
+  min-width: var(--action-log-count-width);
 }
 
 .action-filter-btn i {
   font-size: 0.76rem;
 }
 
-.action-filter-btn:hover,
+.action-filter-btn:hover {
+  border-color: var(--action-toolbar-pill-border-hover);
+  background: var(--action-toolbar-pill-bg-hover);
+  color: #f3f7fb;
+}
+
 .action-filter-btn.is-active {
   border-color: var(--accent);
-  background: rgba(18, 27, 40, 0.92);
+  background: var(--accent);
   color: #ffffff;
+  box-shadow: 0 0 0 1px rgba(0, 123, 255, 0.28);
 }
 
 .action-filter-badge {
+  position: absolute;
+  top: -5px;
+  right: -4px;
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
   border-radius: 999px;
-  background: rgba(92, 190, 240, 0.16);
-  color: #dcecfb;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(236, 241, 246, 0.9);
   font-size: 0.68rem;
   font-weight: 700;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
+}
+
+.action-filter-btn.is-active .action-filter-badge {
+  background: rgba(255, 255, 255, 0.98);
+  color: var(--accent);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.28);
 }
 
 .action-filter-popup {
@@ -5446,14 +5789,86 @@ onUnmounted(() => {
   min-height: 112px;
   padding: 20px 16px;
   border-radius: 12px;
-  border: 1px dashed rgba(120, 160, 200, 0.18);
-  background-color: var(--bg-tertiary);
   color: rgba(198, 211, 224, 0.72);
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
   line-height: 1.6;
+}
+
+.panel-empty-state--action,
+.panel-empty-state--log {
+  margin-top: 10px;
+}
+
+.final-score-modal {
+  padding: 20px 24px 24px;
+}
+
+.final-score-table {
+  overflow-x: auto;
+}
+
+.final-score-grid {
+  min-width: 620px;
+  display: grid;
+  grid-template-columns: minmax(132px, 1.5fr) repeat(5, minmax(68px, 0.78fr));
+  align-items: center;
+  gap: 12px;
+}
+
+.final-score-header {
+  padding: 0 12px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.final-score-row {
+  padding: 13px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.final-score-row:last-child {
+  border-bottom: none;
+}
+
+.final-score-row.is-winner {
+  background: rgba(92, 190, 240, 0.08);
+}
+
+.final-score-player {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.final-score-player-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.06);
+}
+
+.final-score-total {
+  color: #dcecfb;
+  font-weight: 700;
+}
+
+.final-score-empty {
+  min-height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(198, 211, 224, 0.72);
+  text-align: center;
 }
 
 /* 滚动条优化 */
@@ -5527,6 +5942,20 @@ onUnmounted(() => {
     width: 100%;
     height: auto;
     min-height: 400px;
+  }
+
+  .action-header-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .action-header-meta,
+  .action-log-toolbar {
+    margin-left: 0;
+  }
+
+  .action-log-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
   }
 }
 
