@@ -57,6 +57,17 @@ def load_config():
         return yaml.safe_load(f)
 
 
+def get_active_game_controller():
+    """获取当前运行中的游戏控制器。"""
+    from backend.game.start_game import _game_controllers
+
+    for _, controller in _game_controllers.items():
+        if controller.is_running:
+            return controller
+
+    return None
+
+
 # ===== 静态路由 =====
 
 @routes_bp.route('/')
@@ -134,15 +145,7 @@ def handle_input():
             return jsonify({'error': 'action_id is required'}), 400
 
         # 获取当前活跃的游戏控制器
-        from backend.game.start_game import _game_controllers
-
-        # 找到正在运行的游戏控制器
-        controller = None
-        for gid, ctrl in _game_controllers.items():
-            if ctrl.is_running:
-                controller = ctrl
-                break
-
+        controller = get_active_game_controller()
         if not controller:
             return jsonify({'error': 'No active game found'}), 404
 
@@ -241,7 +244,9 @@ def submit_action():
     请求体：
     {
         "action_id": 65,
-        "player_id": 0  // 可选，用于验证
+        "player_id": 0,  // 可选，用于验证
+        "selection_source": "manual",  // 可选，manual / system
+        "selection_strategy": "random"  // 可选
     }
     """
     try:
@@ -251,25 +256,24 @@ def submit_action():
 
         action_id = data.get('action_id')
         player_id = data.get('player_id')
+        selection_source = data.get('selection_source', 'manual')
+        selection_strategy = data.get('selection_strategy')
 
         if action_id is None:
             return jsonify({'error': 'action_id is required'}), 400
 
         # 获取当前活跃的游戏控制器
-        from backend.game.start_game import get_game_controller, _game_controllers
-
-        # 找到正在运行的游戏控制器
-        controller = None
-        for gid, ctrl in _game_controllers.items():
-            if ctrl.is_running:
-                controller = ctrl
-                break
-
+        controller = get_active_game_controller()
         if not controller:
             return jsonify({'error': 'No active game found'}), 404
 
         # 提交行动
-        success = controller.submit_action(action_id, player_id)
+        success = controller.submit_action(
+            action_id,
+            player_id,
+            selection_source=selection_source,
+            selection_strategy=selection_strategy
+        )
 
         if success:
             return jsonify({
@@ -286,6 +290,62 @@ def submit_action():
     except Exception as e:
         logger.error(f"提交行动失败: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+
+@routes_bp.route('/api/game/strategy/recommend', methods=['POST'])
+def recommend_strategy_action():
+    """获取当前策略推荐的行动，不立即执行。"""
+    try:
+        data = request.get_json() or {}
+        strategy_id = data.get('strategy_id')
+        player_id = data.get('player_id')
+
+        if not isinstance(strategy_id, str) or not strategy_id.strip():
+            return jsonify({'error': 'strategy_id is required'}), 400
+
+        controller = get_active_game_controller()
+        if not controller:
+            return jsonify({'error': 'No active game found'}), 404
+
+        recommendation = controller.recommend_strategy_action(strategy_id, player_id)
+        return jsonify({
+            'status': 'success',
+            **recommendation
+        })
+    except ValueError as error:
+        return jsonify({'error': str(error)}), 400
+    except Exception as error:
+        logger.error(f"策略推荐失败: {str(error)}")
+        return jsonify({'error': str(error)}), 500
+
+
+@routes_bp.route('/api/game/strategy/execute', methods=['POST'])
+def execute_strategy_action():
+    """按指定策略立即执行当前推荐行动。"""
+    try:
+        data = request.get_json() or {}
+        strategy_id = data.get('strategy_id')
+        player_id = data.get('player_id')
+
+        if not isinstance(strategy_id, str) or not strategy_id.strip():
+            return jsonify({'error': 'strategy_id is required'}), 400
+
+        controller = get_active_game_controller()
+        if not controller:
+            return jsonify({'error': 'No active game found'}), 404
+
+        recommendation = controller.execute_strategy_action(strategy_id, player_id)
+        return jsonify({
+            'status': 'success',
+            **recommendation
+        })
+    except ValueError as error:
+        return jsonify({'error': str(error)}), 400
+    except RuntimeError as error:
+        return jsonify({'error': str(error)}), 400
+    except Exception as error:
+        logger.error(f"策略执行失败: {str(error)}")
+        return jsonify({'error': str(error)}), 500
 
 
 @routes_bp.route('/api/game/stop', methods=['POST'])

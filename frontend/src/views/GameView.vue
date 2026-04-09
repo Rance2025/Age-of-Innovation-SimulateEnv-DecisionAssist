@@ -13,8 +13,47 @@
               v-for="player in players"
               :key="player.id"
               class="player-card"
-              :class="{ collapsed: collapsedPlayers[player.id] }"
+              :data-player-id="player.id"
+              :class="{
+                collapsed: collapsedPlayers[player.id],
+                'is-current-action-player': currentActionPlayerId === player.id,
+                'is-transitioning': playerCardTransitionStates[player.id]
+              }"
+              :ref="(element) => setPlayerCardRef(player.id, element)"
             >
+              <svg
+                v-if="currentActionPlayerId === player.id && hasPlayerCardRingGeometry(player.id)"
+                class="player-card-ring"
+                :viewBox="getPlayerCardRingViewBox(player.id)"
+                :style="getPlayerCardRingStyle(player.id)"
+                aria-hidden="true"
+              >
+                <path
+                  class="player-card-ring-flow-aura"
+                  :d="getPlayerCardRingPath(player.id)"
+                  pathLength="100"
+                />
+                <path
+                  class="player-card-ring-flow-soft"
+                  :d="getPlayerCardRingPath(player.id)"
+                  pathLength="100"
+                />
+                <path
+                  class="player-card-ring-flow-mid"
+                  :d="getPlayerCardRingPath(player.id)"
+                  pathLength="100"
+                />
+                <path
+                  class="player-card-ring-flow-core"
+                  :d="getPlayerCardRingPath(player.id)"
+                  pathLength="100"
+                />
+                <path
+                  class="player-card-ring-flow-bright"
+                  :d="getPlayerCardRingPath(player.id)"
+                  pathLength="100"
+                />
+              </svg>
               <div class="player-header" @click="togglePlayer(player.id)">
                 <div class="player-header-left">
                   <div class="planning-card-indicator">
@@ -86,7 +125,12 @@
                 </div>
                 <div class="player-score">{{ player.score }}</div>
               </div>
-              <div class="player-status">
+              <div
+                class="player-status"
+                @transitionrun="handlePlayerStatusTransitionStart(player.id, $event)"
+                @transitionend="handlePlayerStatusTransitionEnd(player.id, $event)"
+                @transitioncancel="handlePlayerStatusTransitionEnd(player.id, $event)"
+              >
                 <div class="player-stats">
                   <div
                     v-for="(row, rowIndex) in buildPlayerStatusRows(player)"
@@ -483,10 +527,38 @@
               <i class="fas fa-sliders-h"></i>
               <div>控制中台</div>
             </div>
-            <div class="control-center-subtitle">功能暂空</div>
           </div>
           <div class="control-center-content">
-            <div class="control-center-placeholder">预留后续中台控制能力。</div>
+            <div class="control-center-toolbar">
+              <button
+                type="button"
+                class="control-center-button control-center-strategy-button"
+                :class="{ 'is-open': controlCenterStrategyModalOpen }"
+                @click="openControlCenterStrategyModal"
+              >
+                <span class="control-center-button-main">
+                  <span class="control-center-button-label">策略</span>
+                  <span class="control-center-button-value">{{ selectedControlStrategySummaryLabel }}</span>
+                </span>
+                <i class="fas fa-chevron-right control-center-button-arrow" aria-hidden="true"></i>
+              </button>
+              <button
+                type="button"
+                class="control-center-button control-center-recommend-button"
+                :disabled="!controlCenterCanRun || controlCenterPendingMode !== ''"
+                @click="recommendControlCenterStrategy"
+              >
+                推荐
+              </button>
+              <button
+                type="button"
+                class="control-center-button control-center-execute-button"
+                :disabled="!controlCenterCanRun || controlCenterPendingMode !== ''"
+                @click="runControlCenterStrategy"
+              >
+                执行
+              </button>
+            </div>
           </div>
         </div>
 
@@ -500,36 +572,166 @@
               </div>
               <div class="action-subtitle">{{ actionSubtitle }}</div>
             </div>
-            <div class="action-header-meta">
+            <div class="action-header-meta" :class="{ 'has-recommendation': hasRecommendedAction }">
               <div class="action-owner-chip">
                 <span class="action-owner-dot" :style="{ backgroundColor: currentActionPlayerColor }"></span>
                 <span>{{ currentActionOwnerLabel }}</span>
               </div>
               <div class="action-mode-chip">{{ currentActionModeLabel }}</div>
               <div class="action-count">共<span id="action-count">{{ actionCount }}</span>项</div>
+              <div
+                v-if="hasRecommendedAction"
+                class="action-recommend-chip"
+                :title="recommendedActionChipTitle"
+                :aria-label="recommendedActionChipTitle"
+              >
+                <i :class="recommendedActionIconClass" aria-hidden="true"></i>
+              </div>
             </div>
           </div>
-          <div id="action-content" class="action-content">
-            <button
-              v-for="(action, idx) in actions"
-              :key="`${action.id}-${idx}`"
-              type="button"
-              class="action-item"
-              :data-color="action.color"
+          <div
+            id="action-content"
+            ref="actionContentRef"
+            class="action-content"
+            :class="{ 'is-accordion-mode': isActionOverflowMode }"
+          >
+            <div
+              v-for="group in groupedActionCards"
+              :key="group.key"
+              class="action-group-card"
               :class="{
-                'is-submitting': pendingActionId === action.id,
-                'is-disabled': pendingActionId !== null && pendingActionId !== action.id
+                'is-collapsed': isActionOverflowMode && !isActionGroupExpanded(group.groupKey),
+                'is-submitting': group.hasPendingSelection,
+                'is-disabled': pendingActionId !== null && !group.hasPendingSelection,
+                'has-recommended-option': group.hasRecommendedOption
               }"
-              :disabled="pendingActionId !== null"
-              @click="selectAction(action)"
             >
-              <span class="action-item-top">
-                <span class="action-id">{{ action.id }}</span>
-              </span>
-              <span class="action-item-text">{{ action.text }}</span>
-            </button>
-            <div v-if="actions.length === 0" class="panel-empty-state panel-empty-state--action">
+              <div
+                class="action-group-header"
+                :class="{
+                  'is-collapsible': isActionOverflowMode,
+                  'is-expanded': isActionGroupExpanded(group.groupKey)
+                }"
+                :role="isActionOverflowMode ? 'button' : undefined"
+                :tabindex="isActionOverflowMode ? 0 : -1"
+                :aria-expanded="isActionOverflowMode ? String(isActionGroupExpanded(group.groupKey)) : undefined"
+                @click="toggleActionGroup(group.groupKey)"
+                @keydown.enter.prevent="toggleActionGroup(group.groupKey)"
+                @keydown.space.prevent="toggleActionGroup(group.groupKey)"
+              >
+                <div class="action-group-title">{{ group.groupLabel }}</div>
+                <div class="action-group-header-meta">
+                  <div class="action-group-count-chip">{{ group.options.length }}</div>
+                  <div
+                    v-if="isActionOverflowMode"
+                    class="action-group-toggle"
+                    :class="{ 'is-expanded': isActionGroupExpanded(group.groupKey) }"
+                    aria-hidden="true"
+                  >
+                    <i class="fas fa-chevron-right"></i>
+                  </div>
+                </div>
+              </div>
+              <div
+                class="action-group-body"
+                :class="{ 'is-collapsed': isActionOverflowMode && !isActionGroupExpanded(group.groupKey) }"
+                :style="getActionGroupBodyStyle(group.groupKey)"
+                :aria-hidden="isActionOverflowMode && !isActionGroupExpanded(group.groupKey) ? 'true' : 'false'"
+              >
+                <div
+                  class="action-group-body-inner"
+                  :ref="(element) => setActionGroupBodyInnerRef(group.groupKey, element)"
+                >
+                  <div
+                    class="action-group-options"
+                    :class="[
+                      `is-${group.layoutHint}`,
+                      {
+                        'is-fixed-grid': group.fixedColumnCount !== null,
+                        'has-detail': group.hasDetail,
+                        'has-verbose-detail': group.hasVerboseDetail
+                      }
+                    ]"
+                    :style="group.fixedColumnCount !== null ? { '--action-group-columns': group.fixedColumnCount } : undefined"
+                  >
+                    <button
+                      v-for="option in group.options"
+                      :key="option.key"
+                      type="button"
+                      class="action-option-button"
+                      :data-color="option.color"
+                      :class="{
+                        'is-submitting': pendingActionId === option.id,
+                        'is-disabled': pendingActionId !== null && pendingActionId !== option.id,
+                        'is-compact': !option.detail && group.layoutHint !== 'chips_wrap',
+                        'is-recommended': recommendedActionId === option.id
+                      }"
+                      :disabled="pendingActionId !== null || (isActionOverflowMode && !isActionGroupExpanded(group.groupKey))"
+                      :title="option.description"
+                      @click="selectAction(option)"
+                    >
+                      <span class="action-option-main">
+                        <span class="action-option-label">{{ option.label }}</span>
+                        <span v-if="option.detail" class="action-option-detail">{{ option.detail }}</span>
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-if="groupedActionCards.length === 0" class="panel-empty-state panel-empty-state--action">
               {{ actionEmptyStateMessage }}
+            </div>
+          </div>
+          <div
+            v-if="groupedActionCards.length > 0"
+            ref="actionMeasureRef"
+            class="action-content action-content--measure"
+            :style="actionMeasureStyle"
+            aria-hidden="true"
+          >
+            <div
+              v-for="group in groupedActionCards"
+              :key="`measure-${group.key}`"
+              class="action-group-card"
+            >
+              <div class="action-group-header">
+                <div class="action-group-title">{{ group.groupLabel }}</div>
+                <div class="action-group-header-meta">
+                  <div class="action-group-count-chip">{{ group.options.length }}</div>
+                </div>
+              </div>
+              <div class="action-group-body">
+                <div class="action-group-body-inner">
+                  <div
+                    class="action-group-options"
+                    :class="[
+                      `is-${group.layoutHint}`,
+                      {
+                        'is-fixed-grid': group.fixedColumnCount !== null,
+                        'has-detail': group.hasDetail,
+                        'has-verbose-detail': group.hasVerboseDetail
+                      }
+                    ]"
+                    :style="group.fixedColumnCount !== null ? { '--action-group-columns': group.fixedColumnCount } : undefined"
+                  >
+                    <div
+                      v-for="option in group.options"
+                      :key="`measure-${option.key}`"
+                      class="action-option-button"
+                      :data-color="option.color"
+                      :class="{
+                        'is-compact': !option.detail && group.layoutHint !== 'chips_wrap'
+                      }"
+                    >
+                      <span class="action-option-main">
+                        <span class="action-option-label">{{ option.label }}</span>
+                        <span v-if="option.detail" class="action-option-detail">{{ option.detail }}</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -783,6 +985,47 @@
     </Modal>
 
     <Modal
+      v-model="controlCenterStrategyModalOpen"
+      title="选择策略"
+      size="small"
+      :show-close="true"
+      :close-on-overlay="true"
+    >
+      <div class="control-center-strategy-modal">
+        <div class="control-center-strategy-groups">
+          <section
+            v-for="group in CONTROL_CENTER_STRATEGY_GROUPS"
+            :key="group.id"
+            class="control-center-strategy-group"
+          >
+            <div class="control-center-strategy-group-header">
+              <span class="control-center-strategy-group-title">{{ group.label }}</span>
+              <span class="control-center-strategy-group-divider" aria-hidden="true"></span>
+            </div>
+            <div class="control-center-strategy-options">
+              <button
+                v-for="strategy in group.options"
+                :key="strategy.id"
+                type="button"
+                class="control-center-strategy-option"
+                :class="{ 'is-active': selectedControlStrategyId === strategy.id }"
+                @click="selectControlCenterStrategy(strategy.id)"
+              >
+                <span class="control-center-strategy-option-content">
+                  <span class="control-center-strategy-option-label">{{ strategy.label }}</span>
+                  <span v-if="strategy.description" class="control-center-strategy-option-description">
+                    {{ strategy.description }}
+                  </span>
+                </span>
+                <i v-if="selectedControlStrategyId === strategy.id" class="fas fa-check"></i>
+              </button>
+            </div>
+          </section>
+        </div>
+      </div>
+    </Modal>
+
+    <Modal
       v-model="finalScoreModalOpen"
       title="最终比分"
       :show-close="true"
@@ -851,6 +1094,7 @@ import { computed, ref, reactive, onMounted, onUnmounted, nextTick, watch } from
 import { useRouter } from 'vue-router'
 import { useGameStore } from '../stores/game'
 import Modal from '../components/Modal.vue'
+import availableActionDisplayGroups from '../../../backend/game/utils/available_action_display_groups.json'
 
 defineOptions({
   name: 'GameView'
@@ -957,6 +1201,60 @@ const ACTION_LOG_TYPE_OPTIONS = Object.freeze([
   { id: 'normal', label: 'normal' },
   { id: 'immediate', label: 'immediate' }
 ])
+const CONTROL_CENTER_STRATEGY_GROUPS = Object.freeze([
+  {
+    id: 'random',
+    label: '随机',
+    options: [
+      {
+        id: 'random_pure',
+        label: '完全随机'
+      },
+      {
+        id: 'random_fast_action',
+        label: '完全随机',
+        description: '优化快速行动'
+      },
+      {
+        id: 'random_weighted',
+        label: '加权随机'
+      }
+    ]
+  },
+  {
+    id: 'metric',
+    label: '指标计算',
+    options: [
+      {
+        id: 'metric_single_step_best',
+        label: '单步最优'
+      }
+    ]
+  },
+  {
+    id: 'ai',
+    label: 'AI',
+    options: [
+      {
+        id: 'ai_llm_reasoning',
+        label: 'LLM推理'
+      }
+    ]
+  }
+])
+const CONTROL_CENTER_STRATEGY_OPTIONS = Object.freeze(
+  CONTROL_CENTER_STRATEGY_GROUPS.flatMap((group) => (
+    group.options.map((strategy) => ({
+      ...strategy,
+      groupId: group.id,
+      groupLabel: group.label
+    }))
+  ))
+)
+const SUPPORTED_CONTROL_STRATEGY_IDS = new Set([
+  'random_pure',
+  'random_fast_action'
+])
 const ACTION_LOG_STAGE_DEFINITIONS = Object.freeze([
   { id: 'setup-choice', label: '初始板块选择阶段', dividerLabel: '初始板块选择阶段' },
   { id: 'setup-build', label: '初始建筑摆放阶段', dividerLabel: '初始建筑摆放阶段' },
@@ -990,6 +1288,41 @@ const ACTION_LOG_STAGE_FILTER_GROUPS = Object.freeze([
 const ACTION_LOG_STAGE_MAP = Object.freeze(Object.fromEntries(
   ACTION_LOG_STAGE_DEFINITIONS.map((stage, index) => [stage.id, { ...stage, index }])
 ))
+const PLAYER_CARD_RING_BORDER_RADIUS = 10
+const PLAYER_CARD_RING_CORE_STROKE_WIDTH = 3
+const PLAYER_CARD_RING_MID_STROKE_WIDTH = 3.6
+const PLAYER_CARD_RING_AURA_STROKE_WIDTH = 4
+const PLAYER_CARD_RING_SVG_PADDING = 12
+const PLANNING_CARD_ACTION_COLOR_NAMES = Object.freeze({
+  1: 'brown',
+  2: 'black',
+  3: 'blue',
+  4: 'green',
+  5: 'grey',
+  6: 'red',
+  7: 'yellow'
+})
+const ACTION_DISPLAY_GROUPS = Object.freeze(
+  (Array.isArray(availableActionDisplayGroups?.groups) ? availableActionDisplayGroups.groups : []).map((group) => {
+    const actionIdRange = Array.isArray(group?.action_id_range)
+      ? group.action_id_range.map((value) => Number(value))
+      : [Number.NaN, Number.NaN]
+    const items = group?.items && typeof group.items === 'object' ? group.items : {}
+    const actionIdOrder = Array.isArray(group?.action_id_order)
+      ? group.action_id_order.map((value) => Number(value)).filter(Number.isInteger)
+      : Object.keys(items).map((value) => Number(value)).filter(Number.isInteger).sort((left, right) => left - right)
+
+    return {
+      groupKey: group?.group_key || '',
+      groupLabel: group?.group_label || '未命名分组',
+      presentation: group?.presentation || 'grouped_options',
+      layoutHint: group?.layout_hint || 'chips_wrap',
+      actionIdRange,
+      actionIdOrder,
+      items
+    }
+  })
+)
 const NAMED_LOG_COLORS = {
   default: '#5cbef0',
   blue: '#35a0d5',
@@ -1073,6 +1406,8 @@ function syncCollapsedPlayers(count) {
   for (let i = 0; i < count; i++) {
     collapsedPlayers[i] = true
   }
+
+  expandCurrentActionPlayerCard()
 }
 
 // 地形提示弹窗
@@ -1131,7 +1466,12 @@ const tacticalLogs = ref([])
 const finalScores = ref(null)
 const finalScoreModalOpen = ref(false)
 const pendingActionId = ref(null)
+const recommendedActionId = ref(null)
+const recommendedActionStrategyId = ref('')
+const controlCenterPendingMode = ref('')
 const actionLogFilterModalOpen = ref(false)
+const controlCenterStrategyModalOpen = ref(false)
+const selectedControlStrategyId = ref(CONTROL_CENTER_STRATEGY_OPTIONS[0]?.id ?? 'random_pure')
 const appliedActionLogPlayerFilters = ref([])
 const appliedActionLogTypeFilters = ref([])
 const appliedActionLogStageFilters = ref([])
@@ -1153,6 +1493,29 @@ const gameMeta = reactive({
   setup_build_is_completed: false
 })
 const globalStatus = computed(() => buildGlobalStatusFromMeta())
+const groupedActionCards = computed(() => buildGroupedActionCards(actions.value))
+const actionContentRef = ref(null)
+const actionMeasureRef = ref(null)
+const isActionOverflowMode = ref(false)
+const expandedActionGroupKey = ref(null)
+const actionMeasureWidth = ref(0)
+const actionGroupBodyHeights = reactive({})
+const actionMeasureStyle = computed(() => (
+  actionMeasureWidth.value > 0
+    ? { width: `${actionMeasureWidth.value}px` }
+    : undefined
+))
+let actionOverflowMeasurementFrame = 0
+let actionContentResizeObserver = null
+let playerCardResizeObserver = null
+let playerCardResizeFrame = 0
+let playerCardResizeTimeout = 0
+const actionGroupBodyInnerRefs = new Map()
+const playerCardRefs = new Map()
+const playerCardSizes = reactive({})
+const playerCardRingGeometries = reactive({})
+const playerCardTransitionStates = reactive({})
+const pendingPlayerCardSizeUpdates = new Map()
 const actionLogPlayerFilterOptions = computed(() => players.value.map((player) => ({
   id: player.id,
   label: `玩家 ${player.id + 1}`,
@@ -1218,21 +1581,35 @@ const filteredActionLogs = computed(() => {
     return true
   })
 })
+const currentActionPlayerId = computed(() => {
+  if (gameMeta.is_game_over) {
+    return null
+  }
+
+  return normalizeActionLogPlayerId(gameMeta.current_player_id)
+})
+watch(currentActionPlayerId, (playerId) => {
+  expandCurrentActionPlayerCard(playerId)
+}, { immediate: true })
+watch(
+  [currentActionPlayerId, () => gameMeta.action_type, () => gameMeta.is_game_over],
+  () => {
+    clearRecommendedAction()
+  }
+)
 const currentActionOwnerLabel = computed(() => {
   if (gameMeta.is_game_over) {
     return '游戏结束'
   }
 
-  const normalizedCurrentPlayerId = normalizeActionLogPlayerId(gameMeta.current_player_id)
-  return normalizedCurrentPlayerId === null ? '等待后端' : getActionLogPlayerLabel(normalizedCurrentPlayerId)
+  return currentActionPlayerId.value === null ? '等待后端' : getActionLogPlayerLabel(currentActionPlayerId.value)
 })
 const currentActionPlayerColor = computed(() => {
   if (gameMeta.is_game_over) {
     return '#94a3b8'
   }
 
-  const normalizedCurrentPlayerId = normalizeActionLogPlayerId(gameMeta.current_player_id)
-  return normalizedCurrentPlayerId === null ? '#64748b' : getCurrentActionOwnerColor(normalizedCurrentPlayerId)
+  return currentActionPlayerId.value === null ? '#64748b' : getCurrentActionOwnerColor(currentActionPlayerId.value)
 })
 const currentActionModeLabel = computed(() => {
   if (gameMeta.is_game_over) {
@@ -1245,6 +1622,74 @@ const currentActionModeLabel = computed(() => {
 
   return formatActionModeLabel(gameMeta.action_type)
 })
+const selectedControlStrategyOption = computed(() => (
+  CONTROL_CENTER_STRATEGY_OPTIONS.find((strategy) => strategy.id === selectedControlStrategyId.value)
+  || CONTROL_CENTER_STRATEGY_OPTIONS[0]
+  || {
+    id: 'random_pure',
+    label: '完全随机'
+  }
+))
+const selectedControlStrategySummaryLabel = computed(() => (
+  selectedControlStrategyOption.value.description
+    ? `${selectedControlStrategyOption.value.label} · ${selectedControlStrategyOption.value.description}`
+    : selectedControlStrategyOption.value.label
+))
+const hasRecommendedAction = computed(() => {
+  const normalizedRecommendedActionId = normalizeAvailableActionId(recommendedActionId.value)
+  if (normalizedRecommendedActionId === null) {
+    return false
+  }
+
+  return actions.value.some((action) => normalizeAvailableActionId(action?.id) === normalizedRecommendedActionId)
+})
+const recommendedControlStrategyOption = computed(() => (
+  CONTROL_CENTER_STRATEGY_OPTIONS.find((strategy) => strategy.id === recommendedActionStrategyId.value)
+  || null
+))
+const recommendedActionOption = computed(() => {
+  const normalizedRecommendedActionId = normalizeAvailableActionId(recommendedActionId.value)
+  if (normalizedRecommendedActionId === null) {
+    return null
+  }
+
+  for (const group of groupedActionCards.value) {
+    const matchedOption = Array.isArray(group.options)
+      ? group.options.find((option) => option.id === normalizedRecommendedActionId)
+      : null
+
+    if (matchedOption) {
+      return matchedOption
+    }
+  }
+
+  return null
+})
+const recommendedActionChipLabel = computed(() => (
+  recommendedActionOption.value?.label || '已推荐'
+))
+const recommendedActionChipTitle = computed(() => {
+  if (!hasRecommendedAction.value) {
+    return ''
+  }
+
+  const strategyLabel = recommendedControlStrategyOption.value?.description
+    ? `${recommendedControlStrategyOption.value.label} / ${recommendedControlStrategyOption.value.description}`
+    : (recommendedControlStrategyOption.value?.label || '当前策略')
+  const actionDescription = recommendedActionOption.value?.description
+    || recommendedActionOption.value?.label
+    || `行动 ${recommendedActionId.value}`
+
+  return `${strategyLabel} 推荐：${actionDescription}`
+})
+const recommendedActionIconClass = computed(() => (
+  getControlCenterStrategyIconClass(recommendedActionStrategyId.value || selectedControlStrategyId.value)
+))
+const controlCenterCanRun = computed(() => (
+  !gameMeta.is_game_over
+  && currentActionPlayerId.value !== null
+  && actions.value.length > 0
+))
 const actionSubtitle = computed(() => {
   if (gameMeta.is_game_over) {
     return '本局已结束'
@@ -1706,19 +2151,595 @@ function updateStateVersion(version) {
   }
 }
 
+function normalizeAvailableActionId(value) {
+  const normalizedActionId = Number(value)
+  return Number.isInteger(normalizedActionId) ? normalizedActionId : null
+}
+
+function findActionDisplayGroupDefinition(actionId) {
+  return ACTION_DISPLAY_GROUPS.find((group) => {
+    const [start, end] = group.actionIdRange
+    return Number.isInteger(start)
+      && Number.isInteger(end)
+      && actionId >= start
+      && actionId <= end
+      && Object.prototype.hasOwnProperty.call(group.items, String(actionId))
+  }) || null
+}
+
+function findActionDisplayItemDefinition(actionId) {
+  const groupDefinition = findActionDisplayGroupDefinition(actionId)
+  if (!groupDefinition) {
+    return { groupDefinition: null, itemDefinition: null }
+  }
+
+  return {
+    groupDefinition,
+    itemDefinition: groupDefinition.items[String(actionId)] || null
+  }
+}
+
+function getActionOptionColor(actionId, itemDefinition, fallbackColor = 'default') {
+  if (fallbackColor && fallbackColor !== 'default') {
+    return fallbackColor
+  }
+
+  if (itemDefinition?.source_action === 'select_planning_card') {
+    return PLANNING_CARD_ACTION_COLOR_NAMES[Number(itemDefinition.source_args)] || 'default'
+  }
+
+  return 'default'
+}
+
+function shouldKeepActionGroupSingleRow(options, layoutHint) {
+  if (layoutHint !== 'chips_wrap' || !Array.isArray(options)) {
+    return false
+  }
+
+  if (options.length < 2 || options.length > 3) {
+    return false
+  }
+
+  return options.every((option) => {
+    const labelLength = String(option?.label || '').trim().length
+    const detailLength = String(option?.detail || '').trim().length
+
+    return labelLength <= 6 && detailLength <= 4
+  })
+}
+
 function normalizeAction(action, idx) {
-  const normalizedActionId = Number(action?.action_id ?? action?.id)
+  const normalizedActionId = normalizeAvailableActionId(action?.action_id ?? action?.id ?? action)
+  const { itemDefinition } = Number.isInteger(normalizedActionId)
+    ? findActionDisplayItemDefinition(normalizedActionId)
+    : { itemDefinition: null }
+
   return {
     id: Number.isInteger(normalizedActionId) ? normalizedActionId : idx,
-    text: action?.description ?? action?.text ?? '',
+    description: action?.description ?? action?.text ?? itemDefinition?.description ?? '',
     color: action?.color || 'default'
   }
+}
+
+function createFallbackActionGroup(action, index) {
+  const actionId = normalizeAvailableActionId(action?.id)
+  const resolvedLabel = actionId === null ? '未分组行动' : `动作 ${actionId}`
+  const resolvedDescription = action?.description || resolvedLabel
+
+  return {
+    key: `ungrouped-${actionId ?? index}`,
+    groupKey: `ungrouped-${actionId ?? index}`,
+    groupLabel: '其他可选行动',
+    layoutHint: 'single_button',
+    firstIndex: index,
+    hasDetail: false,
+    hasVerboseDetail: false,
+    hasPendingSelection: pendingActionId.value === actionId,
+    hasRecommendedOption: recommendedActionId.value === actionId,
+    options: [
+      {
+        key: `ungrouped-option-${actionId ?? index}`,
+        id: actionId,
+        label: resolvedLabel,
+        detail: '',
+        description: resolvedDescription,
+        color: action?.color || 'default'
+      }
+    ]
+  }
+}
+
+function buildGroupedActionCards(actionList) {
+  if (!Array.isArray(actionList) || actionList.length === 0) {
+    return []
+  }
+
+  const normalizedRecommendedActionId = normalizeAvailableActionId(recommendedActionId.value)
+  const groupedCards = new Map()
+  const fallbackCards = []
+
+  actionList.forEach((action, index) => {
+    const actionId = normalizeAvailableActionId(action?.id)
+    if (actionId === null) {
+      fallbackCards.push(createFallbackActionGroup(action, index))
+      return
+    }
+
+    const { groupDefinition, itemDefinition } = findActionDisplayItemDefinition(actionId)
+    if (!groupDefinition || !itemDefinition) {
+      fallbackCards.push(createFallbackActionGroup(action, index))
+      return
+    }
+
+    if (!groupedCards.has(groupDefinition.groupKey)) {
+      groupedCards.set(groupDefinition.groupKey, {
+        key: groupDefinition.groupKey,
+        groupKey: groupDefinition.groupKey,
+        groupLabel: groupDefinition.groupLabel,
+        layoutHint: groupDefinition.layoutHint,
+        firstIndex: index,
+        actionIdOrder: groupDefinition.actionIdOrder,
+        optionsById: new Map()
+      })
+    }
+
+    const groupCard = groupedCards.get(groupDefinition.groupKey)
+    if (groupCard.optionsById.has(actionId)) {
+      return
+    }
+
+    groupCard.optionsById.set(actionId, {
+      key: `${groupDefinition.groupKey}-${actionId}`,
+      id: actionId,
+      label: itemDefinition.minor_label || String(actionId),
+      detail: itemDefinition.minor_detail || '',
+      description: itemDefinition.description || action.description || '',
+      color: getActionOptionColor(actionId, itemDefinition, action.color)
+    })
+  })
+
+  const normalizedGroupedCards = Array.from(groupedCards.values()).map((groupCard) => {
+    const options = groupCard.actionIdOrder
+      .filter((actionId) => groupCard.optionsById.has(actionId))
+      .map((actionId) => groupCard.optionsById.get(actionId))
+
+    const hasDetail = options.some((option) => Boolean(option.detail))
+    const hasVerboseDetail = options.some((option) => typeof option.detail === 'string' && option.detail.length >= 14)
+    const fixedColumnCount = shouldKeepActionGroupSingleRow(options, groupCard.layoutHint) ? options.length : null
+
+    return {
+      key: groupCard.key,
+      groupKey: groupCard.groupKey,
+      groupLabel: groupCard.groupLabel,
+      layoutHint: groupCard.layoutHint,
+      firstIndex: groupCard.firstIndex,
+      fixedColumnCount,
+      hasDetail,
+      hasVerboseDetail,
+      hasPendingSelection: options.some((option) => pendingActionId.value === option.id),
+      hasRecommendedOption: options.some((option) => option.id === normalizedRecommendedActionId),
+      options
+    }
+  })
+
+  return [...normalizedGroupedCards, ...fallbackCards]
+    .filter((groupCard) => Array.isArray(groupCard.options) && groupCard.options.length > 0)
+    .sort((left, right) => left.firstIndex - right.firstIndex)
+}
+
+function isActionGroupExpanded(groupKey) {
+  return !isActionOverflowMode.value || expandedActionGroupKey.value === groupKey
+}
+
+function setActionGroupBodyInnerRef(groupKey, element) {
+  if (element && typeof element.scrollHeight === 'number') {
+    actionGroupBodyInnerRefs.set(groupKey, element)
+    return
+  }
+
+  actionGroupBodyInnerRefs.delete(groupKey)
+}
+
+function refreshActionGroupBodyHeights() {
+  const activeGroupKeys = new Set(groupedActionCards.value.map((group) => group.groupKey))
+
+  Object.keys(actionGroupBodyHeights).forEach((groupKey) => {
+    if (!activeGroupKeys.has(groupKey)) {
+      delete actionGroupBodyHeights[groupKey]
+    }
+  })
+
+  groupedActionCards.value.forEach((group) => {
+    const bodyInner = actionGroupBodyInnerRefs.get(group.groupKey)
+    if (bodyInner) {
+      actionGroupBodyHeights[group.groupKey] = Math.ceil(bodyInner.scrollHeight)
+    }
+  })
+}
+
+function getActionGroupBodyStyle(groupKey) {
+  const height = actionGroupBodyHeights[groupKey]
+  if (!Number.isFinite(height) || height <= 0) {
+    return undefined
+  }
+
+  return {
+    '--action-group-body-height': `${height}px`
+  }
+}
+
+function toggleActionGroup(groupKey) {
+  if (!isActionOverflowMode.value) {
+    return
+  }
+
+  expandedActionGroupKey.value = expandedActionGroupKey.value === groupKey ? null : groupKey
+
+  nextTick(() => {
+    refreshActionGroupBodyHeights()
+    const actionContent = actionContentRef.value
+    if (actionContent) {
+      actionContent.scrollTop = 0
+    }
+  })
+}
+
+function cancelActionOverflowMeasurement() {
+  if (actionOverflowMeasurementFrame !== 0) {
+    window.cancelAnimationFrame(actionOverflowMeasurementFrame)
+    actionOverflowMeasurementFrame = 0
+  }
+}
+
+async function measureActionOverflow(resetExpanded = false) {
+  await nextTick()
+  refreshActionGroupBodyHeights()
+
+  if (groupedActionCards.value.length === 0) {
+    isActionOverflowMode.value = false
+    expandedActionGroupKey.value = null
+    actionMeasureWidth.value = 0
+    return
+  }
+
+  const actionContent = actionContentRef.value
+  if (!actionContent) {
+    return
+  }
+
+  const nextMeasureWidth = actionContent.clientWidth
+  if (nextMeasureWidth <= 0) {
+    return
+  }
+
+  if (actionMeasureWidth.value !== nextMeasureWidth) {
+    actionMeasureWidth.value = nextMeasureWidth
+    await nextTick()
+    refreshActionGroupBodyHeights()
+  }
+
+  const actionMeasure = actionMeasureRef.value
+  if (!actionMeasure) {
+    return
+  }
+
+  const availableHeight = actionContent.clientHeight
+  const expandedHeight = actionMeasure.scrollHeight
+  const shouldUseOverflowMode = expandedHeight - availableHeight > 2
+  const wasOverflowMode = isActionOverflowMode.value
+
+  isActionOverflowMode.value = shouldUseOverflowMode
+
+  if (!shouldUseOverflowMode) {
+    expandedActionGroupKey.value = null
+    actionContent.scrollTop = 0
+    return
+  }
+
+  const expandedGroupStillExists = groupedActionCards.value.some((group) => group.groupKey === expandedActionGroupKey.value)
+  if (resetExpanded || !wasOverflowMode || !expandedGroupStillExists) {
+    expandedActionGroupKey.value = null
+    actionContent.scrollTop = 0
+  }
+}
+
+function scheduleActionOverflowMeasurement(options = {}) {
+  const { resetExpanded = false } = options
+
+  cancelActionOverflowMeasurement()
+  actionOverflowMeasurementFrame = window.requestAnimationFrame(() => {
+    actionOverflowMeasurementFrame = 0
+    void measureActionOverflow(resetExpanded)
+  })
+}
+
+function setupActionContentResizeObserver() {
+  if (typeof ResizeObserver === 'undefined' || actionContentResizeObserver) {
+    return
+  }
+
+  const actionContent = actionContentRef.value
+  if (!actionContent) {
+    return
+  }
+
+  actionContentResizeObserver = new ResizeObserver(() => {
+    scheduleActionOverflowMeasurement()
+  })
+  actionContentResizeObserver.observe(actionContent)
+}
+
+function updatePlayerCardSize(playerId, width, height) {
+  const normalizedPlayerId = normalizeActionLogPlayerId(playerId)
+  if (normalizedPlayerId === null) {
+    return
+  }
+
+  const normalizedWidth = Math.max(Math.round(Number(width) || 0), 0)
+  const normalizedHeight = Math.max(Math.round(Number(height) || 0), 0)
+  const previousSize = playerCardSizes[normalizedPlayerId]
+  if (previousSize?.width === normalizedWidth && previousSize?.height === normalizedHeight) {
+    return
+  }
+
+  playerCardSizes[normalizedPlayerId] = {
+    width: normalizedWidth,
+    height: normalizedHeight
+  }
+  playerCardRingGeometries[normalizedPlayerId] = createPlayerCardRingGeometry(normalizedWidth, normalizedHeight)
+}
+
+function flushPlayerCardSizeUpdates() {
+  if (playerCardResizeTimeout !== 0) {
+    window.clearTimeout(playerCardResizeTimeout)
+    playerCardResizeTimeout = 0
+  }
+
+  pendingPlayerCardSizeUpdates.forEach((size, playerId) => {
+    updatePlayerCardSize(playerId, size.width, size.height)
+  })
+  pendingPlayerCardSizeUpdates.clear()
+  playerCardResizeFrame = 0
+}
+
+function hasTransitioningPendingPlayerCardUpdate() {
+  for (const playerId of pendingPlayerCardSizeUpdates.keys()) {
+    if (playerCardTransitionStates[playerId]) {
+      return true
+    }
+  }
+
+  return false
+}
+
+function schedulePendingPlayerCardSizeFlush() {
+  if (playerCardResizeFrame !== 0 || playerCardResizeTimeout !== 0) {
+    return
+  }
+
+  if (hasTransitioningPendingPlayerCardUpdate()) {
+    playerCardResizeTimeout = window.setTimeout(() => {
+      playerCardResizeTimeout = 0
+      flushPlayerCardSizeUpdates()
+    }, 34)
+    return
+  }
+
+  playerCardResizeFrame = window.requestAnimationFrame(() => {
+    flushPlayerCardSizeUpdates()
+  })
+}
+
+function schedulePlayerCardSizeUpdate(playerId, width, height) {
+  const normalizedPlayerId = normalizeActionLogPlayerId(playerId)
+  if (normalizedPlayerId === null) {
+    return
+  }
+
+  pendingPlayerCardSizeUpdates.set(normalizedPlayerId, { width, height })
+  schedulePendingPlayerCardSizeFlush()
+}
+
+function cancelPlayerCardSizeUpdates() {
+  if (playerCardResizeFrame !== 0) {
+    window.cancelAnimationFrame(playerCardResizeFrame)
+    playerCardResizeFrame = 0
+  }
+
+  if (playerCardResizeTimeout !== 0) {
+    window.clearTimeout(playerCardResizeTimeout)
+    playerCardResizeTimeout = 0
+  }
+
+  pendingPlayerCardSizeUpdates.clear()
+}
+
+function setPlayerCardRef(playerId, element) {
+  const normalizedPlayerId = normalizeActionLogPlayerId(playerId)
+  if (normalizedPlayerId === null) {
+    return
+  }
+
+  const previousElement = playerCardRefs.get(normalizedPlayerId)
+  if (previousElement && previousElement !== element && playerCardResizeObserver) {
+    playerCardResizeObserver.unobserve(previousElement)
+  }
+
+  if (!(element instanceof HTMLElement)) {
+    playerCardRefs.delete(normalizedPlayerId)
+    delete playerCardSizes[normalizedPlayerId]
+    delete playerCardRingGeometries[normalizedPlayerId]
+    delete playerCardTransitionStates[normalizedPlayerId]
+    return
+  }
+
+  playerCardRefs.set(normalizedPlayerId, element)
+  updatePlayerCardSize(normalizedPlayerId, element.clientWidth, element.clientHeight)
+
+  if (playerCardResizeObserver) {
+    playerCardResizeObserver.observe(element)
+  }
+}
+
+function setupPlayerCardResizeObserver() {
+  if (typeof ResizeObserver === 'undefined' || playerCardResizeObserver) {
+    return
+  }
+
+  playerCardResizeObserver = new ResizeObserver((entries) => {
+    entries.forEach((entry) => {
+      const playerId = Number(entry.target.dataset.playerId)
+      schedulePlayerCardSizeUpdate(playerId, entry.contentRect.width, entry.contentRect.height)
+    })
+  })
+
+  playerCardRefs.forEach((element, playerId) => {
+    updatePlayerCardSize(playerId, element.clientWidth, element.clientHeight)
+    playerCardResizeObserver.observe(element)
+  })
+}
+
+function createPlayerCardRingGeometry(width, height) {
+  const normalizedWidth = Math.max(Math.round(Number(width) || 0), 0)
+  const normalizedHeight = Math.max(Math.round(Number(height) || 0), 0)
+  const flowOuterExpansion = (PLAYER_CARD_RING_CORE_STROKE_WIDTH / 2) + 0.25
+  const svgPadding = PLAYER_CARD_RING_SVG_PADDING
+  const left = svgPadding - flowOuterExpansion
+  const top = svgPadding - flowOuterExpansion
+  const ringWidth = Math.max(normalizedWidth + flowOuterExpansion * 2, 0)
+  const ringHeight = Math.max(normalizedHeight + flowOuterExpansion * 2, 0)
+  const radius = Math.max(
+    0,
+    Math.min(PLAYER_CARD_RING_BORDER_RADIUS + flowOuterExpansion, ringWidth / 2, ringHeight / 2)
+  )
+  const hasGeometry = normalizedWidth > 0 && normalizedHeight > 0 && ringWidth > 0 && ringHeight > 0
+  const right = left + ringWidth
+  const bottom = top + ringHeight
+  const path = hasGeometry
+    ? [
+        `M ${left + radius} ${top}`,
+        `H ${right - radius}`,
+        `A ${radius} ${radius} 0 0 1 ${right} ${top + radius}`,
+        `V ${bottom - radius}`,
+        `A ${radius} ${radius} 0 0 1 ${right - radius} ${bottom}`,
+        `H ${left + radius}`,
+        `A ${radius} ${radius} 0 0 1 ${left} ${bottom - radius}`,
+        `V ${top + radius}`,
+        `A ${radius} ${radius} 0 0 1 ${left + radius} ${top}`,
+        'Z'
+      ].join(' ')
+    : ''
+
+  return {
+    width: normalizedWidth,
+    height: normalizedHeight,
+    svgPadding,
+    left,
+    top,
+    ringWidth,
+    ringHeight,
+    radius,
+    hasGeometry,
+    viewBox: `0 0 ${Math.max(normalizedWidth + svgPadding * 2, 1)} ${Math.max(normalizedHeight + svgPadding * 2, 1)}`,
+    style: {
+      left: `${-svgPadding}px`,
+      top: `${-svgPadding}px`,
+      width: `${normalizedWidth + svgPadding * 2}px`,
+      height: `${normalizedHeight + svgPadding * 2}px`
+    },
+    path
+  }
+}
+
+function getPlayerCardRingGeometry(playerId) {
+  const normalizedPlayerId = normalizeActionLogPlayerId(playerId)
+  if (normalizedPlayerId === null) {
+    return createPlayerCardRingGeometry(0, 0)
+  }
+
+  return playerCardRingGeometries[normalizedPlayerId]
+    || createPlayerCardRingGeometry(playerCardSizes[normalizedPlayerId]?.width, playerCardSizes[normalizedPlayerId]?.height)
+}
+
+function hasPlayerCardRingGeometry(playerId) {
+  return getPlayerCardRingGeometry(playerId).hasGeometry
+}
+
+function getPlayerCardRingViewBox(playerId) {
+  return getPlayerCardRingGeometry(playerId).viewBox
+}
+
+function getPlayerCardRingStyle(playerId) {
+  return getPlayerCardRingGeometry(playerId).style
+}
+
+function getPlayerCardRingPath(playerId) {
+  return getPlayerCardRingGeometry(playerId).path
+}
+
+function isPlayerStatusSizeTransitionEvent(event) {
+  return event?.target === event?.currentTarget && event?.propertyName === 'max-height'
+}
+
+function markPlayerCardTransitionState(playerId, isTransitioning) {
+  const normalizedPlayerId = normalizeActionLogPlayerId(playerId)
+  if (normalizedPlayerId === null) {
+    return
+  }
+
+  if (isTransitioning) {
+    playerCardTransitionStates[normalizedPlayerId] = true
+    return
+  }
+
+  delete playerCardTransitionStates[normalizedPlayerId]
+}
+
+function syncPlayerCardSizeImmediately(playerId) {
+  const normalizedPlayerId = normalizeActionLogPlayerId(playerId)
+  if (normalizedPlayerId === null) {
+    return
+  }
+
+  const element = playerCardRefs.get(normalizedPlayerId)
+  if (!(element instanceof HTMLElement)) {
+    return
+  }
+
+  updatePlayerCardSize(normalizedPlayerId, element.clientWidth, element.clientHeight)
+}
+
+function handlePlayerStatusTransitionStart(playerId, event) {
+  if (!isPlayerStatusSizeTransitionEvent(event)) {
+    return
+  }
+
+  markPlayerCardTransitionState(playerId, true)
+  syncPlayerCardSizeImmediately(playerId)
+}
+
+function handlePlayerStatusTransitionEnd(playerId, event) {
+  if (!isPlayerStatusSizeTransitionEvent(event)) {
+    return
+  }
+
+  markPlayerCardTransitionState(playerId, false)
+  syncPlayerCardSizeImmediately(playerId)
 }
 
 function setAvailableActions(rawActions) {
   const nextActions = Array.isArray(rawActions)
     ? rawActions.map((action, idx) => normalizeAction(action, idx))
     : []
+
+  const normalizedRecommendedActionId = normalizeAvailableActionId(recommendedActionId.value)
+  if (
+    normalizedRecommendedActionId !== null
+    && !nextActions.some((action) => normalizeAvailableActionId(action?.id) === normalizedRecommendedActionId)
+  ) {
+    clearRecommendedAction()
+  }
+
   actions.value = nextActions
   actionCount.value = nextActions.length
 }
@@ -1799,6 +2820,19 @@ function getCurrentActionOwnerColor(playerId) {
   return resolvedPlanningColor === 'transparent' ? '#64748b' : resolvedPlanningColor
 }
 
+function expandCurrentActionPlayerCard(playerId = currentActionPlayerId.value) {
+  const normalizedPlayerId = normalizeActionLogPlayerId(playerId)
+  if (normalizedPlayerId === null) {
+    return
+  }
+
+  if (!Object.prototype.hasOwnProperty.call(collapsedPlayers, normalizedPlayerId)) {
+    return
+  }
+
+  collapsedPlayers[normalizedPlayerId] = false
+}
+
 function getActionLogPlayerLabel(playerId) {
   const normalizedPlayerId = normalizeActionLogPlayerId(playerId)
   if (normalizedPlayerId === null) {
@@ -1875,7 +2909,9 @@ function appendActionLogEntry(playerId, payload) {
     actionType: 'system',
     stageKey: currentStage.id,
     stageLabel: currentStage.label,
-    description: text
+    description: text,
+    selectionSource: 'system',
+    selectionStrategy: ''
   })
 }
 
@@ -1916,13 +2952,17 @@ function normalizeActionHistoryEntry(entry, actionSequence) {
     actionType: normalizedActionType,
     stageKey: stageDefinition.id,
     stageLabel: stageDefinition.label,
-    description: entry?.description || '未提供行动描述'
+    description: entry?.description || '未提供行动描述',
+    selectionSource: entry?.selection_source === 'system' ? 'system' : 'manual',
+    selectionStrategy: typeof entry?.selection_strategy === 'string' ? entry.selection_strategy : ''
   }
 }
 
 function setActionLogsFromHistory(rawHistory) {
   const normalizedHistory = Array.isArray(rawHistory) ? rawHistory : []
-  const systemLogs = actionLogs.value.filter((entry) => entry?.kind === 'system')
+  const persistentLocalLogs = actionLogs.value.filter((entry) => (
+    entry?.kind === 'system' || entry?.persistOnHistoryRefresh === true
+  ))
   let actionSequence = 0
   let dividerSequence = 0
 
@@ -1936,8 +2976,11 @@ function setActionLogsFromHistory(rawHistory) {
     return normalizeActionHistoryEntry(entry, actionSequence)
   }).reverse()
 
-  actionLogs.value = [...systemLogs, ...normalizedLogs]
-  systemRecordSequence = systemLogs.length
+  const normalizedLogUidSet = new Set(normalizedLogs.map((entry) => entry.uid))
+  const retainedLocalLogs = persistentLocalLogs.filter((entry) => !normalizedLogUidSet.has(entry.uid))
+
+  actionLogs.value = [...retainedLocalLogs, ...normalizedLogs]
+  systemRecordSequence = retainedLocalLogs.filter((entry) => entry?.kind === 'system').length
 }
 
 function toggleFilterValue(listRef, value) {
@@ -1955,12 +2998,263 @@ function openActionLogFilterModal() {
     return
   }
 
+  controlCenterStrategyModalOpen.value = false
+  /*
+  if (!isSupportedControlCenterStrategy()) {
+    alert(getUnsupportedControlCenterStrategyMessage())
+    return
+  }
+
+  const strategyId = normalizeControlCenterStrategyId(selectedControlStrategyId.value)
+  controlCenterPendingMode.value = 'recommend'
+
+  try {
+    const { ok, payload } = await requestControlCenterStrategy('/api/game/strategy/recommend', strategyId)
+    if (!ok) {
+      clearRecommendedAction()
+      alert(getControlCenterStrategyRequestErrorMessage(payload, '策略推荐失败。'))
+      return
+    }
+
+    setRecommendedAction(payload.action_id, payload.selection_strategy || strategyId)
+    return
+  } finally {
+    controlCenterPendingMode.value = ''
+  }
+  if (!isSupportedControlCenterStrategy()) {
+    alert(getUnsupportedControlCenterStrategyMessage())
+    return
+  }
+
+  const strategyId = normalizeControlCenterStrategyId(selectedControlStrategyId.value)
+  const previousVersion = stateVersion.value
+  controlCenterPendingMode.value = 'execute'
+
+  try {
+    const { ok, payload } = await requestControlCenterStrategy('/api/game/strategy/execute', strategyId)
+    if (!ok) {
+      alert(getControlCenterStrategyRequestErrorMessage(payload, '策略执行失败。'))
+      return
+    }
+
+    clearRecommendedAction()
+    await syncStateAfterActionSubmission(previousVersion)
+    return
+  } finally {
+    controlCenterPendingMode.value = ''
+  }
+  */
   draftActionLogPlayerFilters.value = [...appliedActionLogPlayerFilters.value]
   draftActionLogTypeFilters.value = [...appliedActionLogTypeFilters.value]
   draftActionLogStageFilters.value = [...appliedActionLogStageFilters.value]
   draftActionLogActionIdFilter.value = appliedActionLogActionIdFilter.value
   draftActionLogUidFilter.value = appliedActionLogUidFilter.value
   actionLogFilterModalOpen.value = true
+}
+
+function openControlCenterStrategyModal() {
+  actionLogFilterModalOpen.value = false
+  controlCenterStrategyModalOpen.value = true
+}
+
+function normalizeControlCenterStrategyId(strategyId) {
+  return typeof strategyId === 'string' ? strategyId.trim() : ''
+}
+
+function isSupportedControlCenterStrategy(strategyId = selectedControlStrategyId.value) {
+  return SUPPORTED_CONTROL_STRATEGY_IDS.has(normalizeControlCenterStrategyId(strategyId))
+}
+
+function getControlCenterStrategyOption(strategyId) {
+  return CONTROL_CENTER_STRATEGY_OPTIONS.find((strategy) => strategy.id === strategyId) || null
+}
+
+function getControlCenterStrategyIconClass(strategyId) {
+  switch (normalizeControlCenterStrategyId(strategyId)) {
+    case 'random_pure':
+      return 'fas fa-dice'
+    case 'random_fast_action':
+      return 'fas fa-bolt'
+    case 'metric_single_step_best':
+      return 'fas fa-chart-line'
+    case 'ai_llm_reasoning':
+      return 'fas fa-brain'
+    default:
+      return 'fas fa-star'
+  }
+}
+
+function clearRecommendedAction() {
+  recommendedActionId.value = null
+  recommendedActionStrategyId.value = ''
+}
+
+function findActionGroupKeyByActionId(actionId) {
+  const normalizedActionId = normalizeAvailableActionId(actionId)
+  if (normalizedActionId === null) {
+    return null
+  }
+
+  const matchedGroup = groupedActionCards.value.find((group) => (
+    Array.isArray(group.options) && group.options.some((option) => option.id === normalizedActionId)
+  ))
+  return matchedGroup?.groupKey || null
+}
+
+function setRecommendedAction(actionId, strategyId) {
+  const normalizedActionId = normalizeAvailableActionId(actionId)
+  if (normalizedActionId === null) {
+    clearRecommendedAction()
+    return
+  }
+
+  recommendedActionId.value = normalizedActionId
+  recommendedActionStrategyId.value = normalizeControlCenterStrategyId(strategyId)
+
+  const targetGroupKey = findActionGroupKeyByActionId(normalizedActionId)
+  if (!isActionOverflowMode.value || !targetGroupKey) {
+    return
+  }
+
+  expandedActionGroupKey.value = targetGroupKey
+  nextTick(() => {
+    refreshActionGroupBodyHeights()
+    const actionContent = actionContentRef.value
+    if (actionContent) {
+      actionContent.scrollTop = 0
+    }
+  })
+}
+
+function getUnsupportedControlCenterStrategyMessage() {
+  return `${selectedControlStrategySummaryLabel.value}策略暂未接入后端，当前仅支持完全随机和快速行动优化随机。`
+}
+
+function getControlCenterStrategyRequestErrorMessage(payload, fallbackMessage) {
+  if (typeof payload?.error === 'string' && payload.error.trim()) {
+    return payload.error.trim()
+  }
+
+  if (typeof payload?.message === 'string' && payload.message.trim()) {
+    return payload.message.trim()
+  }
+
+  return fallbackMessage
+}
+
+async function requestControlCenterStrategy(endpoint, strategyId) {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5001'
+
+  try {
+    const response = await fetch(`${apiBaseUrl}${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        strategy_id: strategyId,
+        player_id: currentActionPlayerId.value
+      })
+    })
+    const payload = await response.json()
+
+    return {
+      ok: response.ok && payload?.status === 'success',
+      payload
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      payload: {
+        error: error instanceof Error ? error.message : '请求失败'
+      }
+    }
+  }
+}
+
+function selectControlCenterStrategy(strategyId) {
+  if (!CONTROL_CENTER_STRATEGY_OPTIONS.some((strategy) => strategy.id === strategyId)) {
+    return
+  }
+
+  selectedControlStrategyId.value = strategyId
+  clearRecommendedAction()
+  controlCenterStrategyModalOpen.value = false
+}
+
+async function runControlCenterStrategyPlaceholder() {
+  if (!controlCenterCanRun.value) {
+    return
+  }
+
+  controlCenterStrategyModalOpen.value = false
+  alert(`${selectedControlStrategySummaryLabel.value}策略的后端执行逻辑开发中，当前仅保留入口。`)
+}
+
+async function recommendControlCenterStrategyPlaceholder() {
+  if (!controlCenterCanRun.value) {
+    return
+  }
+
+  controlCenterStrategyModalOpen.value = false
+  alert(`${selectedControlStrategySummaryLabel.value}策略的推荐逻辑开发中，当前仅保留入口。`)
+}
+
+async function runControlCenterStrategy() {
+  if (!controlCenterCanRun.value) {
+    return
+  }
+
+  controlCenterStrategyModalOpen.value = false
+
+  if (!isSupportedControlCenterStrategy()) {
+    alert(getUnsupportedControlCenterStrategyMessage())
+    return
+  }
+
+  const strategyId = normalizeControlCenterStrategyId(selectedControlStrategyId.value)
+  const previousVersion = stateVersion.value
+  controlCenterPendingMode.value = 'execute'
+
+  try {
+    const { ok, payload } = await requestControlCenterStrategy('/api/game/strategy/execute', strategyId)
+    if (!ok) {
+      alert(getControlCenterStrategyRequestErrorMessage(payload, '策略执行失败。'))
+      return
+    }
+
+    clearRecommendedAction()
+    await syncStateAfterActionSubmission(previousVersion)
+  } finally {
+    controlCenterPendingMode.value = ''
+  }
+}
+
+async function recommendControlCenterStrategy() {
+  if (!controlCenterCanRun.value) {
+    return
+  }
+
+  controlCenterStrategyModalOpen.value = false
+
+  if (!isSupportedControlCenterStrategy()) {
+    alert(getUnsupportedControlCenterStrategyMessage())
+    return
+  }
+
+  const strategyId = normalizeControlCenterStrategyId(selectedControlStrategyId.value)
+  controlCenterPendingMode.value = 'recommend'
+
+  try {
+    const { ok, payload } = await requestControlCenterStrategy('/api/game/strategy/recommend', strategyId)
+    if (!ok) {
+      clearRecommendedAction()
+      alert(getControlCenterStrategyRequestErrorMessage(payload, '策略推荐失败。'))
+      return
+    }
+
+    setRecommendedAction(payload.action_id, payload.selection_strategy || strategyId)
+  } finally {
+    controlCenterPendingMode.value = ''
+  }
 }
 
 function toggleDraftActionLogPlayer(playerId) {
@@ -2023,6 +3317,16 @@ function buildActionLogEntryTitle(log) {
 
   if (log.kind === 'action' || log.kind === 'system') {
     titleLines.push(log.actionType)
+  }
+
+  if (log.selectionSource === 'system') {
+    titleLines.push('系统执行')
+  } else if (log.selectionSource === 'manual') {
+    titleLines.push('玩家选择')
+  }
+
+  if (log.selectionStrategy) {
+    titleLines.push(`选择策略 ${log.selectionStrategy}`)
   }
 
   if (log.description && titleLines[titleLines.length - 1] !== log.description) {
@@ -2368,14 +3672,15 @@ function applyPlayerFieldChange(player, remainingKeys, value, changeType = '') {
   updateNestedObject(player, remainingKeys, value)
 }
 
-// 监听可选行动变化，自动滚动到底部
+// 监听可选行动变化，重新计算展开/折叠布局
 watch(actions, () => {
   nextTick(() => {
-    const actionContent = document.getElementById('action-content')
+    const actionContent = actionContentRef.value
     if (actionContent) {
-      actionContent.scrollTop = actionContent.scrollHeight
+      actionContent.scrollTop = 0
     }
   })
+  scheduleActionOverflowMeasurement({ resetExpanded: true })
 }, { deep: true })
 
 // 监听行动记录变化，保持最新记录显示在最上方
@@ -2505,15 +3810,24 @@ async function syncStateAfterActionSubmission(previousVersion) {
   return stateVersion.value > previousVersion
 }
 
-async function submitActionAndSync(actionId) {
+async function submitActionAndSync(actionId, options = {}) {
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5001'
   const previousVersion = stateVersion.value
+  const normalizedSelectionSource = options.selectionSource === 'system' ? 'system' : 'manual'
+  const normalizedSelectionStrategy = typeof options.selectionStrategy === 'string' && options.selectionStrategy.trim()
+    ? options.selectionStrategy.trim()
+    : null
 
   try {
-    const response = await fetch(`${apiBaseUrl}/input`, {
+    const response = await fetch(`${apiBaseUrl}/api/game/action`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action_id: actionId })
+      body: JSON.stringify({
+        action_id: actionId,
+        player_id: currentActionPlayerId.value,
+        selection_source: normalizedSelectionSource,
+        selection_strategy: normalizedSelectionStrategy
+      })
     })
     const data = await response.json()
 
@@ -2543,7 +3857,9 @@ async function selectAction(action) {
   pendingActionId.value = actionId
 
   try {
-    await submitActionAndSync(actionId)
+    await submitActionAndSync(actionId, {
+      selectionSource: 'manual'
+    })
   } finally {
     pendingActionId.value = null
   }
@@ -3469,12 +4785,7 @@ function applySingleChange(path, value, changeType) {
 
   // 处理 available_actions - 直接替换整个列表
   if (rootKey === 'available_actions') {
-    if (Array.isArray(value)) {
-      actions.value = value.map((action, idx) => ({
-        id: action.action_id || idx,
-        text: action.description || ''
-      }))
-    }
+    setAvailableActions(value)
     return
   }
 
@@ -3599,6 +4910,10 @@ onMounted(async () => {
   generateHexMap()
   // 先获取全量状态
   await fetchFullState()
+  await nextTick()
+  setupPlayerCardResizeObserver()
+  setupActionContentResizeObserver()
+  scheduleActionOverflowMeasurement({ resetExpanded: true })
   // 建立 SSE 连接
   connectSSE()
 })
@@ -3610,6 +4925,17 @@ onUnmounted(() => {
   clearTimeout(reconnectTimeout)
   clearEntityPreviewTimer()
   clearEntityPreviewHideTimer()
+  cancelActionOverflowMeasurement()
+  if (actionContentResizeObserver) {
+    actionContentResizeObserver.disconnect()
+    actionContentResizeObserver = null
+  }
+  if (playerCardResizeObserver) {
+    playerCardResizeObserver.disconnect()
+    playerCardResizeObserver = null
+  }
+  cancelPlayerCardSizeUpdates()
+  playerCardRefs.clear()
   if (eventSource) {
     eventSource.close()
     eventSource = null
@@ -3709,7 +5035,9 @@ onUnmounted(() => {
   background-color: var(--bg-tertiary);
   border-radius: var(--border-radius);
   border: 1px solid var(--border);
-  overflow: hidden;
+  position: relative;
+  overflow: visible;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   height: auto;
@@ -3718,9 +5046,152 @@ onUnmounted(() => {
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
+.player-card-ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: visible;
+  shape-rendering: auto;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
 .player-card:hover {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.3);
+}
+
+.player-card-ring-flow-aura,
+.player-card-ring-flow-soft,
+.player-card-ring-flow-mid,
+.player-card-ring-flow-core,
+.player-card-ring-flow-bright {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: stroke-dashoffset;
+}
+
+.player-card-ring-flow-aura {
+  stroke: rgba(0, 123, 255, 0.26);
+  stroke-width: 4;
+  stroke-dasharray: 40 60;
+  stroke-dashoffset: 0;
+  animation-name: player-card-ring-travel-aura;
+  animation-duration: 12s;
+  opacity: 0.26;
+  filter:
+    drop-shadow(0 0 3px rgba(77, 166, 255, 0.28))
+    drop-shadow(0 0 6px rgba(0, 123, 255, 0.12));
+}
+
+.player-card-ring-flow-soft {
+  stroke: rgba(0, 123, 255, 0.42);
+  stroke-width: 3.5;
+  stroke-dasharray: 33 67;
+  stroke-dashoffset: -3.5;
+  animation-name: player-card-ring-travel-soft;
+  animation-duration: 12s;
+  opacity: 0.46;
+}
+
+.player-card-ring-flow-mid {
+  stroke: rgba(77, 166, 255, 0.74);
+  stroke-width: 3.2;
+  stroke-dasharray: 26 74;
+  stroke-dashoffset: -7;
+  animation-name: player-card-ring-travel-mid;
+  animation-duration: 12s;
+  opacity: 0.7;
+}
+
+.player-card-ring-flow-core {
+  stroke: rgba(120, 197, 255, 0.92);
+  stroke-width: 3;
+  stroke-dasharray: 19 81;
+  stroke-dashoffset: -10.5;
+  animation-name: player-card-ring-travel-core;
+  animation-duration: 12s;
+  opacity: 0.88;
+}
+
+.player-card-ring-flow-bright {
+  stroke: rgba(215, 239, 255, 0.98);
+  stroke-width: 2.6;
+  stroke-dasharray: 12 88;
+  stroke-dashoffset: -14;
+  animation-name: player-card-ring-travel-bright;
+  animation-duration: 12s;
+  opacity: 0.98;
+}
+
+.player-card.is-current-action-player {
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+.player-card.is-transitioning .player-card-ring {
+  contain: paint;
+}
+
+.player-card.is-transitioning .player-card-ring-flow-aura {
+  filter: none;
+  opacity: 0.18;
+}
+
+@keyframes player-card-ring-travel-aura {
+  from {
+    stroke-dashoffset: 0;
+  }
+
+  to {
+    stroke-dashoffset: -100;
+  }
+}
+
+@keyframes player-card-ring-travel-soft {
+  from {
+    stroke-dashoffset: -3.5;
+  }
+
+  to {
+    stroke-dashoffset: -103.5;
+  }
+}
+
+@keyframes player-card-ring-travel-mid {
+  from {
+    stroke-dashoffset: -7;
+  }
+
+  to {
+    stroke-dashoffset: -107;
+  }
+}
+
+@keyframes player-card-ring-travel-core {
+  from {
+    stroke-dashoffset: -10.5;
+  }
+
+  to {
+    stroke-dashoffset: -110.5;
+  }
+}
+
+@keyframes player-card-ring-travel-bright {
+  from {
+    stroke-dashoffset: -14;
+  }
+
+  to {
+    stroke-dashoffset: -114;
+  }
 }
 
 .player-card.collapsed {
@@ -3735,6 +5206,8 @@ onUnmounted(() => {
 .player-header {
   padding: 6px 12px;
   background-color: transparent;
+  position: relative;
+  z-index: 1;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -4013,8 +5486,11 @@ onUnmounted(() => {
   flex: 0 0 auto;
   overflow: hidden;
   max-height: 172px;
+  position: relative;
+  z-index: 1;
   transition: max-height 0.28s ease, opacity 0.22s ease;
   opacity: 1;
+  will-change: max-height, opacity;
 }
 
 .player-stats {
@@ -5102,6 +6578,7 @@ onUnmounted(() => {
 .action-section {
   flex: 1;
   min-height: 0;
+  position: relative;
 }
 
 .control-center-section,
@@ -5130,40 +6607,222 @@ onUnmounted(() => {
 }
 
 .control-center-section {
-  min-height: 182px;
+  min-height: 90px;
 }
 
 .control-center-header {
-  padding: 14px calc(var(--panel-padding) + 2px) 12px;
+  padding: 14px calc(var(--panel-padding) + 2px) 6px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-}
-
-.control-center-subtitle {
-  font-size: 0.73rem;
-  line-height: 1.4;
-  color: rgba(198, 211, 224, 0.72);
+  gap: 2px;
 }
 
 .control-center-content {
-  padding: 0 14px 14px;
+  padding: 6px 14px 12px;
   flex: 1;
 }
 
-.control-center-placeholder {
-  min-height: 110px;
-  padding: 22px 16px;
-  border-radius: 12px;
-  border: 1px dashed rgba(120, 160, 200, 0.18);
-  background-color: var(--bg-tertiary);
-  color: rgba(198, 211, 224, 0.68);
+.control-center-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 62px 62px;
+  gap: 6px;
+}
+
+.control-center-button {
+  appearance: none;
+  width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  box-sizing: border-box;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.control-center-button:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: rgba(0, 123, 255, 0.1);
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.18);
+}
+
+.control-center-button:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+}
+
+.control-center-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.control-center-button-main {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.control-center-button-label {
+  color: rgba(198, 211, 224, 0.66);
+  font-size: 0.7rem;
+  flex-shrink: 0;
+}
+
+.control-center-button-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #f5f8fb;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.control-center-button-arrow {
+  flex-shrink: 0;
+  color: rgba(198, 211, 224, 0.62);
+  font-size: 0.66rem;
+}
+
+.control-center-strategy-button.is-open {
+  border-color: var(--accent);
+  background: rgba(0, 123, 255, 0.12);
+}
+
+.control-center-strategy-button.is-open .control-center-button-arrow {
+  color: rgba(236, 242, 248, 0.86);
+}
+
+.control-center-execute-button {
+  justify-content: center;
+}
+
+.control-center-recommend-button {
+  justify-content: center;
+}
+
+.control-center-strategy-modal {
+  padding: 18px 20px 20px;
+}
+
+.control-center-strategy-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.control-center-strategy-group {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.control-center-strategy-group + .control-center-strategy-group {
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.control-center-strategy-group-header {
   display: flex;
   align-items: center;
-  justify-content: center;
-  text-align: center;
-  font-size: 0.82rem;
-  line-height: 1.6;
+  gap: 10px;
+}
+
+.control-center-strategy-group-title {
+  flex-shrink: 0;
+  color: rgba(198, 211, 224, 0.72);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.control-center-strategy-group-divider {
+  flex: 1 1 auto;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.control-center-strategy-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  gap: 8px;
+}
+
+.control-center-strategy-option {
+  appearance: none;
+  width: 100%;
+  min-height: 50px;
+  padding: 9px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+}
+
+.control-center-strategy-option-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.control-center-strategy-option-label {
+  min-width: 0;
+  color: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: left;
+}
+
+.control-center-strategy-option-description {
+  min-width: 0;
+  color: rgba(198, 211, 224, 0.68);
+  font-size: 0.68rem;
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: left;
+}
+
+.control-center-strategy-option:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.control-center-strategy-option.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.control-center-strategy-option.is-active .control-center-strategy-option-description {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.control-center-strategy-option:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.18);
 }
 
 .action-section {
@@ -5236,6 +6895,12 @@ onUnmounted(() => {
   margin-left: 0;
 }
 
+.action-header-meta.has-recommendation {
+  --action-toolbar-pill-count: 4;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) var(--action-toolbar-pill-height);
+  width: min(100%, calc(var(--action-toolbar-pill-width) * 3 + var(--action-toolbar-pill-height) + var(--action-toolbar-pill-gap) * 3));
+}
+
 .action-log-toolbar {
   --action-toolbar-pill-count: 2;
   width: min(100%, calc(var(--action-log-count-width) + var(--action-toolbar-pill-width) + var(--action-toolbar-pill-gap)));
@@ -5247,6 +6912,7 @@ onUnmounted(() => {
 .action-owner-chip,
 .action-mode-chip,
 .action-count,
+.action-recommend-chip,
 .action-filter-btn {
   display: inline-flex;
   align-items: center;
@@ -5272,13 +6938,14 @@ onUnmounted(() => {
 
 .action-owner-chip,
 .action-mode-chip,
-.action-count {
+.action-count,
+.action-recommend-chip {
   flex-shrink: 0;
 }
 
 .action-owner-dot {
-  width: 8px;
-  height: 8px;
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
   flex-shrink: 0;
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.08);
@@ -5289,6 +6956,19 @@ onUnmounted(() => {
   letter-spacing: 0.02em;
 }
 
+.action-recommend-chip {
+  width: var(--action-toolbar-pill-height);
+  min-width: var(--action-toolbar-pill-height);
+  padding: 0;
+  border-color: rgba(245, 158, 11, 0.34);
+  background: rgba(245, 158, 11, 0.14);
+  color: rgba(255, 240, 204, 0.96);
+}
+
+.action-recommend-chip i {
+  font-size: 0.76rem;
+}
+
 .action-content {
   flex: 1;
   min-height: 0;
@@ -5297,7 +6977,35 @@ onUnmounted(() => {
   background: transparent;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+  box-sizing: border-box;
+}
+
+.action-content--measure {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: -1;
+  height: auto;
+  max-height: none;
+  visibility: hidden;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.action-content--measure .action-option-button {
+  pointer-events: none;
+}
+
+.action-content--measure .action-group-body {
+  max-height: none;
+  opacity: 1;
+  overflow: visible;
+}
+
+.action-content--measure .action-group-body-inner {
+  opacity: 1;
+  transform: none;
 }
 
 .action-content::-webkit-scrollbar {
@@ -5313,98 +7021,301 @@ onUnmounted(() => {
   border-radius: 3px;
 }
 
-.action-item {
-  --action-accent-color: rgba(92, 190, 240, 0.85);
+.action-group-card {
+  position: relative;
+  overflow: hidden;
+  padding: 10px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--border-radius);
+  background-color: #1f1f1f;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.015);
+  transition: border-color 0.22s ease, box-shadow 0.22s ease, background-color 0.22s ease;
+  box-sizing: border-box;
+}
+
+.action-group-card:hover:not(.is-disabled):not(.is-submitting) {
+  border-color: var(--accent);
+  background-color: #222222;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.3);
+}
+
+.action-group-card.is-disabled {
+  opacity: 0.56;
+}
+
+.action-group-card.is-submitting {
+  border-color: rgba(92, 190, 240, 0.72);
+  box-shadow: 0 0 0 2px rgba(92, 190, 240, 0.18);
+}
+
+.action-group-card.has-recommended-option {
+  border-color: rgba(245, 158, 11, 0.24);
+}
+
+.action-option-button:focus-visible {
+  outline: none;
+  border-color: var(--border);
+  background-color: #343434;
+  box-shadow: none;
+}
+
+.action-filter-btn:focus-visible,
+.action-filter-option:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.3);
+}
+
+.action-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  transition: color 0.18s ease;
+  border-radius: 8px;
+}
+
+.action-group-header.is-collapsible {
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.18s ease;
+}
+
+.action-group-header.is-collapsible:hover {
+  background-color: transparent;
+}
+
+.action-group-header.is-collapsible:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.3);
+}
+
+.action-group-title {
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.12;
+}
+
+.action-group-header.is-collapsible:hover .action-group-title,
+.action-group-header.is-expanded .action-group-title {
+  color: rgba(236, 242, 248, 0.98);
+}
+
+.action-group-header-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+}
+
+.action-group-count-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(92, 190, 240, 0.08);
+  background: rgba(92, 190, 240, 0.1);
+  color: rgba(214, 233, 248, 0.92);
+  font-family: 'Consolas', monospace;
+  font-size: 0.65rem;
+  font-weight: 700;
+  box-sizing: border-box;
+}
+
+.action-group-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  color: rgba(198, 211, 224, 0.62);
+  font-size: 0.58rem;
+  line-height: 1;
+  transition: transform 0.18s ease, color 0.18s ease;
+}
+
+.action-group-toggle.is-expanded {
+  transform: rotate(90deg);
+  color: rgba(229, 235, 242, 0.88);
+}
+
+.action-group-body {
+  max-height: var(--action-group-body-height, 999px);
+  opacity: 1;
+  margin-top: 7px;
+  overflow: hidden;
+  will-change: max-height, opacity;
+  transition: max-height 0.24s ease, opacity 0.18s ease, margin-top 0.24s ease;
+}
+
+.action-group-body.is-collapsed {
+  max-height: 0;
+  opacity: 0;
+  margin-top: 0;
+  pointer-events: none;
+}
+
+.action-group-body-inner {
+  min-height: 0;
+  overflow: hidden;
+  padding-top: 9px;
+  padding-bottom: 2px;
+  border-top: 1px solid rgba(255, 255, 255, 0.045);
+  opacity: 1;
+  transform: translateY(0);
+  transition: transform 0.24s ease, opacity 0.18s ease;
+}
+
+.action-group-body.is-collapsed .action-group-body-inner {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+.action-group-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: flex-start;
+}
+
+.action-group-options.is-coord_grid {
+  gap: 6px;
+}
+
+.action-group-options.is-number_grid {
+  gap: 5px;
+}
+
+.action-group-options.is-single_button,
+.action-group-options.has-verbose-detail,
+.action-group-options.is-fixed-grid {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.action-option-button {
+  --action-option-accent-color: rgba(92, 190, 240, 0.85);
   appearance: none;
-  width: 100%;
-  padding: 12px 13px 12px 16px;
+  min-height: 34px;
+  padding: 7px 9px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 10px;
   background-color: var(--bg-tertiary);
   color: var(--text-primary);
   text-align: left;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+  transition: border-color 0.18s ease, background-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
   box-sizing: border-box;
   font: inherit;
-  position: relative;
-  overflow: hidden;
+  min-width: 46px;
+  width: auto;
+  max-width: 100%;
+  flex: 0 0 auto;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.012);
 }
 
-.action-item::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  width: 3px;
-  background: var(--action-accent-color);
+.action-group-options.has-detail .action-option-button {
+  flex: 0 0 auto;
 }
 
-.action-item:hover:not(:disabled) {
-  border-color: var(--accent);
-  transform: translateY(-1px);
-  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+.action-group-options.is-fixed-grid .action-option-button {
+  width: auto;
 }
 
-.action-item:focus-visible,
-.action-filter-btn:focus-visible,
-.action-filter-option:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(92, 190, 240, 0.35);
+.action-group-options.is-coord_grid .action-option-button {
+  min-width: 40px;
+  justify-content: center;
 }
 
-.action-item:disabled {
+.action-group-options.is-number_grid .action-option-button {
+  min-width: 38px;
+  justify-content: center;
+}
+
+.action-option-button.is-compact {
+  text-align: center;
+  min-width: 0;
+  padding: 5px 7px;
+}
+
+.action-option-button:hover:not(:disabled) {
+  border-color: var(--border);
+  background-color: #343434;
+  box-shadow: none;
+}
+
+.action-option-button:disabled {
   cursor: wait;
 }
 
-.action-item.is-disabled {
+.action-option-button.is-disabled {
   opacity: 0.56;
 }
 
-.action-item.is-submitting {
+.action-option-button.is-submitting {
   border-color: rgba(92, 190, 240, 0.72);
-  box-shadow: 0 0 0 2px rgba(92, 190, 240, 0.22);
+  box-shadow: 0 0 0 1px rgba(92, 190, 240, 0.18);
 }
 
-.action-item-top {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.action-option-button.is-recommended {
+  border-color: rgba(245, 158, 11, 0.78);
+  background-color: rgba(245, 158, 11, 0.14);
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.16);
 }
 
-.action-id {
+.action-option-button.is-recommended:hover:not(:disabled) {
+  border-color: rgba(245, 158, 11, 0.88);
+  background-color: rgba(245, 158, 11, 0.18);
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.2);
+}
+
+.action-option-button.is-recommended .action-option-label {
+  color: rgba(255, 247, 230, 0.98);
+}
+
+.action-option-main {
   display: inline-flex;
-  align-items: center;
-  min-height: 22px;
-  padding: 0 8px;
-  border-radius: 999px;
-  background: rgba(92, 190, 240, 0.12);
-  color: #cde8fb;
-  font-family: 'Consolas', monospace;
+  align-items: baseline;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.action-option-label {
+  color: var(--text-primary);
   font-size: 0.72rem;
   font-weight: 700;
+  line-height: 1.08;
 }
 
-.action-item-text {
-  color: var(--text-primary);
-  font-size: 0.85rem;
-  line-height: 1.45;
-  white-space: pre-wrap;
+.action-option-detail {
+  color: rgba(198, 211, 224, 0.72);
+  font-size: 0.62rem;
+  line-height: 1.2;
+  white-space: normal;
   word-break: break-word;
 }
 
-.action-item[data-color='red'] { --action-accent-color: #cc2828; }
-.action-item[data-color='green'] { --action-accent-color: #37af37; }
-.action-item[data-color='blue'] { --action-accent-color: #35a0d5; }
-.action-item[data-color='yellow'] { --action-accent-color: #e8e83d; }
-.action-item[data-color='grey'] { --action-accent-color: #a1a1a1; }
-.action-item[data-color='brown'] { --action-accent-color: #85491d; }
-.action-item[data-color='black'] { --action-accent-color: #595959; }
-.action-item[data-color='white'] { --action-accent-color: #ffffff; }
+.action-option-button[data-color='red'] { --action-option-accent-color: #cc2828; }
+.action-option-button[data-color='green'] { --action-option-accent-color: #37af37; }
+.action-option-button[data-color='blue'] { --action-option-accent-color: #35a0d5; }
+.action-option-button[data-color='yellow'] { --action-option-accent-color: #e8e83d; }
+.action-option-button[data-color='grey'] { --action-option-accent-color: #a1a1a1; }
+.action-option-button[data-color='brown'] { --action-option-accent-color: #85491d; }
+.action-option-button[data-color='black'] { --action-option-accent-color: #595959; }
+.action-option-button[data-color='white'] { --action-option-accent-color: #ffffff; }
 
 .action-log-section {
   width: 19%;
@@ -5948,6 +7859,11 @@ onUnmounted(() => {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .action-header-meta.has-recommendation {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) var(--action-toolbar-pill-height);
+    width: min(100%, calc(var(--action-toolbar-pill-width) * 2 + var(--action-toolbar-pill-height) + var(--action-toolbar-pill-gap) * 2));
+  }
+
   .action-header-meta,
   .action-log-toolbar {
     margin-left: 0;
@@ -5956,6 +7872,10 @@ onUnmounted(() => {
   .action-log-header {
     align-items: flex-start;
     flex-wrap: wrap;
+  }
+
+  .control-center-toolbar {
+    grid-template-columns: minmax(0, 1fr) 60px 60px;
   }
 }
 

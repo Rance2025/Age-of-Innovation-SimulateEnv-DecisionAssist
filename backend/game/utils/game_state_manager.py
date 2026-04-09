@@ -81,6 +81,7 @@ class GameStateManager:
         self._structured_action_history: List[ActionHistoryEntry] = []
         self._last_raw_action_count: int = 0
         self._last_action_log_stage_key: Optional[str] = None
+        self._pending_action_selection_metadata: Dict[int, Dict[str, str]] = {}
 
     def set_message_callback(self, callback: Callable[[Dict], None]):
         """设置消息推送回调函数"""
@@ -236,6 +237,25 @@ class GameStateManager:
         self._structured_action_history = []
         self._last_raw_action_count = 0
         self._last_action_log_stage_key = None
+        self._pending_action_selection_metadata = {}
+
+    def record_action_selection_metadata(
+        self,
+        raw_action_index: int,
+        selection_source: str = 'manual',
+        selection_strategy: Optional[str] = None
+    ):
+        """登记下一条底层行动记录对应的选择来源元数据。"""
+        if not isinstance(raw_action_index, int) or raw_action_index <= 0:
+            return
+
+        normalized_source = 'system' if selection_source == 'system' else 'manual'
+        normalized_strategy = selection_strategy.strip() if isinstance(selection_strategy, str) else ''
+
+        self._pending_action_selection_metadata[raw_action_index] = {
+            'selection_source': normalized_source,
+            'selection_strategy': normalized_strategy
+        }
 
     def _append_action_history_divider(self, stage_key: str):
         """在结构化行动历史中追加阶段分割线。"""
@@ -263,7 +283,8 @@ class GameStateManager:
         self,
         record: Any,
         detailed_actions: Dict[Any, Any],
-        stage_key: str
+        stage_key: str,
+        raw_action_index: int
     ) -> Optional[ActionHistoryEntry]:
         """将底层 action_history 记录转换为前端可直接消费的结构化记录。"""
         if not isinstance(record, (list, tuple)) or len(record) < 3:
@@ -272,6 +293,7 @@ class GameStateManager:
         player_id, action_type, action_id = record[:3]
         action_detail = detailed_actions.get(action_id, {}) if isinstance(detailed_actions, dict) else {}
         description = action_detail.get('description', f'action {action_id}')
+        selection_metadata = self._pending_action_selection_metadata.pop(raw_action_index, None) or {}
 
         return ActionHistoryEntry(
             kind='action',
@@ -279,7 +301,9 @@ class GameStateManager:
             player_id=player_id,
             action_type=action_type,
             action_id=action_id,
-            description=description
+            description=description,
+            selection_source=selection_metadata.get('selection_source', 'manual'),
+            selection_strategy=selection_metadata.get('selection_strategy', '')
         )
     
     def _extract_setup(self, gs: 'GameStateBase') -> GameSetup:
@@ -449,11 +473,12 @@ class GameStateManager:
 
         previous_stage_key = self._last_action_log_stage_key or current_stage_key
         new_records = raw_history[self._last_raw_action_count:]
-        for record in new_records:
+        for offset, record in enumerate(new_records, start=1):
             action_entry = self._build_action_history_action_entry(
                 record,
                 detailed_actions,
-                previous_stage_key
+                previous_stage_key,
+                self._last_raw_action_count + offset
             )
             if action_entry is not None:
                 self._structured_action_history.append(action_entry)

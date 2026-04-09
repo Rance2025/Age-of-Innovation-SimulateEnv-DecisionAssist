@@ -7,9 +7,10 @@
 
 import threading
 import queue
-from typing import Optional, Dict, Any, Callable
+from typing import Optional, Dict, Any, Callable, Tuple
 
 from .aoi_game import GameEngine, ActionRequest
+from .agents import create_action_agent
 from .utils import GameStateManager
 
 
@@ -77,13 +78,87 @@ class GameController:
             return True
         return False
 
-    def submit_action(self, action_id: int, player_id: Optional[int] = None) -> bool:
+    def _validate_current_request_for_strategy(self, player_id: Optional[int] = None) -> ActionRequest:
+        """校验当前是否存在可供策略计算的行动请求。"""
+        if not self.is_running or self.current_request is None:
+            raise ValueError("No active action request.")
+
+        if self.current_request.is_game_over:
+            raise ValueError("Game is already over.")
+
+        if player_id is not None and player_id != self.current_request.player_id:
+            raise ValueError("player_id does not match current action player.")
+
+        if not self.current_request.available_actions:
+            raise ValueError("No available actions for current request.")
+
+        return self.current_request
+
+    def recommend_strategy_action(
+        self,
+        strategy_id: str,
+        player_id: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """
+        基于当前 ActionRequest 计算指定策略的推荐行动。
+
+        Returns:
+            包含 action_id / description / player_id / selection_strategy 的推荐结果
+        """
+        request = self._validate_current_request_for_strategy(player_id)
+        agent = create_action_agent(strategy_id)
+        action_id = int(agent.get_action(request))
+
+        if action_id not in request.available_actions:
+            raise ValueError(f"Strategy returned invalid action_id: {action_id}")
+
+        strategy_name = getattr(agent, 'strategy_name', None) or strategy_id
+        return {
+            'action_id': action_id,
+            'description': request.available_actions.get(action_id, ''),
+            'player_id': request.player_id,
+            'selection_strategy': strategy_name
+        }
+
+    def execute_strategy_action(
+        self,
+        strategy_id: str,
+        player_id: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """
+        基于当前 ActionRequest 执行指定策略的单次行动。
+
+        Returns:
+            推荐结果，并保证该行动已提交到输入队列
+        """
+        recommendation = self.recommend_strategy_action(strategy_id, player_id)
+        success = self.submit_action(
+            recommendation['action_id'],
+            recommendation['player_id'],
+            selection_source='system',
+            selection_strategy=recommendation['selection_strategy']
+        )
+
+        if not success:
+            raise RuntimeError("Failed to submit strategy action.")
+
+        return recommendation
+
+    def submit_action(
+        self,
+        action_id: int,
+        player_id: Optional[int] = None,
+        selection_source: str = 'manual',
+        selection_strategy: Optional[str] = None
+    ) -> bool:
         """
         提交行动ID（供前端调用）
 
         Args:
             action_id: 选择的行动ID
             player_id: 玩家ID（可选，用于验证）
+            selection_source: 选择来源（manual / system）
+            selection_strategy: 选择策略标识
 
         Returns:
             是否成功提交
@@ -99,13 +174,20 @@ class GameController:
         if action_id not in self.current_request.available_actions:
             return False
 
+        normalized_source = 'system' if selection_source == 'system' else 'manual'
+        normalized_strategy = selection_strategy.strip() if isinstance(selection_strategy, str) else None
+
         # 将行动ID放入输入队列
-        self._input_queue.put(action_id)
+        self._input_queue.put({
+            'action_id': action_id,
+            'selection_source': normalized_source,
+            'selection_strategy': normalized_strategy
+        })
         return True
 
-    def _get_action_id(self, request: ActionRequest) -> int:
+    def _get_action_decision(self, request: ActionRequest) -> Tuple[int, Dict[str, Optional[str]]]:
         """
-        获取行动ID
+        获取行动决策信息
 
         逻辑：
         1. 检查当前玩家是否注册了Agent，如有则调用Agent返回action_id
@@ -115,7 +197,7 @@ class GameController:
             request: 当前行动请求
 
         Returns:
-            行动ID
+            (行动ID, 选择元数据)
         """
         player_id = request.player_id
 
@@ -123,12 +205,42 @@ class GameController:
         if player_id in self._agents:
             agent = self._agents[player_id]
             action_id = agent.get_action(request)
-            return action_id
+            strategy_name = getattr(agent, 'strategy_name', None) or getattr(agent, 'name', None) or agent.__class__.__name__
+            return action_id, {
+                'selection_source': 'system',
+                'selection_strategy': strategy_name
+            }
 
         # 2. 等待前端输入（无限等待）
         self._push_available_actions(request)
-        action_id = self._input_queue.get()
-        return action_id
+        payload = self._input_queue.get()
+
+        if isinstance(payload, dict):
+            action_id = int(payload.get('action_id'))
+            selection_source = 'system' if payload.get('selection_source') == 'system' else 'manual'
+            selection_strategy = payload.get('selection_strategy')
+            normalized_strategy = selection_strategy.strip() if isinstance(selection_strategy, str) else None
+            return action_id, {
+                'selection_source': selection_source,
+                'selection_strategy': normalized_strategy
+            }
+
+        return int(payload), {
+            'selection_source': 'manual',
+            'selection_strategy': None
+        }
+
+    def _record_action_selection_metadata(self, request: ActionRequest, metadata: Dict[str, Optional[str]]):
+        """在后端登记下一条行动历史对应的选择来源元数据。"""
+        game_state = getattr(request, 'game_state', None)
+        raw_history = list(getattr(game_state, 'action_history', []) or [])
+        next_raw_action_index = len(raw_history) + 1
+
+        self.state_manager.record_action_selection_metadata(
+            raw_action_index=next_raw_action_index,
+            selection_source=metadata.get('selection_source', 'manual') or 'manual',
+            selection_strategy=metadata.get('selection_strategy')
+        )
 
     def _push_available_actions(self, request: ActionRequest):
         """推送可选行动到前端（通过回调函数）"""
@@ -172,7 +284,8 @@ class GameController:
             # 游戏主循环
             while not request.is_game_over:
                 # 获取行动ID（从Agent或前端）
-                action_id = self._get_action_id(request)
+                action_id, selection_metadata = self._get_action_decision(request)
+                self._record_action_selection_metadata(request, selection_metadata)
 
                 # 发送行动ID给游戏引擎
                 request = game.send(action_id)

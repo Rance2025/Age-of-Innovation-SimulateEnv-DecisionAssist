@@ -220,6 +220,8 @@ class ActionHistoryEntry:
     action_type: str = ""               # 行动类型（normal / immediate）
     action_id: Optional[int] = None     # 行动ID；阶段分割线为空
     description: str = ""               # 行动描述文本
+    selection_source: str = "manual"    # 选择来源（manual / system）
+    selection_strategy: str = ""        # 选择策略标识
 
 
 @dataclass
