@@ -545,18 +545,21 @@
               <button
                 type="button"
                 class="control-center-button control-center-recommend-button"
+                :class="{ 'is-recommended': hasRecommendedAction }"
                 :disabled="!controlCenterCanRun || controlCenterPendingMode !== ''"
                 @click="recommendControlCenterStrategy"
               >
-                推荐
+                <i :class="recommendedActionIconClass" aria-hidden="true"></i>
+                <span>推荐</span>
               </button>
               <button
                 type="button"
                 class="control-center-button control-center-execute-button"
+                :class="{ 'has-recommendation': hasRecommendedAction }"
                 :disabled="!controlCenterCanRun || controlCenterPendingMode !== ''"
-                @click="runControlCenterStrategy"
+                @click="executeControlCenterAction"
               >
-                执行
+                <span>执行</span>
               </button>
             </div>
           </div>
@@ -572,21 +575,13 @@
               </div>
               <div class="action-subtitle">{{ actionSubtitle }}</div>
             </div>
-            <div class="action-header-meta" :class="{ 'has-recommendation': hasRecommendedAction }">
+            <div class="action-header-meta">
               <div class="action-owner-chip">
                 <span class="action-owner-dot" :style="{ backgroundColor: currentActionPlayerColor }"></span>
                 <span>{{ currentActionOwnerLabel }}</span>
               </div>
               <div class="action-mode-chip">{{ currentActionModeLabel }}</div>
               <div class="action-count">共<span id="action-count">{{ actionCount }}</span>项</div>
-              <div
-                v-if="hasRecommendedAction"
-                class="action-recommend-chip"
-                :title="recommendedActionChipTitle"
-                :aria-label="recommendedActionChipTitle"
-              >
-                <i :class="recommendedActionIconClass" aria-hidden="true"></i>
-              </div>
             </div>
           </div>
           <div
@@ -3252,6 +3247,60 @@ async function recommendControlCenterStrategy() {
     }
 
     setRecommendedAction(payload.action_id, payload.selection_strategy || strategyId)
+  } finally {
+    controlCenterPendingMode.value = ''
+  }
+}
+
+async function executeControlCenterAction() {
+  if (!controlCenterCanRun.value) {
+    return
+  }
+
+  controlCenterStrategyModalOpen.value = false
+
+  // 如果处于推荐态，直接执行推荐的选项
+  if (hasRecommendedAction.value) {
+    const normalizedActionId = normalizeAvailableActionId(recommendedActionId.value)
+    if (normalizedActionId !== null) {
+      const previousVersion = stateVersion.value
+      controlCenterPendingMode.value = 'execute'
+
+      try {
+        const result = await submitActionAndSync(normalizedActionId, {
+          selectionSource: 'system',
+          selectionStrategy: recommendedActionStrategyId.value || selectedControlStrategyId.value
+        })
+
+        if (result.submitted) {
+          clearRecommendedAction()
+        }
+      } finally {
+        controlCenterPendingMode.value = ''
+      }
+    }
+    return
+  }
+
+  // 非推荐态：调用策略并执行
+  if (!isSupportedControlCenterStrategy()) {
+    alert(getUnsupportedControlCenterStrategyMessage())
+    return
+  }
+
+  const strategyId = normalizeControlCenterStrategyId(selectedControlStrategyId.value)
+  const previousVersion = stateVersion.value
+  controlCenterPendingMode.value = 'execute'
+
+  try {
+    const { ok, payload } = await requestControlCenterStrategy('/api/game/strategy/execute', strategyId)
+    if (!ok) {
+      alert(getControlCenterStrategyRequestErrorMessage(payload, '策略执行失败。'))
+      return
+    }
+
+    clearRecommendedAction()
+    await syncStateAfterActionSubmission(previousVersion)
   } finally {
     controlCenterPendingMode.value = ''
   }
@@ -6624,8 +6673,8 @@ onUnmounted(() => {
 
 .control-center-toolbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 62px 62px;
-  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
 }
 
 .control-center-button {
@@ -6708,10 +6757,37 @@ onUnmounted(() => {
 
 .control-center-execute-button {
   justify-content: center;
+  padding: 0 14px;
+}
+
+.control-center-execute-button.has-recommendation {
+  border-color: rgba(245, 158, 11, 0.72);
+  color: rgba(255, 250, 240, 0.98);
+}
+
+.control-center-execute-button.has-recommendation:hover:not(:disabled) {
+  border-color: rgba(245, 158, 11, 0.9);
+  background: transparent;
+  box-shadow: none;
 }
 
 .control-center-recommend-button {
   justify-content: center;
+  gap: 6px;
+  padding: 0 14px;
+}
+
+.control-center-recommend-button.is-recommended {
+  border-color: rgba(245, 158, 11, 0.78);
+  background: rgba(245, 158, 11, 0.14);
+  color: rgba(255, 250, 240, 0.98);
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.16);
+}
+
+.control-center-recommend-button.is-recommended:hover:not(:disabled) {
+  border-color: rgba(245, 158, 11, 0.88);
+  background: rgba(245, 158, 11, 0.18);
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.2);
 }
 
 .control-center-strategy-modal {
