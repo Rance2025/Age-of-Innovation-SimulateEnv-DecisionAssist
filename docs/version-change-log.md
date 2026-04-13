@@ -35,6 +35,21 @@
 
 ## 版本记录
 
+## 0.9.5.15
+- 日期：`2026-04-13`
+- 分支：`reliable/timer-rebuild-20260413`
+- 影响范围：
+  - `frontend/src/views/SetupView.vue`
+  - `frontend/src/views/GameView.vue`
+  - `docs/version-change-log.md`
+- 更新内容：
+  - `feat: 同步备份分支中的开局时序，将设置页开始游戏改为先执行 3 秒倒计时，再向后端发起启动并等待游戏状态`
+  - `fix: 同步行动记录筛选中分割线的显示逻辑，分割线仅受阶段筛选控制，不再因玩家、类型或编号筛选被整体隐藏`
+  - `chore: 迁移备份分支中仍需保留的前端行为后，清理 backup/20260413-timer-wip 本地备份分支`
+- 验证方式：
+  - `前端执行 npm run build`
+  - `git branch --list`
+
 ## 0.9.5.14
 - 日期：`2026-04-13`
 - 分支：`reliable/timer-rebuild-20260413`

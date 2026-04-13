@@ -1546,19 +1546,9 @@ const actionLogActiveFilterCount = computed(() => (
 const filteredActionLogs = computed(() => {
   const actionIdFilter = normalizedAppliedActionLogActionIdFilter.value
   const uidFilter = normalizedAppliedActionLogUidFilter.value
-  const hasSpecificActionFilters = (
-    appliedActionLogPlayerFilters.value.length > 0
-    || appliedActionLogTypeFilters.value.length > 0
-    || actionIdFilter.length > 0
-    || uidFilter.length > 0
-  )
 
   return renderedActionLogs.value.filter((entry) => {
     if (entry.kind === 'divider') {
-      if (hasSpecificActionFilters) {
-        return false
-      }
-
       return appliedActionLogStageFilters.value.length === 0
         || appliedActionLogStageFilters.value.includes(entry.stageKey)
     }

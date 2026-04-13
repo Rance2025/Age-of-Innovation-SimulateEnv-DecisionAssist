@@ -1994,8 +1994,13 @@ async function handleSubmit() {
 
   isLoading.value = true
   clearLoadingCountdownTimer()
-  loadingStage.value = 'loading'
+  loadingStage.value = 'countdown'
   loadingCountdown.value = 3
+  loadingText.value = '游戏即将开始'
+  await runStartCountdown(3)
+  await new Promise(resolve => setTimeout(resolve, 360))
+
+  loadingStage.value = 'loading'
   loadingText.value = '正在启动游戏...'
 
   // 组装返回数据
@@ -2010,11 +2015,6 @@ async function handleSubmit() {
     if (!isReady) {
       throw new Error('游戏状态准备超时')
     }
-
-    loadingStage.value = 'countdown'
-    loadingText.value = '游戏即将开始'
-    await runStartCountdown(3)
-    await new Promise(resolve => setTimeout(resolve, 360))
 
     // 保存到 store 并跳转
     gameStore.setSettings(gameSettings)
