@@ -13,7 +13,7 @@ from dataclasses import asdict
 from datetime import datetime
 
 from .frontend_state_types import (
-    GameMeta, GameSetup, PlayerState, Resources, Magics, Buildings, Tracks,
+    GameMeta, TimerState, GameSetup, PlayerState, Resources, Magics, Buildings, Tracks,
     MapState, MapCell, DisplayBoardState, ScienceTrackState,
     AvailableAction, ActionHistoryEntry, FinalScore, FullGameState, StateDiff, ChangeType
 )
@@ -83,9 +83,24 @@ class GameStateManager:
         self._last_action_log_stage_key: Optional[str] = None
         self._pending_action_selection_metadata: Dict[int, Dict[str, str]] = {}
 
+        # 计时器状态
+        self._timer_state = {
+            'action_deadline': 0,
+            'current_player_remaining': 0,
+            'main_time_limit': 0,
+            'byo_yomi_time_limit': 0,
+            'all_players_remaining': []
+        }
+
     def set_message_callback(self, callback: Callable[[Dict], None]):
         """设置消息推送回调函数"""
         self._message_callback = callback
+
+    def update_timer_state(self, **kwargs):
+        """更新计时器状态（由 GameController 调用）"""
+        self._timer_state.update(kwargs)
+        if self._current_state is not None:
+            self._current_state.timer_state = self._extract_timer_state()
 
     # ==================== 核心更新方法 ====================
 
@@ -181,9 +196,10 @@ class GameStateManager:
             display_board=self._extract_display_board(gs.display_board_state) if gs else DisplayBoardState(),
             available_actions=self._extract_available_actions(request.available_actions),
             action_history=self._extract_action_history(gs) if gs else [],
-            final_scores=self._extract_final_scores(request.final_scores) if request.is_game_over else None
+            final_scores=self._extract_final_scores(request.final_scores) if request.is_game_over else None,
+            timer_state=self._extract_timer_state()
         )
-    
+
     def _extract_meta(self, request: 'ActionRequest', gs: Optional['GameStateBase']) -> GameMeta:
         """提取元信息"""
         setup_choice_is_completed = bool(gs and getattr(gs, 'setup_choice_is_completed', False))
@@ -196,6 +212,25 @@ class GameStateManager:
             is_game_over=request.is_game_over,
             setup_choice_is_completed=setup_choice_is_completed,
             setup_build_is_completed=setup_build_is_completed
+        )
+
+    def _extract_timer_state(self) -> TimerState:
+        """提取计时器状态"""
+        all_players_remaining = self._timer_state.get('all_players_remaining', [])
+        if not all_players_remaining:
+            num_players = getattr(self._current_state, 'meta', None)
+            if num_players:
+                num_players = getattr(num_players, 'num_players', 3)
+            else:
+                num_players = 3
+            all_players_remaining = [0] * num_players
+
+        return TimerState(
+            action_deadline=self._timer_state.get('action_deadline', 0),
+            current_player_remaining=self._timer_state.get('current_player_remaining', 0),
+            main_time_limit=self._timer_state.get('main_time_limit', 0),
+            byo_yomi_time_limit=self._timer_state.get('byo_yomi_time_limit', 0),
+            all_players_remaining=all_players_remaining
         )
 
     def _get_action_log_stage_key(self, gs: 'GameStateBase') -> str:
@@ -585,6 +620,13 @@ class GameStateManager:
             old_state.get('final_scores'),
             new_dict.get('final_scores')
         ))
+
+        # 8. 对比 timer_state
+        diffs.extend(self._calculate_object_diff(
+            'timer_state',
+            old_state.get('timer_state'),
+            new_dict.get('timer_state')
+        ))
         
         return diffs
     
@@ -802,11 +844,14 @@ class GameStateManager:
         """
         if not self._current_state:
             return None
-        
+
+        state = asdict(self._current_state)
+        state['timer_state'] = asdict(self._extract_timer_state())
+
         return {
             'version': self._version,
             'timestamp': self._last_update_time,
-            'state': asdict(self._current_state)
+            'state': state
         }
     
     def get_incremental_update(self) -> Optional[Dict]:

@@ -30,6 +30,16 @@ class GameMeta:
 
 
 @dataclass
+class TimerState:
+    """Timer state carried in full and incremental frontend payloads."""
+    action_deadline: int = 0
+    current_player_remaining: int = 0
+    main_time_limit: int = 0
+    byo_yomi_time_limit: int = 0
+    all_players_remaining: List[int] = field(default_factory=list)
+
+
+@dataclass
 class Resources:
     """资源"""
     money: int = 0                      # 金钱
@@ -245,6 +255,7 @@ class FullGameState:
     available_actions: List[AvailableAction] = field(default_factory=list)
     action_history: List[ActionHistoryEntry] = field(default_factory=list)
     final_scores: Optional[Dict[int, FinalScore]] = None
+    timer_state: TimerState = field(default_factory=TimerState)
 
 
 @dataclass

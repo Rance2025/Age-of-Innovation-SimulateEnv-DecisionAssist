@@ -7,11 +7,27 @@
 
 import threading
 import queue
-from typing import Optional, Dict, Any, Callable, Tuple
+import time
+from typing import Optional, Dict, Any, Callable, Tuple, List
 
 from .aoi_game import GameEngine, ActionRequest
 from .agents import create_action_agent
 from .utils import GameStateManager
+
+
+DEFAULT_TIMER_CONFIG = {
+    'main_time': 5 * 60 * 1000,
+    'byo_yomi_time': 20 * 1000,
+    'grace_period': 300,
+    'timeout_strategy': 'random_fast_action'
+}
+
+
+class GameStopped(Exception):
+    """Raised when a running game is explicitly stopped."""
+
+
+STOP_INPUT = {'__stop__': True}
 
 
 class GameController:
@@ -25,11 +41,18 @@ class GameController:
     4. 支持策略Agent接口（包括AI和非AI策略）
     """
 
-    def __init__(self, game_id: str, num_players: int = 3):
+    def __init__(self, game_id: str, num_players: int = 3, timer_config: dict = None):
         self.game_id = game_id
         self.num_players = num_players
         self.is_running = False
         self.current_request: Optional[ActionRequest] = None
+        self._stop_event = threading.Event()
+
+        self._timer_config = timer_config or DEFAULT_TIMER_CONFIG.copy()
+        self._main_time = self._timer_config['main_time']
+        self._byo_yomi_time = self._timer_config['byo_yomi_time']
+        self._grace_period = self._timer_config['grace_period']
+        self._timeout_strategy = self._timer_config.get('timeout_strategy', 'random_fast_action')
 
         # 输入队列 - 用于接收前端的行动选择
         self._input_queue = queue.Queue()
@@ -49,11 +72,23 @@ class GameController:
         # 消息推送回调函数
         self._message_callback: Optional[Callable[[Dict], None]] = None
 
-    def set_message_callback(self, callback: Callable[[Dict], None]):
+        # 计时器状态
+        self._player_remaining_times: List[int] = []
+        self._action_start_time: int = 0
+        self._action_deadline: int = 0
+
+    def set_message_callback(self, callback: Optional[Callable[[Dict], None]]):
         """设置消息推送回调函数"""
         self._message_callback = callback
         # 同时设置给状态管理器
         self.state_manager.set_message_callback(callback)
+
+    def _clear_input_queue(self):
+        while not self._input_queue.empty():
+            try:
+                self._input_queue.get_nowait()
+            except queue.Empty:
+                break
 
     def register_agent(self, player_id: int, agent: Any) -> bool:
         """
@@ -80,6 +115,9 @@ class GameController:
 
     def _validate_current_request_for_strategy(self, player_id: Optional[int] = None) -> ActionRequest:
         """校验当前是否存在可供策略计算的行动请求。"""
+        if self._stop_event.is_set():
+            raise ValueError("Game is stopping.")
+
         if not self.is_running or self.current_request is None:
             raise ValueError("No active action request.")
 
@@ -187,11 +225,7 @@ class GameController:
 
     def _get_action_decision(self, request: ActionRequest) -> Tuple[int, Dict[str, Optional[str]]]:
         """
-        获取行动决策信息
-
-        逻辑：
-        1. 检查当前玩家是否注册了Agent，如有则调用Agent返回action_id
-        2. 如没有Agent，则等待从前端输入（无限等待，不设置超时）
+        获取行动决策信息（带计时器）
 
         Args:
             request: 当前行动请求
@@ -201,7 +235,28 @@ class GameController:
         """
         player_id = request.player_id
 
-        # 1. 检查是否有Agent
+        if not self._player_remaining_times:
+            self._player_remaining_times = [self._main_time] * self.num_players
+
+        self._action_start_time = int(time.time() * 1000)
+        remaining = self._player_remaining_times[player_id]
+        self._action_deadline = (
+            self._action_start_time + remaining
+            if remaining > 0
+            else self._action_start_time + self._byo_yomi_time
+        )
+
+        self._update_timer_in_state_manager(player_id)
+
+        action_id, selection_metadata = self._resolve_action_decision(request, player_id)
+
+        self._update_player_time_after_action(player_id)
+        self._push_timer_update_after_action()
+
+        return action_id, selection_metadata
+
+    def _resolve_action_decision(self, request: ActionRequest, player_id: int) -> Tuple[int, Dict[str, Optional[str]]]:
+        """解析行动决策，不在此处处理计时扣减。"""
         if player_id in self._agents:
             agent = self._agents[player_id]
             action_id = agent.get_action(request)
@@ -211,9 +266,11 @@ class GameController:
                 'selection_strategy': strategy_name
             }
 
-        # 2. 等待前端输入（无限等待）
         self._push_available_actions(request)
-        payload = self._input_queue.get()
+        payload = self._wait_for_action_with_timeout(player_id)
+
+        if isinstance(payload, dict) and payload.get('__stop__') is True:
+            raise GameStopped()
 
         if isinstance(payload, dict):
             action_id = int(payload.get('action_id'))
@@ -229,6 +286,151 @@ class GameController:
             'selection_source': 'manual',
             'selection_strategy': None
         }
+
+    def _wait_for_action_with_timeout(self, player_id: int) -> Any:
+        """等待玩家行动，基本时长耗尽后切到读秒。"""
+        if self._stop_event.is_set():
+            return dict(STOP_INPUT)
+
+        remaining = self._player_remaining_times[player_id]
+
+        if remaining > 0:
+            try:
+                payload = self._input_queue.get(timeout=remaining / 1000.0)
+                if isinstance(payload, dict) and payload.get('__stop__') is True:
+                    return dict(STOP_INPUT)
+                if self._stop_event.is_set():
+                    return dict(STOP_INPUT)
+                return payload
+            except queue.Empty:
+                if self._stop_event.is_set():
+                    return dict(STOP_INPUT)
+                now = int(time.time() * 1000)
+                self._player_remaining_times[player_id] = 0
+                self._action_deadline = now + self._byo_yomi_time
+                self._push_timer_state_update()
+
+        try:
+            payload = self._input_queue.get(timeout=self._byo_yomi_time / 1000.0)
+            if isinstance(payload, dict) and payload.get('__stop__') is True:
+                return dict(STOP_INPUT)
+            if self._stop_event.is_set():
+                return dict(STOP_INPUT)
+            return payload
+        except queue.Empty:
+            if self._stop_event.is_set():
+                return dict(STOP_INPUT)
+            return self._execute_timeout_action(player_id)
+
+    def _execute_timeout_action(self, player_id: int) -> Dict[str, Optional[str]]:
+        """执行读秒超时后的自动行动。"""
+        if self.current_request is None:
+            raise RuntimeError("No current action request for timeout action.")
+
+        try:
+            agent = create_action_agent(self._timeout_strategy)
+            action_id = int(agent.get_action(self.current_request))
+            return {
+                'action_id': action_id,
+                'selection_source': 'system',
+                'selection_strategy': f'timeout_{self._timeout_strategy}'
+            }
+        except Exception:
+            available = list(self.current_request.available_actions.keys())
+            if not available:
+                raise RuntimeError("No available actions for timeout fallback.")
+            return {
+                'action_id': available[0],
+                'selection_source': 'system',
+                'selection_strategy': 'timeout_fallback'
+            }
+
+    def _push_incremental_changes(self, changes: List[Dict[str, Any]]):
+        if not self._message_callback or not changes:
+            return
+
+        try:
+            self._message_callback({
+                'type': 'incremental',
+                'changes': changes
+            })
+        except Exception:
+            pass
+
+    def _push_timer_patch(self, timer_patch: Dict[str, Any], meta_patch: Optional[Dict[str, Any]] = None):
+        changes = [
+            {
+                'path': f'timer_state.{field}',
+                'new_value': value,
+                'change_type': 'modified'
+            }
+            for field, value in timer_patch.items()
+        ]
+
+        if meta_patch:
+            changes.extend([
+                {
+                    'path': f'meta.{field}',
+                    'new_value': value,
+                    'change_type': 'modified'
+                }
+                for field, value in meta_patch.items()
+            ])
+
+        self._push_incremental_changes(changes)
+
+    def _update_timer_in_state_manager(self, player_id: int):
+        timer_patch = {
+            'action_deadline': self._action_deadline,
+            'current_player_remaining': self._player_remaining_times[player_id],
+            'all_players_remaining': self._player_remaining_times.copy(),
+            'main_time_limit': self._main_time,
+            'byo_yomi_time_limit': self._byo_yomi_time
+        }
+
+        self.state_manager.update_timer_state(**timer_patch)
+        self._push_timer_patch(timer_patch, meta_patch={'current_player_id': player_id})
+
+    def _push_timer_state_update(self):
+        timer_patch = {
+            'action_deadline': self._action_deadline,
+            'current_player_remaining': 0,
+            'all_players_remaining': self._player_remaining_times.copy()
+        }
+
+        self.state_manager.update_timer_state(**timer_patch)
+        self._push_timer_patch(timer_patch)
+
+    def _push_timer_update_after_action(self):
+        self._push_timer_patch({
+            'all_players_remaining': self._player_remaining_times.copy()
+        })
+
+    def _update_player_time_after_action(self, player_id: int):
+        """行动完成后更新玩家剩余主时间。"""
+        if not self._player_remaining_times or player_id < 0:
+            return
+
+        action_end_time = int(time.time() * 1000)
+        time_spent = action_end_time - self._action_start_time
+        remaining_before = self._player_remaining_times[player_id]
+
+        if remaining_before == 0:
+            deadline_with_grace = self._action_deadline + self._grace_period
+            if action_end_time > deadline_with_grace:
+                print(f"[Timer] Player {player_id + 1} exceeded deadline with grace period")
+        else:
+            new_remaining = max(0, remaining_before - time_spent)
+            self._player_remaining_times[player_id] = new_remaining
+
+            if new_remaining == 0 and remaining_before > 0:
+                self._action_deadline = action_end_time + self._byo_yomi_time
+
+        self.state_manager.update_timer_state(
+            current_player_remaining=self._player_remaining_times[player_id],
+            action_deadline=self._action_deadline,
+            all_players_remaining=self._player_remaining_times.copy()
+        )
 
     def _record_action_selection_metadata(self, request: ActionRequest, metadata: Dict[str, Optional[str]]):
         """在后端登记下一条行动历史对应的选择来源元数据。"""
@@ -278,11 +480,20 @@ class GameController:
             request = next(game)
             self.current_request = request
 
+            if not self._player_remaining_times:
+                self._player_remaining_times = [self._main_time] * self.num_players
+
+            self.state_manager.update_timer_state(
+                all_players_remaining=self._player_remaining_times.copy(),
+                main_time_limit=self._main_time,
+                byo_yomi_time_limit=self._byo_yomi_time
+            )
+
             # 更新状态管理器（首次会推送全量状态）
             self.state_manager.update_from_action_request(request)
 
             # 游戏主循环
-            while not request.is_game_over:
+            while not request.is_game_over and self.is_running and not self._stop_event.is_set():
                 # 获取行动ID（从Agent或前端）
                 action_id, selection_metadata = self._get_action_decision(request)
                 self._record_action_selection_metadata(request, selection_metadata)
@@ -298,6 +509,8 @@ class GameController:
             self.final_scores = request.final_scores
             self._handle_game_end(request)
 
+        except GameStopped:
+            pass
         except Exception:
             import traceback
             traceback.print_exc()
@@ -335,6 +548,12 @@ class GameController:
             return False
 
         self.is_running = True
+        self._stop_event.clear()
+        self.final_scores = None
+        self._clear_input_queue()
+        self._player_remaining_times = []
+        self._action_start_time = 0
+        self._action_deadline = 0
 
         # 默认初始化设置
         if init_settings is None:
@@ -353,12 +572,20 @@ class GameController:
     def stop(self):
         """停止游戏"""
         self.is_running = False
-        # 清空输入队列，防止阻塞
-        while not self._input_queue.empty():
-            try:
-                self._input_queue.get_nowait()
-            except queue.Empty:
-                break
+        self._stop_event.set()
+        self._clear_input_queue()
+        self._input_queue.put(dict(STOP_INPUT))
+
+        if (
+            self._game_thread is not None
+            and self._game_thread.is_alive()
+            and threading.current_thread() is not self._game_thread
+        ):
+            self._game_thread.join(timeout=2.0)
+
+        self._clear_input_queue()
+        self.current_request = None
+        self._game_thread = None
 
 
 # ========== 全局游戏控制器注册表 ==========
@@ -371,9 +598,9 @@ def get_game_controller(game_id: str) -> Optional[GameController]:
     return _game_controllers.get(game_id)
 
 
-def create_game_controller(game_id: str, num_players: int = 3) -> GameController:
+def create_game_controller(game_id: str, num_players: int = 3, timer_config: dict = None) -> GameController:
     """创建游戏控制器"""
-    controller = GameController(game_id, num_players)
+    controller = GameController(game_id, num_players, timer_config)
     _game_controllers[game_id] = controller
     return controller
 

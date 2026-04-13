@@ -123,7 +123,10 @@
                     </span>
                   </div>
                 </div>
-                <div class="player-score">{{ player.score }}</div>
+                <div class="player-header-right">
+                  <PlayerTimer :player-id="player.id" :current-player-id="currentActionPlayerId" />
+                  <div class="player-score">{{ player.score }}</div>
+                </div>
               </div>
               <div
                 class="player-status"
@@ -574,6 +577,9 @@
                 <div>可选行动</div>
               </div>
               <div class="action-subtitle">{{ actionSubtitle }}</div>
+            </div>
+            <div class="action-header-timer">
+              <ActionTimer />
             </div>
             <div class="action-header-meta">
               <div class="action-owner-chip">
@@ -1088,7 +1094,10 @@
 import { computed, ref, reactive, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameStore } from '../stores/game'
+import { useTimerStore } from '../stores/timer'
 import Modal from '../components/Modal.vue'
+import ActionTimer from '../components/ActionTimer.vue'
+import PlayerTimer from '../components/PlayerTimer.vue'
 import availableActionDisplayGroups from '../../../backend/game/utils/available_action_display_groups.json'
 
 defineOptions({
@@ -1097,6 +1106,7 @@ defineOptions({
 
 const router = useRouter()
 const gameStore = useGameStore()
+const timerStore = useTimerStore()
 
 // ========== 地图配置 ==========
 const MAP_CONFIG = {
@@ -3786,6 +3796,7 @@ async function handleEndGame() {
 
     // 清理前端状态
     gameStore.endGame()
+    timerStore.reset()
     resetActionLogHistory()
 
     // 关闭SSE连接
@@ -4475,6 +4486,10 @@ function applyGameViewFullState(state) {
     }
   }
 
+  if (state.timer_state) {
+    timerStore.updateFromTimerState(state.timer_state)
+  }
+
   if (state.setup) {
     if (state.setup.round_scoring_order) {
       state.setup.round_scoring_order.forEach((scoringId, index) => {
@@ -4555,6 +4570,7 @@ function connectSSE() {
       localStorage.removeItem('gameSettings')
       // 重置游戏状态
       gameStore.endGame()
+      timerStore.reset()
       resetActionLogHistory()
       // 返回首页
       router.push('/')
@@ -4777,6 +4793,11 @@ function applyGameViewChange(path, value, changeType, pendingBuildingRenders = n
     return
   }
 
+  if (rootKey === 'timer_state' && keys.length >= 2) {
+    timerStore.updateFromTimerState({ [keys[1]]: value })
+    return
+  }
+
   if (rootKey === 'map_state' && keys.length >= 5 && keys[1] === 'grid') {
     const row = Number.parseInt(keys[2], 10)
     const col = Number.parseInt(keys[3], 10)
@@ -4989,6 +5010,7 @@ onUnmounted(() => {
     eventSource.close()
     eventSource = null
   }
+  timerStore.dispose()
 })
 </script>
 
@@ -5277,6 +5299,15 @@ onUnmounted(() => {
   align-items: center;
   gap: 6px;
   min-width: 0;
+  flex: 1;
+}
+
+.player-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 .planning-card-indicator {
@@ -5529,6 +5560,19 @@ onUnmounted(() => {
   border: none;
   font-weight: 700;
   font-size: 1.04rem;
+  flex-shrink: 0;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+}
+
+.player-timer {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
 }
 
 .player-status {
@@ -6953,6 +6997,30 @@ onUnmounted(() => {
   color: rgba(198, 211, 224, 0.72);
   max-width: 100%;
   word-break: keep-all;
+}
+
+.action-header-timer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(1rem + 0.73rem + 8px);
+  flex-shrink: 0;
+}
+
+.action-header-timer .action-timer {
+  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
+  font-size: 1.6em;
+  font-weight: 700;
+}
+
+.action-header-timer .timer-circle {
+  width: 56px;
+  height: 56px;
+}
+
+.action-header-timer .timer-text.byo-yomi-time {
+  font-size: 1.18em;
+  font-weight: 700;
 }
 
 .action-header-meta,

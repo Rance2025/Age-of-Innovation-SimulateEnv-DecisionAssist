@@ -9,9 +9,11 @@
 - 日期：
 - 分支：
 - 影响范围：
+  - `待补充`
 - 更新内容：
   - `type: 中文描述`
 - 验证方式：
+  - `待补充`
 
 ## 模板
 
@@ -32,6 +34,30 @@
 - 验证方式：
 
 ## 版本记录
+
+## 0.9.5.14
+- 日期：`2026-04-13`
+- 分支：`reliable/timer-rebuild-20260413`
+- 影响范围：
+  - `backend/game/start_game.py`
+  - `backend/game/utils/__init__.py`
+  - `backend/game/utils/frontend_state_types.py`
+  - `backend/game/utils/game_state_manager.py`
+  - `frontend/src/components/ActionTimer.vue`
+  - `frontend/src/components/PlayerTimer.vue`
+  - `frontend/src/stores/timer.js`
+  - `frontend/src/views/GameView.vue`
+  - `docs/version-change-log.md`
+- 更新内容：
+  - `feat: 在 reliable/timer-rebuild-20260413 可靠分支上补回独立 timer store 与前端倒计时组件，恢复玩家卡片和行动栏计时显示能力`
+  - `feat: 将后端 TimerState 正式接入 FullGameState 与 GameStateManager，使全量/增量状态都可携带倒计时字段`
+  - `feat: 在 start_game.py 中补回主时间、读秒、超时自动行动与 timer_state 推送逻辑`
+  - `fix: 结束游戏或后端断开时同步重置/释放前端计时器，避免离开页面后本地 interval 残留`
+  - `fix: 补回 frontend_state_types.py 中缺失的 TimerState 定义，修复获取游戏状态时触发的 name 'TimerState' is not defined 运行时异常`
+- 验证方式：
+  - `python -m py_compile backend/game/start_game.py backend/game/utils/frontend_state_types.py backend/game/utils/game_state_manager.py backend/game/utils/__init__.py`
+  - `python -c "from backend.game.utils.frontend_state_types import FullGameState"`
+  - `前端执行 npm run build`
 
 ## 0.9.5.12
 - 日期：`2026-04-09`
