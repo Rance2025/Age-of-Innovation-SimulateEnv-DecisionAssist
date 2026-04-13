@@ -5295,7 +5295,7 @@ onUnmounted(() => {
 .player-header-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
   flex-shrink: 0;
   margin-left: auto;
 }
