@@ -35,6 +35,21 @@
 
 ## 版本记录
 
+## 0.9.5.17
+- 日期：`2026-04-13`
+- 分支：`main`
+- 影响范围：
+  - `backend/game/aoi_game/effect_object.py`
+  - `frontend/src/components/PlayerTimer.vue`
+  - `docs/version-change-log.md`
+- 更新内容：
+  - `fix: 调整幻术师执行魔力行动时的板面分判定，4-5 人局统一结算为 2 分`
+  - `fix: 调整鼹鼠派系附加行动的得分逻辑与说明文案，改为获得 2+num_players 分`
+  - `refactor: 移除宫殿板块 6 附加行动方法的返回类型标注，保持定义与实现一致`
+  - `ui: 将玩家卡片倒计时圆环恢复为 round 端点，并略微收窄进度弧线宽以减轻头尾圆角的鼓起感`
+- 验证方式：
+  - `前端执行 npm run build`
+
 ## 0.9.5.16
 - 日期：`2026-04-13`
 - 分支：`main`

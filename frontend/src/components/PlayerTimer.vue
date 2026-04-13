@@ -43,7 +43,7 @@
             :r="CIRCLE_RADIUS"
             fill="none"
             stroke="currentColor"
-            :stroke-width="CIRCLE_STROKE_WIDTH"
+            :stroke-width="PROGRESS_STROKE_WIDTH"
             :stroke-dasharray="strokeDasharray"
             :stroke-dashoffset="strokeDashoffset"
             stroke-linecap="round"
@@ -156,6 +156,7 @@ onUnmounted(() => {
 
 const CIRCLE_RADIUS = 13.5
 const CIRCLE_STROKE_WIDTH = 4
+const PROGRESS_STROKE_WIDTH = 3.6
 const MODE_FADE_DURATION_MS = 200
 const circumference = 2 * Math.PI * CIRCLE_RADIUS
 

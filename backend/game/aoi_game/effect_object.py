@@ -570,7 +570,7 @@ class AllEffectObject:
             # 幻术师行动效果
             if self.game_state.players[executed_player_id].faction_id == 4:
                 self.immediate_effect.extend([
-                    ('score','get','board',2 if self.game_state.num_players ==  5 else 1)
+                    ('score','get','board',2 if self.game_state.num_players in [4,5] else 1)
                 ])
             yield from super().execute_immediate_effect(executed_player_id)
         
@@ -728,7 +728,7 @@ class AllEffectObject:
             ])
             yield from super().execute_immediate_effect(executed_player_id)
         
-        '''行动效果: 每次执行魔力行动时, 少花费一点魔力并获得板面分数 (1分, 5人局2分)'''
+        '''行动效果: 每次执行魔力行动时, 少花费一点魔力并获得板面分数 (1分, 4-5人局2分)'''
         # 已写进EffectObject的MagicsAction中
 
     class InventorsFaction(Faction):
@@ -770,7 +770,7 @@ class AllEffectObject:
         additional_action_name = 'additional_action_moles_faction'
         
         def additional_action(self, mode, player_id, args=tuple()) -> list[int]|Callable[[], Generator]:
-            '''附加行动: 支付1矿跨越一个地块执行地形改造和/或建造车间并获得4分'''
+            '''附加行动: 支付1矿跨越一个地块执行地形改造和/或建造车间并获得2+num_players分'''
             '''附加可用行动: 支付1矿, 建造1座桥梁, 连接两侧建筑, 视为相邻''' # TODO 鼹鼠 附加可用行动
             match mode:
                 case 'check':
@@ -845,15 +845,15 @@ class AllEffectObject:
                         if len(args) > 1:
                             # 获取铲子和建筑参数
                             max_shovel_times, *build_args = args
-                            # 支付1矿，执行建造行动，并获得4分
-                            yield from self.game_state.adjust(player_id, [('ore','use',1),('building',*build_args),('score','get','board',4)])
+                            # 支付1矿，执行建造行动，并获得2+num_players分
+                            yield from self.game_state.adjust(player_id, [('ore','use',1),('building',*build_args),('score','get','board',2+self.game_state.num_players)])
                         else:
                             # 获取铲子参数
                             shovel_times = args[0]
                             # 立即选择位置
                             yield from self.game_state.invoke_immediate_action(player_id, ('select_position','non_adjacent',(2,'shovel',shovel_times))) 
-                            # 支付1矿，执行铲子行动，并获得4分
-                            yield from self.game_state.adjust(player_id, [('ore','use',1),('land', shovel_times),('score','get','board',4)])
+                            # 支付1矿，执行铲子行动，并获得2+num_players分
+                            yield from self.game_state.adjust(player_id, [('ore','use',1),('land', shovel_times),('score','get','board',2+self.game_state.num_players)])
                     
                     return execute_function
 
@@ -1200,7 +1200,7 @@ class AllEffectObject:
 
         additional_action_name = 'additional_action_palace_tile_6'
         
-        def additional_action(self, mode, player_id, args=tuple()) -> list[int]|Callable[[], Generator]:
+        def additional_action(self, mode, player_id, args=tuple()):
             '''每回合一次附加行动: 获得2轨'''
             match mode:
                 case 'check':
