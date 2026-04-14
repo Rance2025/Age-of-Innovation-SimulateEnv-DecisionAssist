@@ -33,6 +33,17 @@
 
 ## 版本记录
 
+## 0.9.5.20
+- 日期：`2026-04-14`
+- 分支：`main`
+- 影响范围：
+  - `frontend/src/views/GameView.vue`
+  - `docs/version-change-log.md`
+- 更新内容：
+  - `fix: 移除回合信息区右侧助推板列的上下内边距，使左右两侧图片内容改为按同一顶边和底边对齐`
+- 验证方式：
+  - `cd frontend && npm run build`
+
 ## 0.9.5.19
 - 日期：`2026-04-14`
 - 分支：`main`
