@@ -569,37 +569,89 @@
               </div>
             </div>
 
-            <!-- 战术地图卡片 -->
+            <!-- 科学能力卡片 -->
             <div class="game-card" :class="{ collapsed: collapsedCards['tactical'] }">
               <div class="game-header" @click="toggleCard('tactical')">
                 <div class="game-header-left">
                   <div class="game-title">
-                    <i class="fas fa-map"></i>
-                    <span>战术地图</span>
+                    <i class="fas fa-flask"></i>
+                    <span>科学能力</span>
                   </div>
                 </div>
                 <div class="game-indicator">
                   <i class="fas fa-chevron-down"></i>
                 </div>
               </div>
-              <div class="game-status">
-                <div class="game-stats">
-                  <div class="map-container">
-                    <div class="map-placeholder">
-                      <i class="fas fa-map-marked-alt"></i>
-                      <div>战术地图区域</div>
-                      <div class="map-hint">此区域将显示游戏地图和战术信息</div>
+              <div class="science-ability-status">
+                <div ref="scienceAbilityLeftRef" class="science-ability-left">
+                  <div ref="leftBoardsStackRef" class="left-boards-stack">
+                    <!-- 科学板块 -->
+                    <div class="science-board-wrapper">
+                      <div class="science-board" :class="['science-board-' + numPlayers, (numPlayers === 3 || numPlayers === 5) ? 'crop-top' : '']" :style="(numPlayers === 3 || numPlayers === 5) ? {} : { backgroundImage: 'url(/assets/images/science_board_' + numPlayers + '.png)' }">
+                        <div v-if="numPlayers === 3 || numPlayers === 5" class="science-board-inner">
+                          <img class="science-board-img" :src="'/assets/images/science_board_' + numPlayers + '.png'" alt="science board" />
+                          <div
+                            v-for="(tileId, idx) in scienceTilesOrder"
+                            :key="'sci-' + idx"
+                            class="science-board-tile"
+                            :style="getScienceBoardTileStyle(tileId, idx)"
+                            :tabindex="tileId ? 0 : -1"
+                            :title="''"
+                            :aria-label="tileId ? `预览科学板块 ${tileId}` : undefined"
+                            @mouseenter="handleScienceTileMouseEnter(tileId, $event)"
+                            @mouseleave="handleScienceTileMouseLeave"
+                            @focus="handleScienceTileMouseEnter(tileId, $event)"
+                            @blur="handleScienceTileMouseLeave"
+                            @keydown.esc.prevent="hideEntityPreview"
+                          >
+                            <span v-if="tileId" class="tile-index-badge">{{ tileId }}</span>
+                          </div>
+                        </div>
+                        <template v-else>
+                          <div
+                            v-for="(tileId, idx) in scienceTilesOrder"
+                            :key="'sci-' + idx"
+                            class="science-board-tile"
+                            :style="getScienceBoardTileStyle(tileId, idx)"
+                            :tabindex="tileId ? 0 : -1"
+                            :title="''"
+                            :aria-label="tileId ? `预览科学板块 ${tileId}` : undefined"
+                            @mouseenter="handleScienceTileMouseEnter(tileId, $event)"
+                            @mouseleave="handleScienceTileMouseLeave"
+                            @focus="handleScienceTileMouseEnter(tileId, $event)"
+                            @blur="handleScienceTileMouseLeave"
+                            @keydown.esc.prevent="hideEntityPreview"
+                          >
+                            <span v-if="tileId" class="tile-index-badge">{{ tileId }}</span>
+                          </div>
+                        </template>
+                      </div>
+                    </div>
+                    <!-- 能力板块 -->
+                    <div class="ability-board-wrapper">
+                      <div class="ability-board" :style="{ backgroundImage: 'url(/assets/images/ability_tiles_board.jpg)' }">
+                        <div
+                          v-for="(tileId, idx) in abilityTilesOrder"
+                          :key="'abi-' + idx"
+                          class="ability-board-tile"
+                          :style="getAbilityBoardTileStyle(tileId, idx)"
+                          :tabindex="tileId ? 0 : -1"
+                          :title="''"
+                          :aria-label="tileId ? `预览能力板块 ${tileId}` : undefined"
+                          @mouseenter="handleAbilityTileMouseEnter(tileId, $event)"
+                          @mouseleave="handleAbilityTileMouseLeave"
+                          @focus="handleAbilityTileMouseEnter(tileId, $event)"
+                          @blur="handleAbilityTileMouseLeave"
+                          @keydown.esc.prevent="hideEntityPreview"
+                        >
+                          <span v-if="tileId" class="tile-index-badge">{{ tileId }}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-                <div class="game-log" id="game-log-tactical">
-                  <div
-                    v-for="(log, idx) in tacticalLogs"
-                    :key="idx"
-                    class="log-item"
-                  >
-                    {{ log }}
-                  </div>
+                <div class="cult-board-section">
+                  <img src="/assets/images/cult_board.jpg" alt="cult board" class="cult-board-image" />
                 </div>
               </div>
             </div>
@@ -1194,7 +1246,9 @@ import {
   getRoundBoosterBackSpriteStyleByBackendId,
   getRoundBoosterFrontSpriteStyleByBackendId,
   getRoundScoringBackSpriteStyle,
-  getRoundScoringSpriteStyleByBackendId
+  getRoundScoringSpriteStyleByBackendId,
+  getAbilityTileStyleByBackendId,
+  getScienceTileStyleByBackendId
 } from '../utils/tileSprites'
 import availableActionDisplayGroups from '../../../backend/game/utils/available_action_display_groups.json'
 
@@ -1570,6 +1624,15 @@ const finalScores = ref(null)
 const finalScoreModalOpen = ref(false)
 const pendingActionId = ref(null)
 const recommendedActionId = ref(null)
+
+// 科学能力板块状态
+const abilityTilesOrder = ref([])
+const scienceTilesOrder = ref([])
+const numPlayers = ref(3)
+const leftBoardsStackRef = ref(null)
+const scienceAbilityLeftRef = ref(null)
+let scienceAbilityResizeObserver = null
+
 const recommendedActionStrategyId = ref('')
 const controlCenterPendingMode = ref('')
 const actionLogFilterModalOpen = ref(false)
@@ -1908,6 +1971,10 @@ const roundScoringPreviewCardWidthPx = 174
 const roundScoringPreviewImageHeightPx = Math.round(roundScoringPreviewCardWidthPx * (134 / 232))
 const roundBoosterPreviewCardWidthPx = 111
 const roundBoosterPreviewImageHeightPx = Math.round(roundBoosterPreviewCardWidthPx * (8 / 3))
+const abilityTilePreviewCardWidthPx = 116
+const abilityTilePreviewImageHeightPx = 112
+const scienceTilePreviewCardWidthPx = 140
+const scienceTilePreviewImageHeightPx = 90
 const entityPreview = reactive({
   visible: false,
   name: '',
@@ -2276,6 +2343,58 @@ function handleRoundBoosterMouseEnter(bonus, event) {
 }
 
 function handleRoundBoosterMouseLeave() {
+  clearEntityPreviewTimer()
+  scheduleEntityPreviewHide()
+}
+
+function handleAbilityTileMouseEnter(tileId, event) {
+  if (!tileId) {
+    return
+  }
+
+  const imageLayer = getAbilityTileStyleByBackendId(tileId)
+  if (!hasRenderablePreviewLayer(imageLayer)) {
+    return
+  }
+
+  queueEntityPreview({
+    name: `能力板块 ${tileId}`,
+    imageLayers: [imageLayer],
+    cardWidth: abilityTilePreviewCardWidthPx,
+    imageHeight: abilityTilePreviewImageHeightPx,
+    anchorElement: event?.currentTarget,
+    placement: 'top',
+    delayMs: roundEntityPreviewDelayMs
+  })
+}
+
+function handleAbilityTileMouseLeave() {
+  clearEntityPreviewTimer()
+  scheduleEntityPreviewHide()
+}
+
+function handleScienceTileMouseEnter(tileId, event) {
+  if (!tileId) {
+    return
+  }
+
+  const imageLayer = getScienceTileStyleByBackendId(tileId)
+  if (!hasRenderablePreviewLayer(imageLayer)) {
+    return
+  }
+
+  queueEntityPreview({
+    name: `科学板块 ${tileId}`,
+    imageLayers: [imageLayer],
+    cardWidth: scienceTilePreviewCardWidthPx,
+    imageHeight: scienceTilePreviewImageHeightPx,
+    anchorElement: event?.currentTarget,
+    placement: 'top',
+    delayMs: roundEntityPreviewDelayMs
+  })
+}
+
+function handleScienceTileMouseLeave() {
   clearEntityPreviewTimer()
   scheduleEntityPreviewHide()
 }
@@ -2760,6 +2879,47 @@ function scheduleRoundInfoLayoutUpdate() {
   nextTick(() => {
     updateRoundInfoLayout()
   })
+}
+
+function updateScienceAbilityLayout() {
+  const leftContainer = scienceAbilityLeftRef.value
+  const stack = leftBoardsStackRef.value
+  if (!leftContainer || !stack) return
+
+  const availableHeight = leftContainer.clientHeight
+  if (!Number.isFinite(availableHeight) || availableHeight <= 0) return
+
+  // 能力板高度/宽度 = 403 / 850 (等比例于 253 / 534.6)
+  const abilityRatio = 403 / 850
+  // 科学板高度/宽度（裁剪顶部 50px 后）
+  let scienceRatio
+  if (numPlayers.value === 3) {
+    scienceRatio = (493 - 50) / 850 // 443 / 850
+  } else if (numPlayers.value === 4) {
+    scienceRatio = 634 / 850
+  } else {
+    scienceRatio = (634 - 50) / 850 // 584 / 850
+  }
+  const totalRatio = abilityRatio + scienceRatio
+
+  const maxWidth = availableHeight / totalRatio
+  stack.style.maxWidth = `${maxWidth}px`
+}
+
+function setupScienceAbilityResizeObserver() {
+  if (typeof ResizeObserver === 'undefined' || scienceAbilityResizeObserver) {
+    return
+  }
+
+  const leftContainer = scienceAbilityLeftRef.value
+  if (!leftContainer) {
+    return
+  }
+
+  scienceAbilityResizeObserver = new ResizeObserver(() => {
+    updateScienceAbilityLayout()
+  })
+  scienceAbilityResizeObserver.observe(leftContainer)
 }
 
 function setupRoundInfoResizeObserver() {
@@ -3738,6 +3898,79 @@ function getMapBuildingIconSrc(cell) {
   }
 
   return `/images/buildings/${colorId}-${buildingId}.png`
+}
+
+function getAbilityBoardTileStyle(tileId, idx) {
+  if (!tileId) return { display: 'none' }
+  const col = Math.floor(idx / 3)
+  const row = idx % 3
+  const lefts = ['9.465%', '34.363%', '59.465%', '84.362%']
+  const tops = ['7.391%', '38.695%', '69.130%']
+  return {
+    ...getAbilityTileStyleByBackendId(tileId),
+    position: 'absolute',
+    left: lefts[col],
+    top: tops[row],
+    width: '11.934%',
+    height: '24.348%',
+    borderRadius: '6px'
+  }
+}
+
+function getScienceBoardTileStyle(tileId, idx) {
+  if (!tileId) return { display: 'none' }
+  const pos = getScienceTilePercentPos(idx)
+  return {
+    ...getScienceTileStyleByBackendId(tileId),
+    position: 'absolute',
+    left: pos.left,
+    top: pos.top,
+    width: '20.093%',
+    height: pos.height,
+    borderRadius: '8px'
+  }
+}
+
+function getScienceTilePercentPos(idx) {
+  const playerCount = numPlayers.value
+  const map35 = {
+    0: { left: '2.453%', top: '26.613%', height: '22.177%' },
+    1: { left: '2.453%', top: '57.056%', height: '22.177%' },
+    2: { left: '27.453%', top: '26.613%', height: '22.177%' },
+    3: { left: '27.453%', top: '57.056%', height: '22.177%' },
+    4: { left: '52.453%', top: '26.613%', height: '22.177%' },
+    5: { left: '52.453%', top: '57.056%', height: '22.177%' },
+    6: { left: '77.453%', top: '26.613%', height: '22.177%' },
+    7: { left: '77.453%', top: '57.056%', height: '22.177%' }
+  }
+  const map45 = {
+    0: { left: '2.453%', top: '44.514%', height: '17.241%' },
+    1: { left: '2.453%', top: '68.182%', height: '17.241%' },
+    2: { left: '27.453%', top: '44.514%', height: '17.241%' },
+    3: { left: '27.453%', top: '68.182%', height: '17.241%' },
+    4: { left: '52.453%', top: '44.514%', height: '17.241%' },
+    5: { left: '52.453%', top: '68.182%', height: '17.241%' },
+    6: { left: '77.453%', top: '44.514%', height: '17.241%' },
+    7: { left: '77.453%', top: '68.182%', height: '17.241%' }
+  }
+  if (playerCount === 3) {
+    return map35[idx] || { left: '0%', top: '0%', height: '22.177%' }
+  }
+  if (playerCount === 4) {
+    const extra = {
+      8: { left: '14.953%', top: '8.621%', height: '17.241%' },
+      9: { left: '64.953%', top: '8.621%', height: '17.241%' }
+    }
+    return map45[idx] || extra[idx] || { left: '0%', top: '0%', height: '17.241%' }
+  }
+  // 5人局
+  const extra5 = {
+    8: { left: '2.453%', top: '20.690%', height: '17.241%' },
+    9: { left: '27.453%', top: '20.690%', height: '17.241%' },
+    10: { left: '52.453%', top: '20.690%', height: '17.241%' },
+    11: { left: '77.453%', top: '20.690%', height: '17.241%' }
+  }
+  return map45[idx] || extra5[idx] || { left: '0%', top: '0%', height: '17.241%' }
 }
 
 function applyPlayerState(player, backendPlayer) {
@@ -4787,9 +5020,10 @@ function applyGameViewFullState(state) {
   if (state.meta) {
     applyMetaState(state.meta)
 
-    const numPlayers = state.meta.num_players || 3
-    if (players.value.length !== numPlayers) {
-      initPlayers(numPlayers)
+    const np = state.meta.num_players || 3
+    numPlayers.value = np
+    if (players.value.length !== np) {
+      initPlayers(np)
     }
   }
 
@@ -4814,6 +5048,14 @@ function applyGameViewFullState(state) {
 
     if (state.setup.round_booster_coin_counts) {
       setRoundBoosterCoinCounts(state.setup.round_booster_coin_counts)
+    }
+
+    if (state.setup.ability_tiles_order) {
+      abilityTilesOrder.value = state.setup.ability_tiles_order
+    }
+
+    if (state.setup.science_tiles_order) {
+      scienceTilesOrder.value = state.setup.science_tiles_order
     }
   }
 
@@ -5292,6 +5534,8 @@ onMounted(async () => {
   setupActionContentResizeObserver()
   setupRoundInfoResizeObserver()
   updateRoundInfoLayout()
+  setupScienceAbilityResizeObserver()
+  updateScienceAbilityLayout()
   scheduleActionOverflowMeasurement({ resetExpanded: true })
   // 建立 SSE 连接
   connectSSE()
@@ -5316,6 +5560,10 @@ onUnmounted(() => {
   if (playerCardResizeObserver) {
     playerCardResizeObserver.disconnect()
     playerCardResizeObserver = null
+  }
+  if (scienceAbilityResizeObserver) {
+    scienceAbilityResizeObserver.disconnect()
+    scienceAbilityResizeObserver = null
   }
   cancelPlayerCardSizeUpdates()
   playerCardRefs.clear()
@@ -6736,7 +6984,7 @@ onUnmounted(() => {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
 }
 
-/* 战术地图 */
+/* 科学能力 */
 .game-status {
   flex: 1;
   display: flex;
@@ -6746,59 +6994,185 @@ onUnmounted(() => {
   opacity: 1;
 }
 
-.game-card.collapsed .game-status {
+.game-card.collapsed .game-status,
+.game-card.collapsed .science-ability-status {
   opacity: 0;
 }
 
-.game-stats {
+.science-ability-status {
   flex: 1;
-  padding: var(--panel-padding);
-  border-right: 1px solid var(--border);
-  overflow-y: auto;
-  background-color: var(--bg-elevated);
+  display: flex;
+  overflow: hidden;
+  min-height: 0;
+  transition: opacity 0.3s ease;
+  opacity: 1;
+  padding: 14px 22px;
+  gap: 18px;
+}
+
+.science-ability-left {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
   min-height: 0;
 }
 
-.map-container {
+.left-boards-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  max-height: 100%;
   width: 100%;
+}
+
+.science-board-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  width: 100%;
+  flex: 0 0 auto;
+  border-radius: 12px 12px 0 0;
+}
+
+.ability-board-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  width: 100%;
+  flex: 0 0 auto;
+  border-radius: 0 0 8px 8px;
+}
+
+.science-board {
+  position: relative;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  width: 100%;
+  height: auto;
+  border-radius: 12px 12px 0 0;
+  overflow: hidden;
+}
+
+.science-board.science-board-3 {
+  aspect-ratio: 850 / 493;
+}
+
+.science-board.science-board-3.crop-top {
+  aspect-ratio: 850 / 443;
+}
+
+.science-board.science-board-4,
+.science-board.science-board-5 {
+  aspect-ratio: 850 / 634;
+}
+
+.science-board.science-board-5.crop-top {
+  aspect-ratio: 850 / 584;
+}
+
+.science-board-inner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  aspect-ratio: 850 / 493;
+  overflow: hidden;
+}
+
+.science-board.science-board-5 .science-board-inner {
+  aspect-ratio: 850 / 634;
+}
+
+.science-board.science-board-3.crop-top .science-board-inner {
+  transform: translateY(calc(-100% * 50 / 493));
+}
+
+.science-board.science-board-5.crop-top .science-board-inner {
+  transform: translateY(calc(-100% * 50 / 634));
+}
+
+.science-board-img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
+  display: block;
+  pointer-events: none;
+}
+
+.ability-board {
+  position: relative;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  aspect-ratio: 534.6 / 253;
+  width: 100%;
+  height: auto;
+  border-radius: 0 0 8px 8px;
+  overflow: hidden;
+}
+
+.science-board-tile,
+.ability-board-tile {
+  position: absolute;
+  background-repeat: no-repeat;
+  box-sizing: border-box;
+  cursor: pointer;
+  box-shadow: 3px 3px 6px rgba(0, 0, 0, 0.35);
+}
+
+.tile-index-badge {
+  position: absolute;
+  bottom: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  font-weight: 800;
+  color: #f7fbff;
+  background: var(--accent);
+  border: 1px solid var(--accent-light);
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
+  z-index: 10;
+  pointer-events: none;
+  text-align: center;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+.ability-board-tile .tile-index-badge {
+  width: 18px;
+  height: 18px;
+  font-size: 0.58rem;
+}
+
+.cult-board-section {
+  flex: 0 0 auto;
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.map-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-secondary);
-  gap: 8px;
-}
-
-.map-placeholder i {
-  font-size: 3rem;
-  opacity: 0.5;
-}
-
-.map-hint {
-  font-size: 0.9rem;
-  margin-top: 8px;
-  color: var(--text-secondary);
-}
-
-.game-log {
-  flex: 1.5;
-  padding: var(--panel-padding);
-  overflow-y: auto;
-  font-size: 0.8rem;
-  line-height: 1.4;
-  color: var(--text-secondary);
-  background-color: var(--bg-secondary);
-}
-
-.game-log::-webkit-scrollbar {
-  display: none;
+.cult-board-image {
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+  border-radius: 8px;
 }
 
 /* ===== 右侧：全局信息区 (21%) ===== */

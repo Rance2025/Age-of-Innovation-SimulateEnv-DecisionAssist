@@ -951,7 +951,7 @@
               </p>
               <!-- 上方：摆放区域（2+2n个格子） -->
               <div class="techs-board-container">
-                <div class="techs-board" :class="'techs-board-' + form.playerCount" :style="{ backgroundImage: 'url(/assets/images/science_board_' + form.playerCount + '.jpg.png)' }">
+                <div class="techs-board" :class="'techs-board-' + form.playerCount" :style="{ backgroundImage: 'url(/assets/images/science_board_' + form.playerCount + '.png)' }">
                   <div class="techs-board-grid">
                     <div
                       v-for="positionIndex in requiredTechCount"
@@ -1065,7 +1065,9 @@ import Modal from '../components/Modal.vue'
 import {
   getFinalScoringSelectionSpriteStyleByBackendId,
   getRoundBoosterFrontSpriteStyleByBackendId,
-  getRoundScoringSpriteStyleByBackendId
+  getRoundScoringSpriteStyleByBackendId,
+  getAbilityTileStyleByBackendId,
+  getScienceTileStyleByBackendId
 } from '../utils/tileSprites'
 
 defineOptions({
@@ -1574,23 +1576,9 @@ function toggleRoundBoosterSelection(index) {
   }
 }
 
-// 能力板块后端编码到图片索引的映射（后端1-12 -> 图片0-11）
-// 后端: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
-// 图片: 11, 8, 6, 10, 5, 1, 2, 7, 4, 9, 0, 3
-const abilityBackendToImageMap = [11, 8, 6, 10, 5, 1, 2, 7, 4, 9, 0, 3]
-
-// 获取能力板块背景样式（12等分切割）
+// 获取能力板块背景样式
 function getAbilityCardStyle(index) {
-  // 12张卡片横向排列，位置点：0%, 9.0909%, 18.1818%, ..., 100%
-  const positions = [0, 9.0909, 18.1818, 27.2727, 36.3636, 45.4545,
-                     54.5455, 63.6364, 72.7273, 81.8182, 90.9091, 100]
-  // 将前端显示索引映射到正确的图片位置
-  const imageIndex = abilityBackendToImageMap[index]
-  return {
-    backgroundImage: 'url(/assets/images/ability_tiles.png)',
-    backgroundSize: '1200% 100%',
-    backgroundPositionX: `${positions[imageIndex]}%`
-  }
+  return getAbilityTileStyleByBackendId(index + 1)
 }
 
 // 获取能力板块后端编码（前端索引0-11对应后端编码1-12）
@@ -1697,24 +1685,9 @@ function handleAbilitySlotClick(positionIndex) {
   }
 }
 
-// 高科板块后端编码到图片索引的映射（后端1-18 -> 图片0-17）
-// 后端: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18
-// 图片: 17, 7, 6, 0, 1, 8, 2, 3, 15, 4, 5, 16, 9, 10, 11, 12, 13, 14
-const techBackendToImageMap = [17, 7, 6, 0, 1, 8, 2, 3, 15, 4, 5, 16, 9, 10, 11, 12, 13, 14]
-
-// 获取高科板块背景样式（18等分切割）
+// 获取高科板块背景样式
 function getTechCardStyle(index) {
-  // 18张卡片横向排列，位置点：0%, 5.882%, 11.765%, ..., 100%
-  const positions = [0, 5.8824, 11.7647, 17.6471, 23.5294, 29.4118,
-                     35.2941, 41.1765, 47.0588, 52.9412, 58.8235, 64.7059,
-                     70.5882, 76.4706, 82.3529, 88.2353, 94.1176, 100]
-  // 将前端显示索引映射到正确的图片位置
-  const imageIndex = techBackendToImageMap[index]
-  return {
-    backgroundImage: 'url(/assets/images/science_tiles.jpg)',
-    backgroundSize: '1800% 100%',
-    backgroundPositionX: `${positions[imageIndex]}%`
-  }
+  return getScienceTileStyleByBackendId(index + 1)
 }
 
 // 获取高科板块后端编码（前端索引0-17对应后端编码1-18）
@@ -4259,21 +4232,21 @@ async function waitForGameStateReady(retries = 60, delay = 250) {
   transition: all 0.2s ease;
 }
 
-/* 12个位置的具体坐标（基于534.6x253.0的显示尺寸，3行4列布局，中心偏右，缩小6%）
+/* 12个位置的具体坐标（基于534.6x253.0的显示尺寸，3行4列布局，列优先顺序）
    列宽：534.6/4 = 133.7px
    第1列中心偏右约50.6px，之后每列+133.1px
    行高：253.0/3 = 84.3px */
 .ability-board-slot:nth-child(1) { left: 50.6px; top: 18.7px; }
-.ability-board-slot:nth-child(2) { left: 183.7px; top: 18.7px; }
-.ability-board-slot:nth-child(3) { left: 317.9px; top: 18.7px; }
-.ability-board-slot:nth-child(4) { left: 451.0px; top: 18.7px; }
-.ability-board-slot:nth-child(5) { left: 50.6px; top: 97.9px; }
-.ability-board-slot:nth-child(6) { left: 183.7px; top: 97.9px; }
-.ability-board-slot:nth-child(7) { left: 317.9px; top: 97.9px; }
-.ability-board-slot:nth-child(8) { left: 451.0px; top: 97.9px; }
-.ability-board-slot:nth-child(9) { left: 50.6px; top: 174.9px; }
-.ability-board-slot:nth-child(10) { left: 183.7px; top: 174.9px; }
-.ability-board-slot:nth-child(11) { left: 317.9px; top: 174.9px; }
+.ability-board-slot:nth-child(2) { left: 50.6px; top: 97.9px; }
+.ability-board-slot:nth-child(3) { left: 50.6px; top: 174.9px; }
+.ability-board-slot:nth-child(4) { left: 183.7px; top: 18.7px; }
+.ability-board-slot:nth-child(5) { left: 183.7px; top: 97.9px; }
+.ability-board-slot:nth-child(6) { left: 183.7px; top: 174.9px; }
+.ability-board-slot:nth-child(7) { left: 317.9px; top: 18.7px; }
+.ability-board-slot:nth-child(8) { left: 317.9px; top: 97.9px; }
+.ability-board-slot:nth-child(9) { left: 317.9px; top: 174.9px; }
+.ability-board-slot:nth-child(10) { left: 451.0px; top: 18.7px; }
+.ability-board-slot:nth-child(11) { left: 451.0px; top: 97.9px; }
 .ability-board-slot:nth-child(12) { left: 451.0px; top: 174.9px; }
 
 .ability-board-slot:hover {
@@ -4531,61 +4504,55 @@ async function waitForGameStateReady(retries = 60, delay = 250) {
   cursor: pointer;
 }
 
-/* 8个位置的具体坐标（基于428x214的显示尺寸，2行4列布局）
-   宽度86px高度55px，第2行下移1.5px */
+/* 8个位置的具体坐标（基于428x214的显示尺寸，2行4列布局，列优先顺序）
+   宽度86px高度55px */
 .tech-board-slot:nth-child(1) { left: 10.5px; top: 32px; }
-.tech-board-slot:nth-child(2) { left: 117.5px; top: 32px; }
-.tech-board-slot:nth-child(3) { left: 224.5px; top: 32px; }
-.tech-board-slot:nth-child(4) { left: 331.5px; top: 32px; }
-.tech-board-slot:nth-child(5) { left: 10.5px; top: 107.5px; }
-.tech-board-slot:nth-child(6) { left: 117.5px; top: 107.5px; }
-.tech-board-slot:nth-child(7) { left: 224.5px; top: 107.5px; }
+.tech-board-slot:nth-child(2) { left: 10.5px; top: 107.5px; }
+.tech-board-slot:nth-child(3) { left: 117.5px; top: 32px; }
+.tech-board-slot:nth-child(4) { left: 117.5px; top: 107.5px; }
+.tech-board-slot:nth-child(5) { left: 224.5px; top: 32px; }
+.tech-board-slot:nth-child(6) { left: 224.5px; top: 107.5px; }
+.tech-board-slot:nth-child(7) { left: 331.5px; top: 32px; }
 .tech-board-slot:nth-child(8) { left: 331.5px; top: 107.5px; }
 
-/* 3人局槽位位置调整 - 下移34px */
+/* 3人局槽位位置调整 - 下移34px（列优先） */
 .techs-board-3 .tech-board-slot:nth-child(1) { left: 10.5px; top: 66px; }
-.techs-board-3 .tech-board-slot:nth-child(2) { left: 117.5px; top: 66px; }
-.techs-board-3 .tech-board-slot:nth-child(3) { left: 224.5px; top: 66px; }
-.techs-board-3 .tech-board-slot:nth-child(4) { left: 331.5px; top: 66px; }
-.techs-board-3 .tech-board-slot:nth-child(5) { left: 10.5px; top: 141.5px; }
-.techs-board-3 .tech-board-slot:nth-child(6) { left: 117.5px; top: 141.5px; }
-.techs-board-3 .tech-board-slot:nth-child(7) { left: 224.5px; top: 141.5px; }
+.techs-board-3 .tech-board-slot:nth-child(2) { left: 10.5px; top: 141.5px; }
+.techs-board-3 .tech-board-slot:nth-child(3) { left: 117.5px; top: 66px; }
+.techs-board-3 .tech-board-slot:nth-child(4) { left: 117.5px; top: 141.5px; }
+.techs-board-3 .tech-board-slot:nth-child(5) { left: 224.5px; top: 66px; }
+.techs-board-3 .tech-board-slot:nth-child(6) { left: 224.5px; top: 141.5px; }
+.techs-board-3 .tech-board-slot:nth-child(7) { left: 331.5px; top: 66px; }
 .techs-board-3 .tech-board-slot:nth-child(8) { left: 331.5px; top: 141.5px; }
 
-/* 4人局槽位位置调整（基于428x319的显示尺寸）
-   第1行2个槽位：水平居中于第2行的两两之间，下移12.5px
-   第2-3行8个槽位：整体下移110px */
+/* 4人局槽位位置调整（基于428x319的显示尺寸，1-8列优先，9-10不变） */
 /* 第1行2个槽位（9-10）- 水平中心对齐第2行两两中点 */
 .techs-board-4 .tech-board-slot:nth-child(9) { left: 64px; top: 27.5px; }
 .techs-board-4 .tech-board-slot:nth-child(10) { left: 278px; top: 27.5px; }
-/* 第2行4个槽位（1-4）- 下移110px */
+/* 第2-3行8个槽位（1-8）- 列优先 */
 .techs-board-4 .tech-board-slot:nth-child(1) { left: 10.5px; top: 142px; }
-.techs-board-4 .tech-board-slot:nth-child(2) { left: 117.5px; top: 142px; }
-.techs-board-4 .tech-board-slot:nth-child(3) { left: 224.5px; top: 142px; }
-.techs-board-4 .tech-board-slot:nth-child(4) { left: 331.5px; top: 142px; }
-/* 第3行4个槽位（5-8）- 下移110px */
-.techs-board-4 .tech-board-slot:nth-child(5) { left: 10.5px; top: 217.5px; }
-.techs-board-4 .tech-board-slot:nth-child(6) { left: 117.5px; top: 217.5px; }
-.techs-board-4 .tech-board-slot:nth-child(7) { left: 224.5px; top: 217.5px; }
+.techs-board-4 .tech-board-slot:nth-child(2) { left: 10.5px; top: 217.5px; }
+.techs-board-4 .tech-board-slot:nth-child(3) { left: 117.5px; top: 142px; }
+.techs-board-4 .tech-board-slot:nth-child(4) { left: 117.5px; top: 217.5px; }
+.techs-board-4 .tech-board-slot:nth-child(5) { left: 224.5px; top: 142px; }
+.techs-board-4 .tech-board-slot:nth-child(6) { left: 224.5px; top: 217.5px; }
+.techs-board-4 .tech-board-slot:nth-child(7) { left: 331.5px; top: 142px; }
 .techs-board-4 .tech-board-slot:nth-child(8) { left: 331.5px; top: 217.5px; }
 
-/* 5人局槽位位置调整（基于428x426的显示尺寸）
-   第1行4个槽位（9-12）- 位于顶部
-   第2-3行8个槽位（1-8）- 与4人局第2-3行位置一致 */
+/* 5人局槽位位置调整（基于428x426的显示尺寸，1-8列优先，9-12不变） */
 /* 第1行4个槽位（9-12） */
 .techs-board-5 .tech-board-slot:nth-child(9) { left: 10.5px; top: 66px; }
 .techs-board-5 .tech-board-slot:nth-child(10) { left: 117.5px; top: 66px; }
 .techs-board-5 .tech-board-slot:nth-child(11) { left: 224.5px; top: 66px; }
 .techs-board-5 .tech-board-slot:nth-child(12) { left: 331.5px; top: 66px; }
-/* 第2行4个槽位（1-4） */
+/* 第2-3行8个槽位（1-8）- 列优先 */
 .techs-board-5 .tech-board-slot:nth-child(1) { left: 10.5px; top: 142px; }
-.techs-board-5 .tech-board-slot:nth-child(2) { left: 117.5px; top: 142px; }
-.techs-board-5 .tech-board-slot:nth-child(3) { left: 224.5px; top: 142px; }
-.techs-board-5 .tech-board-slot:nth-child(4) { left: 331.5px; top: 142px; }
-/* 第3行4个槽位（5-8） */
-.techs-board-5 .tech-board-slot:nth-child(5) { left: 10.5px; top: 217.5px; }
-.techs-board-5 .tech-board-slot:nth-child(6) { left: 117.5px; top: 217.5px; }
-.techs-board-5 .tech-board-slot:nth-child(7) { left: 224.5px; top: 217.5px; }
+.techs-board-5 .tech-board-slot:nth-child(2) { left: 10.5px; top: 217.5px; }
+.techs-board-5 .tech-board-slot:nth-child(3) { left: 117.5px; top: 142px; }
+.techs-board-5 .tech-board-slot:nth-child(4) { left: 117.5px; top: 217.5px; }
+.techs-board-5 .tech-board-slot:nth-child(5) { left: 224.5px; top: 142px; }
+.techs-board-5 .tech-board-slot:nth-child(6) { left: 224.5px; top: 217.5px; }
+.techs-board-5 .tech-board-slot:nth-child(7) { left: 331.5px; top: 142px; }
 .techs-board-5 .tech-board-slot:nth-child(8) { left: 331.5px; top: 217.5px; }
 
 .tech-board-slot:hover {
