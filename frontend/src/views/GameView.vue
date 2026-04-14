@@ -370,7 +370,19 @@
                   <!-- 左侧计分区 -->
                   <div class="left-column" id="left-scoring-grid" :style="roundInfoLeftColumnStyle">
                     <!-- 第1回合 -->
-                    <div class="grid-cell round-1" data-round="1" :class="{ 'current-round': currentRound === 1, 'flipped': roundStates[1]?.isFlipped }">
+                    <div
+                      class="grid-cell round-1"
+                      data-round="1"
+                      :class="{ 'current-round': currentRound === 1, 'flipped': roundStates[1]?.isFlipped }"
+                      :tabindex="roundStates[1]?.currentX > 0 ? 0 : -1"
+                      title=""
+                      :aria-label="getRoundScoringAriaLabel(1)"
+                      @mouseenter="handleRoundScoringMouseEnter(1, $event)"
+                      @mouseleave="handleRoundScoringMouseLeave"
+                      @focus="handleRoundScoringMouseEnter(1, $event)"
+                      @blur="handleRoundScoringMouseLeave"
+                      @keydown.esc.prevent="hideEntityPreview"
+                    >
                       <span class="round-label">第 1 回合</span>
                       <div class="card-container">
                         <div class="card-face front">
@@ -382,7 +394,19 @@
                       </div>
                     </div>
                     <!-- 第4回合 -->
-                    <div class="grid-cell round-4" data-round="4" :class="{ 'current-round': currentRound === 4, 'flipped': roundStates[4]?.isFlipped }">
+                    <div
+                      class="grid-cell round-4"
+                      data-round="4"
+                      :class="{ 'current-round': currentRound === 4, 'flipped': roundStates[4]?.isFlipped }"
+                      :tabindex="roundStates[4]?.currentX > 0 ? 0 : -1"
+                      title=""
+                      :aria-label="getRoundScoringAriaLabel(4)"
+                      @mouseenter="handleRoundScoringMouseEnter(4, $event)"
+                      @mouseleave="handleRoundScoringMouseLeave"
+                      @focus="handleRoundScoringMouseEnter(4, $event)"
+                      @blur="handleRoundScoringMouseLeave"
+                      @keydown.esc.prevent="hideEntityPreview"
+                    >
                       <span class="round-label">第 4 回合</span>
                       <div class="card-container">
                         <div class="card-face front">
@@ -394,7 +418,19 @@
                       </div>
                     </div>
                     <!-- 第2回合 -->
-                    <div class="grid-cell round-2" data-round="2" :class="{ 'current-round': currentRound === 2, 'flipped': roundStates[2]?.isFlipped }">
+                    <div
+                      class="grid-cell round-2"
+                      data-round="2"
+                      :class="{ 'current-round': currentRound === 2, 'flipped': roundStates[2]?.isFlipped }"
+                      :tabindex="roundStates[2]?.currentX > 0 ? 0 : -1"
+                      title=""
+                      :aria-label="getRoundScoringAriaLabel(2)"
+                      @mouseenter="handleRoundScoringMouseEnter(2, $event)"
+                      @mouseleave="handleRoundScoringMouseLeave"
+                      @focus="handleRoundScoringMouseEnter(2, $event)"
+                      @blur="handleRoundScoringMouseLeave"
+                      @keydown.esc.prevent="hideEntityPreview"
+                    >
                       <span class="round-label">第 2 回合</span>
                       <div class="card-container">
                         <div class="card-face front">
@@ -406,7 +442,19 @@
                       </div>
                     </div>
                     <!-- 第5回合 -->
-                    <div class="grid-cell round-5" data-round="5" :class="{ 'current-round': currentRound === 5, 'flipped': roundStates[5]?.isFlipped }">
+                    <div
+                      class="grid-cell round-5"
+                      data-round="5"
+                      :class="{ 'current-round': currentRound === 5, 'flipped': roundStates[5]?.isFlipped }"
+                      :tabindex="roundStates[5]?.currentX > 0 ? 0 : -1"
+                      title=""
+                      :aria-label="getRoundScoringAriaLabel(5)"
+                      @mouseenter="handleRoundScoringMouseEnter(5, $event)"
+                      @mouseleave="handleRoundScoringMouseLeave"
+                      @focus="handleRoundScoringMouseEnter(5, $event)"
+                      @blur="handleRoundScoringMouseLeave"
+                      @keydown.esc.prevent="hideEntityPreview"
+                    >
                       <span class="round-label">第 5 回合</span>
                       <div class="card-container">
                         <div class="card-face front">
@@ -418,7 +466,19 @@
                       </div>
                     </div>
                     <!-- 第3回合 -->
-                    <div class="grid-cell round-3" data-round="3" :class="{ 'current-round': currentRound === 3, 'flipped': roundStates[3]?.isFlipped }">
+                    <div
+                      class="grid-cell round-3"
+                      data-round="3"
+                      :class="{ 'current-round': currentRound === 3, 'flipped': roundStates[3]?.isFlipped }"
+                      :tabindex="roundStates[3]?.currentX > 0 ? 0 : -1"
+                      title=""
+                      :aria-label="getRoundScoringAriaLabel(3)"
+                      @mouseenter="handleRoundScoringMouseEnter(3, $event)"
+                      @mouseleave="handleRoundScoringMouseLeave"
+                      @focus="handleRoundScoringMouseEnter(3, $event)"
+                      @blur="handleRoundScoringMouseLeave"
+                      @keydown.esc.prevent="hideEntityPreview"
+                    >
                       <span class="round-label">第 3 回合</span>
                       <div class="card-container">
                         <div class="card-face front">
@@ -430,7 +490,19 @@
                       </div>
                     </div>
                     <!-- 第6回合（支持叠加） -->
-                    <div class="grid-cell round-6" data-round="6" :class="{ 'current-round': currentRound === 6, 'flipped': roundStates[6]?.isFlipped }">
+                    <div
+                      class="grid-cell round-6"
+                      data-round="6"
+                      :class="{ 'current-round': currentRound === 6, 'flipped': roundStates[6]?.isFlipped }"
+                      :tabindex="roundStates[6]?.currentX > 0 ? 0 : -1"
+                      title=""
+                      :aria-label="getRoundScoringAriaLabel(6)"
+                      @mouseenter="handleRoundScoringMouseEnter(6, $event)"
+                      @mouseleave="handleRoundScoringMouseLeave"
+                      @focus="handleRoundScoringMouseEnter(6, $event)"
+                      @blur="handleRoundScoringMouseLeave"
+                      @keydown.esc.prevent="hideEntityPreview"
+                    >
                       <span class="round-label">第 6 回合</span>
                       <div class="card-container">
                         <div class="card-face front">
@@ -458,6 +530,14 @@
                       :class="{ flipped: bonus.isFlipped }"
                       :data-index="index"
                       :data-x="bonus.x"
+                      :tabindex="bonus.x > 0 ? 0 : -1"
+                      title=""
+                      :aria-label="bonus.x > 0 ? `预览回合助推板 ${bonus.x}` : undefined"
+                      @mouseenter="handleRoundBoosterMouseEnter(bonus, $event)"
+                      @mouseleave="handleRoundBoosterMouseLeave"
+                      @focus="handleRoundBoosterMouseEnter(bonus, $event)"
+                      @blur="handleRoundBoosterMouseLeave"
+                      @keydown.esc.prevent="hideEntityPreview"
                     >
                       <div class="card-container">
                         <div class="card-face front">
@@ -1078,8 +1158,14 @@
         <div
           class="entity-preview-image"
           :class="{ 'is-inactive': entityPreview.isInactive }"
-          :style="entityPreview.imageStyle"
-        ></div>
+        >
+          <div
+            v-for="(layerStyle, index) in entityPreview.imageLayers"
+            :key="`entity-preview-layer-${index}`"
+            class="entity-preview-image-layer"
+            :style="layerStyle"
+          ></div>
+        </div>
         <div
           v-if="entityPreview.isInactive"
           class="entity-preview-image-overlay"
@@ -1807,6 +1893,7 @@ const palaceTileAspectRatio = 142 / 74
 const factionTileAspectRatio = factionTilePixelWidth / factionTilePixelHeight
 const planningCardPreviewAspectRatio = 118 / 187
 const entityPreviewDelayMs = 300
+const roundEntityPreviewDelayMs = 500
 const entityPreviewOffsetPx = 12
 const entityPreviewViewportPaddingPx = 12
 const entityPreviewPaddingPx = 8
@@ -1817,10 +1904,14 @@ const palacePreviewCardWidthPx = 280
 const palacePreviewImageHeightPx = Math.round(palacePreviewCardWidthPx / palaceTileAspectRatio)
 const planningPreviewCardWidthPx = 176
 const planningPreviewImageHeightPx = Math.round(planningPreviewCardWidthPx / planningCardPreviewAspectRatio)
+const roundScoringPreviewCardWidthPx = 174
+const roundScoringPreviewImageHeightPx = Math.round(roundScoringPreviewCardWidthPx * (134 / 232))
+const roundBoosterPreviewCardWidthPx = 111
+const roundBoosterPreviewImageHeightPx = Math.round(roundBoosterPreviewCardWidthPx * (8 / 3))
 const entityPreview = reactive({
   visible: false,
   name: '',
-  imageStyle: {},
+  imageLayers: [],
   isInactive: false,
   imageHeight: 0,
   panelWidth: 0,
@@ -1964,34 +2055,77 @@ function hideEntityPreview() {
   clearEntityPreviewHideTimer()
   entityPreview.visible = false
   entityPreview.name = ''
-  entityPreview.imageStyle = {}
+  entityPreview.imageLayers = []
   entityPreview.isInactive = false
   entityPreview.imageHeight = 0
   entityPreview.panelWidth = 0
 }
 
-function showEntityPreview({ name, imageStyle, isInactive = false, cardWidth, imageHeight, anchorElement }) {
+function hasRenderablePreviewLayer(style) {
+  return Boolean(style && typeof style === 'object' && Object.keys(style).length > 0)
+}
+
+function resolveEntityPreviewPosition(rect, panelWidth, panelHeight, placement = 'side') {
+  const maxLeft = Math.max(entityPreviewViewportPaddingPx, window.innerWidth - panelWidth - entityPreviewViewportPaddingPx)
+  const maxTop = Math.max(entityPreviewViewportPaddingPx, window.innerHeight - panelHeight - entityPreviewViewportPaddingPx)
+
+  if (placement === 'top') {
+    const preferredLeft = rect.left + (rect.width - panelWidth) / 2
+    const left = Math.min(Math.max(entityPreviewViewportPaddingPx, preferredLeft), maxLeft)
+    const preferredTop = rect.top - entityPreviewOffsetPx - panelHeight
+    const fallbackTop = rect.bottom + entityPreviewOffsetPx
+    const top = preferredTop >= entityPreviewViewportPaddingPx
+      ? preferredTop
+      : Math.min(Math.max(entityPreviewViewportPaddingPx, fallbackTop), maxTop)
+    return { left, top }
+  }
+
+  let left = rect.right + entityPreviewOffsetPx
+  if (left + panelWidth > window.innerWidth - entityPreviewViewportPaddingPx) {
+    left = rect.left - entityPreviewOffsetPx - panelWidth
+  }
+
+  const top = Math.min(
+    Math.max(entityPreviewViewportPaddingPx, rect.top + (rect.height - panelHeight) / 2),
+    maxTop
+  )
+
+  return {
+    left: Math.max(entityPreviewViewportPaddingPx, left),
+    top
+  }
+}
+
+function showEntityPreview({
+  name,
+  imageStyle,
+  imageLayers = [],
+  isInactive = false,
+  cardWidth,
+  imageHeight,
+  anchorElement,
+  placement = 'side'
+}) {
   if (!anchorElement?.isConnected) {
+    return
+  }
+
+  const normalizedLayers = (Array.isArray(imageLayers) ? imageLayers : [])
+    .filter(hasRenderablePreviewLayer)
+  if (normalizedLayers.length === 0 && hasRenderablePreviewLayer(imageStyle)) {
+    normalizedLayers.push(imageStyle)
+  }
+  if (normalizedLayers.length === 0) {
     return
   }
 
   const panelWidth = cardWidth + entityPreviewPaddingPx * 2
   const panelHeight = imageHeight + entityPreviewNameHeightPx + entityPreviewPaddingPx * 2
   const rect = anchorElement.getBoundingClientRect()
-  let left = rect.right + entityPreviewOffsetPx
-  if (left + panelWidth > window.innerWidth - entityPreviewViewportPaddingPx) {
-    left = rect.left - entityPreviewOffsetPx - panelWidth
-  }
-  left = Math.max(entityPreviewViewportPaddingPx, left)
-
-  let top = rect.top + (rect.height - panelHeight) / 2
-  top = Math.min(
-    Math.max(entityPreviewViewportPaddingPx, top),
-    window.innerHeight - panelHeight - entityPreviewViewportPaddingPx
-  )
+  const { left, top } = resolveEntityPreviewPosition(rect, panelWidth, panelHeight, placement)
 
   entityPreview.name = name
-  entityPreview.imageStyle = imageStyle
+  entityPreview.imageLayers = normalizedLayers
   entityPreview.isInactive = Boolean(isInactive)
   entityPreview.imageHeight = imageHeight
   entityPreview.panelWidth = panelWidth
@@ -2003,10 +2137,11 @@ function showEntityPreview({ name, imageStyle, isInactive = false, cardWidth, im
 function queueEntityPreview(config) {
   clearEntityPreviewHideTimer()
   clearEntityPreviewTimer()
+  const delayMs = Number.isFinite(config?.delayMs) ? Math.max(0, config.delayMs) : entityPreviewDelayMs
   entityPreviewTimer = setTimeout(() => {
     entityPreviewTimer = null
     showEntityPreview(config)
-  }, entityPreviewDelayMs)
+  }, delayMs)
 }
 
 function handlePlanningCardMouseEnter(planningCardId, planningCardName, event) {
@@ -2064,6 +2199,83 @@ function handleFactionBadgeMouseEnter(factionId, factionName, event) {
 }
 
 function handleFactionBadgeMouseLeave() {
+  clearEntityPreviewTimer()
+  scheduleEntityPreviewHide()
+}
+
+function getRoundScoringPreviewLayers(round) {
+  const normalizedRound = Number(round)
+  const roundState = roundStates[normalizedRound]
+  if (!Number.isInteger(normalizedRound) || normalizedRound < 1 || normalizedRound > 6 || !roundState) {
+    return []
+  }
+
+  const layers = []
+  const baseLayer = getRoundScoringSpriteStyleByBackendId(roundState.currentX)
+  if (!hasRenderablePreviewLayer(baseLayer)) {
+    return []
+  }
+
+  layers.push(baseLayer)
+
+  if (normalizedRound === 6) {
+    const overlayLayer = getFinalScoringOverlaySpriteStyleByBackendId(roundState.finalScoringId)
+    if (hasRenderablePreviewLayer(overlayLayer)) {
+      layers.push(overlayLayer)
+    }
+  }
+
+  return layers
+}
+
+function getRoundScoringAriaLabel(round) {
+  return getRoundScoringPreviewLayers(round).length > 0 ? `预览第 ${round} 回合计分板` : undefined
+}
+
+function handleRoundScoringMouseEnter(round, event) {
+  const imageLayers = getRoundScoringPreviewLayers(round)
+  if (imageLayers.length === 0) {
+    return
+  }
+
+  queueEntityPreview({
+    name: `第 ${round} 回合`,
+    imageLayers,
+    cardWidth: roundScoringPreviewCardWidthPx,
+    imageHeight: roundScoringPreviewImageHeightPx,
+    anchorElement: event?.currentTarget,
+    placement: 'top',
+    delayMs: roundEntityPreviewDelayMs
+  })
+}
+
+function handleRoundScoringMouseLeave() {
+  clearEntityPreviewTimer()
+  scheduleEntityPreviewHide()
+}
+
+function handleRoundBoosterMouseEnter(bonus, event) {
+  if (!bonus?.x) {
+    return
+  }
+
+  const imageLayer = getRoundBoosterFrontSpriteStyleByBackendId(bonus.x)
+  if (!hasRenderablePreviewLayer(imageLayer)) {
+    return
+  }
+
+  queueEntityPreview({
+    name: `回合助推板 ${bonus.x}`,
+    imageLayers: [imageLayer],
+    cardWidth: roundBoosterPreviewCardWidthPx,
+    imageHeight: roundBoosterPreviewImageHeightPx,
+    anchorElement: event?.currentTarget,
+    placement: 'top',
+    delayMs: roundEntityPreviewDelayMs
+  })
+}
+
+function handleRoundBoosterMouseLeave() {
   clearEntityPreviewTimer()
   scheduleEntityPreviewHide()
 }
@@ -5609,16 +5821,23 @@ onUnmounted(() => {
 }
 
 .entity-preview-image {
+  position: relative;
   width: 100%;
   height: var(--entity-preview-image-height);
   border-radius: 12px;
-  background-repeat: no-repeat;
-  background-color: #242424;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  background-color: transparent;
+  overflow: hidden;
 }
 
 .entity-preview-image.is-inactive {
   filter: saturate(0.82);
+}
+
+.entity-preview-image-layer {
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+  background-color: transparent;
 }
 
 .entity-preview-image-overlay {
@@ -6227,6 +6446,17 @@ onUnmounted(() => {
   transition: all 0.3s ease;
 }
 
+.grid-cell:focus-visible,
+.bonus-cell:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(72, 122, 168, 0.26);
+}
+
+.grid-cell[tabindex="0"],
+.bonus-cell[tabindex="0"] {
+  cursor: zoom-in;
+}
+
 .card-container {
   width: 100%;
   height: 100%;
@@ -6263,7 +6493,6 @@ onUnmounted(() => {
   z-index: 5;
   overflow: hidden;
   border-radius: 12px;
-  padding: 6px;
 }
 
 .grid-cell.current-round::before {
@@ -6309,6 +6538,23 @@ onUnmounted(() => {
   z-index: 30;
 }
 
+.grid-cell.current-round .card-face {
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.grid-cell.current-round .scoring-image,
+.grid-cell.current-round .base-image,
+.grid-cell.current-round .overlay-image {
+  transform: scale(0.8);
+  transform-origin: center;
+}
+
+.grid-cell.current-round .base-image,
+.grid-cell.current-round .overlay-image {
+  inset: 0;
+}
+
 .scoring-image,
 .base-image,
 .overlay-image,
@@ -6350,14 +6596,16 @@ onUnmounted(() => {
 
 .round-label {
   position: absolute;
-  bottom: 0px;
-  font-size: 0.7rem;
+  bottom: 2px;
+  font-size: 0.62rem;
   color: #ededed;
   background: rgba(0, 0, 0, 0.5);
-  padding: 2px 4px;
-  border-radius: 4px;
+  padding: 1px 4px;
+  border-radius: 999px;
   z-index: 30;
   pointer-events: none;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
 }
 
 .right-column {

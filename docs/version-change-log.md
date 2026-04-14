@@ -33,6 +33,35 @@
 
 ## 版本记录
 
+## 0.9.5.21
+- 日期：`2026-04-14`
+- 分支：`main`
+- 影响范围：
+  - `frontend/src/views/GameView.vue`
+  - `backend/game/utils/available_action_display_groups.json`
+  - `docs/version-change-log.md`
+  - `frontend/assets/images/bonus/`
+  - `frontend/assets/images/scoring/`
+- 更新内容：
+  - `ui: 将回合计分板底部“第x回合”标签进一步缩小，并压缩标签内边距以减少对图片主体的遮挡`
+  - `fix: 调整当前回合高亮态下计分板图片的缩放方式，改为容器内等比例缩放，避免高亮描边出现后图片被压缩变形`
+  - `feat: 为回合计分板和助推板接入新的悬停大图预览，悬停 0.5 秒后在卡片上方显示，与玩家卡片预览浮层保持一致`
+  - `fix: 悬停预览统一在翻面后的回合计分板与助推板上展示正面内容，并保留回合计分板原有的悬停自动翻回行为`
+  - `ui: 将回合计分板与助推板的悬停大图尺寸收回到不超过原始板块分辨率，避免预览放大过度`
+  - `fix: 恢复被强调回合计分板的内缩效果，改为通过卡面内边距实现更明显的等比例缩小`
+  - `fix: 统一被强调回合普通计分板与第 6 回合叠层计分板的缩放约束，改为同一边界框内的自动宽高等比例缩小，修正仅实现缩小但宽高比例不一致的问题`
+  - `fix: 修正被强调回合计分板因背景图容器改为 auto 尺寸后塌缩为 0 的问题，改为使用明确宽度加固定宽高比以恢复显示并保持等比例缩小`
+  - `fix: 改回通过统一 transform 缩放当前回合计分板图片，避免 width 与 max-height 联合约束导致只压缩单一维度而出现非等比例变形`
+  - `ui: 将当前回合计分板图片的等比例缩放系数从 0.88 下调到 0.8，进一步增强被强调时的内缩效果`
+  - `ui: 统一移除大图预览中图片承载容器的内层描边，使玩家卡片、回合计分板与助推板的大图显示框视觉保持一致`
+  - `ui: 将大图预览中图片承载容器的背景色统一改为透明，避免深色底板影响图片原始观感`
+  - `ui: 将回合计分板与助推板的悬停大图继续下调到当前尺寸的 75%，进一步减少遮挡并收紧预览占用`
+  - `chore: 清理 frontend/assets/images/bonus 与 frontend/assets/images/scoring 中已被 round_boosters.png 和 round_scoring_tiles.png 替代的旧独立切片资源`
+  - `ui: 调整鼹鼠派系与宫殿板块9附加行动组的按钮文案，统一为 label 显示“建车间/仅铲x下”、detail 显示最大铲数与跨越范围`
+- 验证方式：
+  - `cd frontend && npm run build`
+  - `node -e "JSON.parse(require('fs').readFileSync('backend/game/utils/available_action_display_groups.json','utf8')); console.log('JSON OK')"`
+
 ## 0.9.5.20
 - 日期：`2026-04-14`
 - 分支：`main`
