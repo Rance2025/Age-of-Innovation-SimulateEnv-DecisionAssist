@@ -385,7 +385,7 @@ def _run_game(game_data):
     import time
     sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-    from backend.game.start_game import create_game_controller, get_default_init_settings
+    from backend.game.start_game import create_game_controller, get_default_init_settings, DEFAULT_TIMER_CONFIG
     from backend.logger import get_logger
 
     logger = get_logger(__name__)
@@ -398,9 +398,10 @@ def _run_game(game_data):
         game_id = game_data.get('game_id', f"game_{time.time()}")
         num_players = game_data.get('num_players', 3)
         init_settings = game_data.get('init_settings', get_default_init_settings())
+        timer_config = game_data.get('timer_config', DEFAULT_TIMER_CONFIG.copy())
 
-        # 创建游戏控制器
-        controller = create_game_controller(game_id, num_players)
+        # 创建游戏控制器（传入 timer_config）
+        controller = create_game_controller(game_id, num_players, timer_config)
         controller.set_message_callback(put_message)
 
         # 启动游戏

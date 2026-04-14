@@ -119,7 +119,10 @@
             <div class="mode-icon"><i :class="mode.icon"></i></div>
             <div class="mode-info">
               <div class="mode-name">{{ mode.name }}</div>
-              <div class="mode-desc">{{ mode.desc }}</div>
+              <div class="mode-desc">
+                <div class="mode-desc-line1">{{ mode.desc.split('\n')[0] }}</div>
+                <div class="mode-desc-line2">{{ mode.desc.split('\n')[1] || '' }}</div>
+              </div>
             </div>
             <!-- 自定义模式配置按钮 -->
             <button
@@ -291,12 +294,85 @@
     </div>
 
     <Modal v-model="showCustomModeModal" title="自定义游戏配置">
-      <div class="todo-placeholder">
-        <p>TODO: 自定义游戏配置功能待实现</p>
+      <div class="custom-mode-options">
+        <div class="custom-option">
+          <div class="custom-option-label">基础时间</div>
+          <div class="custom-option-desc">每位玩家的主要思考时间</div>
+          <div class="slider-container">
+            <div class="slider-track-wrapper" ref="mainTimeTrackRef">
+              <input
+                v-model.number="customSettings.mainTime"
+                type="range"
+                min="0"
+                max="100"
+                class="slider"
+              />
+              <div class="slider-marks">
+                <div class="slider-marks-inner">
+                  <span class="slider-mark" :style="getMainTimeMarkStyle(0)">0</span>
+                  <span class="slider-mark" :style="getMainTimeMarkStyle(30)">30</span>
+                  <span class="slider-mark" :style="getMainTimeMarkStyle(45)">45</span>
+                  <span class="slider-mark" :style="getMainTimeMarkStyle(60)">60</span>
+                  <span class="slider-mark" :style="getMainTimeMarkStyle(75)">75</span>
+                  <span class="slider-mark" :style="getMainTimeMarkStyle(100)">100</span>
+                </div>
+              </div>
+            </div>
+            <span class="slider-value">{{ customSettings.mainTime }} 分钟</span>
+          </div>
+        </div>
+        <div class="custom-option">
+          <div class="custom-option-label">读秒时间</div>
+          <div class="custom-option-desc">基础时间耗尽后每回合的限时</div>
+          <div class="slider-container">
+            <div class="slider-track-wrapper" ref="byoYomiTrackRef">
+              <input
+                v-model.number="customSettings.byoYomiTime"
+                type="range"
+                min="10"
+                max="90"
+                class="slider"
+              />
+              <div class="slider-marks">
+                <div class="slider-marks-inner">
+                  <span class="slider-mark" :style="getByoYomiMarkStyle(10)">10</span>
+                  <span class="slider-mark" :style="getByoYomiMarkStyle(30)">30</span>
+                  <span class="slider-mark" :style="getByoYomiMarkStyle(45)">45</span>
+                  <span class="slider-mark" :style="getByoYomiMarkStyle(60)">60</span>
+                  <span class="slider-mark" :style="getByoYomiMarkStyle(75)">75</span>
+                  <span class="slider-mark" :style="getByoYomiMarkStyle(90)">90</span>
+                </div>
+              </div>
+            </div>
+            <span class="slider-value">{{ customSettings.byoYomiTime }} 秒</span>
+          </div>
+        </div>
+        <div class="custom-option">
+          <div class="custom-option-label">超时策略</div>
+          <div class="custom-option-desc">读秒超时后自动执行的策略</div>
+          <div class="custom-option-input custom-option-input-single">
+            <button
+              type="button"
+              class="custom-option-btn custom-option-btn-full"
+              :class="{ active: customSettings.timeoutStrategy === 'random_pure' }"
+              @click="customSettings.timeoutStrategy = 'random_pure'"
+            >
+              完全随机
+            </button>
+            <button
+              type="button"
+              class="custom-option-btn custom-option-btn-full"
+              :class="{ active: customSettings.timeoutStrategy === 'random_fast_action' }"
+              @click="customSettings.timeoutStrategy = 'random_fast_action'"
+            >
+              经快速行动优化的随机策略
+            </button>
+          </div>
+        </div>
       </div>
       <template #footer>
-        <button type="button" class="btn btn-secondary" @click="showCustomModeModal = false">
-          关闭
+        <button type="button" class="btn btn-primary" @click="showCustomModeModal = false">
+          确认
         </button>
       </template>
     </Modal>
@@ -995,8 +1071,8 @@ const router = useRouter()
 const gameStore = useGameStore()
 
 const gameModes = [
-  { value: 'standard', name: '标准模式', desc: '45分钟基础时间 + 60秒读秒', icon: 'fas fa-chess' },
-  { value: 'quick', name: '快速模式', desc: '25分钟基础时间 + 30秒读秒', icon: 'fas fa-bolt' },
+  { value: 'standard', name: '标准模式', desc: '45min 基础时间 + 45s 读秒\n超时采用经快速行动优化的随机策略', icon: 'fas fa-chess' },
+  { value: 'quick', name: '快速模式', desc: '25min 基础时间 + 25s 读秒\n超时采用经快速行动优化的随机策略', icon: 'fas fa-bolt' },
   { value: 'custom', name: '自定义', desc: '自由配置各项参数', icon: 'fas fa-cogs' }
 ]
 
@@ -1027,6 +1103,36 @@ const loadingCountdown = ref(3)
 const isCountdownPhase = computed(() => loadingStage.value === 'countdown')
 let loadingCountdownTimer = null
 const loadingText = ref('正在启动游戏...')
+
+const mainTimeTrackRef = ref(null)
+const byoYomiTrackRef = ref(null)
+
+const THUMB_RADIUS = 9
+const TRACK_HEIGHT = 20
+
+function getSliderMarkPositions(trackEl) {
+  if (!trackEl) return { leftPercent: 0, rightPercent: 100 }
+  const trackWidth = trackEl.offsetWidth
+  const leftPos = THUMB_RADIUS
+  const rightPos = trackWidth - THUMB_RADIUS
+  return {
+    leftPercent: (leftPos / trackWidth) * 100,
+    rightPercent: (rightPos / trackWidth) * 100
+  }
+}
+
+function getMainTimeMarkStyle(value) {
+  const trackWidth = mainTimeTrackRef.value?.offsetWidth || 1
+  const leftPx = THUMB_RADIUS + (value / 100) * (trackWidth - 2 * THUMB_RADIUS)
+  return { left: leftPx + 'px' }
+}
+
+function getByoYomiMarkStyle(value) {
+  const trackWidth = byoYomiTrackRef.value?.offsetWidth || 1
+  const min = 10, max = 90
+  const leftPx = THUMB_RADIUS + ((value - min) / (max - min)) * (trackWidth - 2 * THUMB_RADIUS)
+  return { left: leftPx + 'px' }
+}
 
 // 策略弹窗的显示状态（转换为布尔值）
 const showStrategyModalOpen = computed({
@@ -1769,14 +1875,10 @@ function handleTechSlotClick(positionIndex) {
 
 // 自定义游戏模式设置
 const customSettings = reactive({
-  rounds: 5,
-  resourceRate: 1,
-  scoringType: '标准'
+  mainTime: 45,
+  byoYomiTime: 45,
+  timeoutStrategy: 'random_fast_action'
 })
-
-function saveCustomSettings() {
-  showCustomModeModal.value = false
-}
 
 // 玩家顺序列表（用于指定顺序）
 const playerOrderList = ref([
@@ -2032,14 +2134,36 @@ async function handleSubmit() {
   }
 }
 
+// 获取计时器配置
+function getTimerConfig() {
+  if (form.gameMode === 'standard') {
+    return {
+      main_time: 45 * 60 * 1000,
+      byo_yomi_time: 45 * 1000,
+      timeout_strategy: 'random_fast_action'
+    }
+  } else if (form.gameMode === 'quick') {
+    return {
+      main_time: 25 * 60 * 1000,
+      byo_yomi_time: 25 * 1000,
+      timeout_strategy: 'random_fast_action'
+    }
+  } else {
+    // 自定义模式
+    return {
+      main_time: customSettings.mainTime * 60 * 1000,
+      byo_yomi_time: customSettings.byoYomiTime * 1000,
+      timeout_strategy: customSettings.timeoutStrategy
+    }
+  }
+}
+
 // 组装游戏设置数据
 function buildGameSettings() {
   const players = form.players.map((player, index) => ({
     type: player.type,
     args: player.type === 'human' ? player.playerId : (player.strategy || 'random')
   }))
-
-  const gameModeArgs = form.gameMode === 'custom' ? {} : null
 
   const initPlayerOrder = form.playerOrder === '随机'
     ? 'random'
@@ -2051,9 +2175,9 @@ function buildGameSettings() {
     num_players: form.playerCount,
     players: players,
     game_mode: {
-      type: form.gameMode === 'standard' ? 'standard' : (form.gameMode === 'quick' ? 'quick' : 'custom'),
-      args: gameModeArgs
+      type: form.gameMode
     },
+    timer_config: getTimerConfig(),
     init_settings: {
       init_player_order: initPlayerOrder,
       setup_tiles: setupTiles
@@ -2606,9 +2730,19 @@ async function waitForGameStateReady(retries = 60, delay = 250) {
 }
 
 .mode-desc {
-  font-size: 0.95rem;
-  color: var(--text-secondary);
   line-height: 1.5;
+}
+
+.mode-desc-line1 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.mode-desc-line2 {
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--text-secondary);
 }
 
 /* 初始设置 */
@@ -2871,6 +3005,11 @@ async function waitForGameStateReady(retries = 60, delay = 250) {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  margin-bottom: 24px;
+}
+
+.custom-option:last-child {
+  margin-bottom: 0;
 }
 
 .custom-option-label {
@@ -2879,10 +3018,25 @@ async function waitForGameStateReady(retries = 60, delay = 250) {
   color: var(--text-primary);
 }
 
+.custom-option-desc {
+  font-size: var(--font-size-small);
+  color: var(--text-secondary);
+  margin-top: -8px;
+}
+
 .custom-option-input {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.custom-option-input-single {
+  flex-wrap: nowrap;
+}
+
+.custom-option-btn-full {
+  flex: 1;
+  min-width: auto;
 }
 
 .custom-option-btn {
@@ -2907,6 +3061,97 @@ async function waitForGameStateReady(retries = 60, delay = 250) {
   background: var(--accent);
   border-color: var(--accent);
   color: white;
+}
+
+/* 拖动条容器 */
+.slider-container {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.slider-track-wrapper {
+  flex: 1;
+  position: relative;
+  height: 20px;
+}
+
+.slider {
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  outline: none;
+  cursor: pointer;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+  margin-top: 1px;
+}
+
+.slider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+}
+
+.slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+}
+
+.slider-marks {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 2px;
+}
+
+.slider-marks-inner {
+  position: relative;
+  height: 18px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.slider-mark {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.slider-mark::before {
+  content: '';
+  width: 1px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.slider-value {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 70px;
+  height: 20px;
 }
 
 .init-btn span {

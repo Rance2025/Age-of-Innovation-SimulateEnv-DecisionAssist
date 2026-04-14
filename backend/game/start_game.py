@@ -48,11 +48,14 @@ class GameController:
         self.current_request: Optional[ActionRequest] = None
         self._stop_event = threading.Event()
 
-        self._timer_config = timer_config or DEFAULT_TIMER_CONFIG.copy()
+        # 合并前端传入的 timer_config 与默认值，确保所有必要字段都存在
+        self._timer_config = DEFAULT_TIMER_CONFIG.copy()
+        if timer_config:
+            self._timer_config.update(timer_config)
         self._main_time = self._timer_config['main_time']
         self._byo_yomi_time = self._timer_config['byo_yomi_time']
         self._grace_period = self._timer_config['grace_period']
-        self._timeout_strategy = self._timer_config.get('timeout_strategy', 'random_fast_action')
+        self._timeout_strategy = self._timer_config['timeout_strategy']
 
         # 输入队列 - 用于接收前端的行动选择
         self._input_queue = queue.Queue()

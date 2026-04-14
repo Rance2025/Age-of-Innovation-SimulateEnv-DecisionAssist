@@ -9,11 +9,9 @@
 - 日期：
 - 分支：
 - 影响范围：
-  - `待补充`
 - 更新内容：
   - `type: 中文描述`
 - 验证方式：
-  - `待补充`
 
 ## 模板
 
@@ -34,6 +32,32 @@
 - 验证方式：
 
 ## 版本记录
+
+## 0.9.5.18
+- 日期：`2026-04-14`
+- 分支：`main`
+- 影响范围：
+  - `frontend/src/views/SetupView.vue`
+  - `backend/api/routes.py`
+  - `backend/game/start_game.py`
+  - `docs/version-change-log.md`
+- 更新内容：
+  - `ui: 更新设置页标准模式与快速模式的说明文案，将时间说明与超时策略分两行显示，并优化字重与字号层级`
+  - `feat: 在设置页自定义模式弹窗中实现基础时间、读秒时间与超时策略三项配置`
+  - `ui: 将自定义弹窗中的基础时间和读秒时间配置改为拖动条，范围分别为 0-100 分钟和 10-90 秒`
+  - `feat: 自定义弹窗超时策略增加"完全随机"选项，与"经快速行动优化的随机策略"并列`
+  - `feat: 将前端设置页组装的游戏设置数据增加 timer_config 字段，支持向后端传递自定义计时器参数`
+  - `feat: 在后端 /api/game/start 的处理链路中接收 timer_config 并传递给 GameController`
+  - `ui: 修复设置页滑块右侧数值垂直居中问题，增加 min-width:70px 和 height:20px 以应对"100 分钟"三位数宽度`
+  - `ui: 修复设置页滑块参考线位置，使用 JavaScript 动态计算所有标记位置（THUMB_RADIUS=9px，公式为 THUMB_RADIUS + (value/max) * (trackWidth - 2*THUMB_RADIUS)），替代固定百分比实现`
+  - `feat: 读秒滑块增加 45 秒和 75 秒参考线`
+  - `feat: 基础时间滑块参考线改为 0 30 45 60 75 100`
+  - `ui: 增加自定义弹窗中基础时间、读秒时间、超时策略三个选项之间的间距（margin-bottom: 24px）`
+  - `fix: 修复前端 getTimerConfig 未返回 grace_period 导致后端 GameController 初始化报 KeyError 的问题`
+  - `fix: 增强后端 GameController 对 timer_config 的容错处理，自动使用 DEFAULT_TIMER_CONFIG 补齐缺失字段`
+- 验证方式：
+  - `cd frontend && npm run build`
+  - `python -m py_compile backend/api/routes.py backend/game/start_game.py`
 
 ## 0.9.5.17
 - 日期：`2026-04-13`
