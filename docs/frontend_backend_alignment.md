@@ -100,10 +100,10 @@ GameController._get_action_id()
 | **轮次计分设置**（固定6个） |
 | [✅] | `round_scoring_order: [1,2,3,4,5,6]` | `round_scoring_order: [1,2,3,4,5,6]` | 6个轮次计分板块按顺序显示图片 |
 | **最终计分设置**（固定1个） |
-| [✅] | `final_scoring: 1` (范围1-4) | `final_scoring: 13` (映射+12) | 第6回合板块上叠加显示 `/images/scoring/13.png` |
-| [✅] | `final_scoring: 2` | `final_scoring: 14` | 第6回合板块上叠加显示 `/images/scoring/14.png` |
-| [✅] | `final_scoring: 3` | `final_scoring: 15` | 第6回合板块上叠加显示 `/images/scoring/15.png` |
-| [✅] | `final_scoring: 4` | `final_scoring: 16` | 第6回合板块上叠加显示 `/images/scoring/16.png` |
+| [✅] | `final_scoring: 1` (范围1-4) | `final_scoring: 1` | 第6回合板块上叠加显示最终计分透明覆盖层 1 |
+| [✅] | `final_scoring: 2` | `final_scoring: 2` | 第6回合板块上叠加显示最终计分透明覆盖层 2 |
+| [✅] | `final_scoring: 3` | `final_scoring: 3` | 第6回合板块上叠加显示最终计分透明覆盖层 3 |
+| [✅] | `final_scoring: 4` | `final_scoring: 4` | 第6回合板块上叠加显示最终计分透明覆盖层 4 |
 | **能力瓦片设置**（固定12个，与人数无关） |
 | [ ] | `ability_tiles_order: [1,2,3,4,5,6,7,8,9,10,11,12]` | `ability_tiles_order: [1,2,3,4,5,6,7,8,9,10,11,12]` | 能力瓦片区按顺序显示12个能力瓦片 |
 | **科技瓦片设置**（num_players * 2 + 2） |
@@ -126,7 +126,7 @@ GameController._get_action_id()
 - **宫殿瓦片**：总共16个，本局选 **num_players + 1** 个
 - **回合助推器**：总共10个，本局选 **num_players + 3** 个
 - **轮次计分**：总共12个，本局固定选 **6个**（与人数无关）
-- **最终计分**：总共4个，本局固定选 **1个**（与人数无关），前端需要 +12 映射到图片资源ID
+- **最终计分**：总共4个，本局固定选 **1个**（与人数无关），前后端统一使用 `1-4`
 - **能力瓦片**：总共12个，本局固定选 **12个**（与人数无关）
 - **科技瓦片**：总共18个，本局选 **num_players * 2 + 2** 个
 - **书本行动**：总共6个，本局固定选 **3个**（与人数无关）
@@ -324,14 +324,14 @@ else:
 
 ### 4.5 最终计分ID映射
 
-| 后端值 | 前端映射值 | 图片路径 |
+| 后端值 | 前端映射值 | 显示策略 |
 |--------|-----------|----------|
-| 1 | 13 | `/images/scoring/13.png` |
-| 2 | 14 | `/images/scoring/14.png` |
-| 3 | 15 | `/images/scoring/15.png` |
-| 4 | 16 | `/images/scoring/16.png` |
+| 1 | 1 | 使用回合计分大图中的最终计分透明覆盖层 1 |
+| 2 | 2 | 使用回合计分大图中的最终计分透明覆盖层 2 |
+| 3 | 3 | 使用回合计分大图中的最终计分透明覆盖层 3 |
+| 4 | 4 | 使用回合计分大图中的最终计分透明覆盖层 4 |
 
-**映射公式：** `frontend_id = backend_id + 12`
+**映射公式：** `frontend_id = backend_id`
 
 ---
 

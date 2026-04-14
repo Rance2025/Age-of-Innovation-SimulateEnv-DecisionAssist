@@ -1062,6 +1062,11 @@ import { reactive, ref, watch, computed, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameStore } from '../stores/game'
 import Modal from '../components/Modal.vue'
+import {
+  getFinalScoringSelectionSpriteStyleByBackendId,
+  getRoundBoosterFrontSpriteStyleByBackendId,
+  getRoundScoringSpriteStyleByBackendId
+} from '../utils/tileSprites'
 
 defineOptions({
   name: 'SetupView'
@@ -1369,26 +1374,8 @@ function togglePalaceSelection(index) {
   }
 }
 
-// 轮次计分板块后端编码到图片索引的映射（后端1-12 -> 图片0-11）
-// 后端: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
-// 图片: 2, 11, 1, 8, 9, 6, 10, 3, 4, 5, 7, 0
-const roundScoringBackendToImageMap = [2, 11, 1, 8, 9, 6, 10, 3, 4, 5, 7, 0]
-
-// 获取轮次计分板块背景样式（17等分切割，只展示前12张）
 function getRoundScoringCardStyle(index) {
-  // 原图尺寸：3978x134，17张卡片横向排列
-  // 每份原宽度：234px，裁剪最右侧2px后显示232px
-  // 背景尺寸：3978/232 × 100% = 1714.655%
-  // positions：n/16 × 100%
-  const positions = [0, 6.25, 12.5, 18.75, 25, 31.25, 37.5, 43.75,
-                     50, 56.25, 62.5, 68.75, 75, 81.25, 87.5, 93.75, 100]
-  // 将前端显示索引映射到正确的图片位置
-  const imageIndex = roundScoringBackendToImageMap[index]
-  return {
-    backgroundImage: 'url(/assets/images/round_scoring_tiles.png)',
-    backgroundSize: `${(3978 / 232) * 100}% 100%`, // 横向1714.655%
-    backgroundPositionX: `${positions[imageIndex]}%`
-  }
+  return getRoundScoringSpriteStyleByBackendId(index + 1)
 }
 
 // 获取轮次计分板块后端编码（前端索引0-11对应后端编码1-12）
@@ -1507,27 +1494,8 @@ function getRule2Icon() {
   return 'fa-question-circle' // 未确定状态
 }
 
-// 最终计分板块后端编码到图片索引的映射（后端1-4 -> 图片0-3）
-// 后端: 1, 2, 3, 4
-// 图片: 3, 0, 2, 1
-const finalScoringBackendToImageMap = [3, 0, 2, 1]
-
-// 获取最终计分板块背景样式（17等分，取第13-16个即索引12-15，只显示右半部分）
 function getFinalScoringCardStyle(index) {
-  // 计算方式：100/(34-1) * (n-1)，n为边界点序号
-  // 第13-16张的右边分别对应第26,28,30,32个边界点
-  // 索引0(第13张右边): 100/33 * 25 = 75.7576%
-  // 索引1(第14张右边): 100/33 * 27 = 81.8182%
-  // 索引2(第15张右边): 100/33 * 29 = 87.8788%
-  // 索引3(第16张右边): 100/33 * 31 = 93.9394%
-  const positions = [75.7576, 81.8182, 87.8788, 93.9394]
-  // 将前端显示索引映射到正确的图片位置
-  const imageIndex = finalScoringBackendToImageMap[index]
-  return {
-    backgroundImage: 'url(/assets/images/round_scoring_tiles.png)',
-    backgroundSize: '3400% 100%',
-    backgroundPositionX: `${positions[imageIndex]}%`
-  }
+  return getFinalScoringSelectionSpriteStyleByBackendId(index + 1)
 }
 
 // 获取最终计分板块后端编码（前端索引0-3对应后端编码1-4）
@@ -1582,28 +1550,8 @@ function toggleBookActionSelection(index) {
   }
 }
 
-// 回合助推板后端编码到图片索引的映射（后端1-10 -> 图片0-9）
-// 后端: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
-// 图片: 0, 4, 5, 1, 2, 9, 8, 3, 6, 7
-const roundBoosterBackendToImageMap = [0, 4, 5, 1, 2, 9, 8, 3, 6, 7]
-
-// 获取回合助推板背景样式（图片上下等分取上半部分，然后10等分切割，裁剪最右侧2px）
 function getRoundBoosterCardStyle(index) {
-  // 原图分析：1500x800，2行10列共20个助推板
-  // 每个助推板原宽度：150px，裁剪最右侧2px后显示148px
-  // 背景尺寸：原图宽1500px / 显示宽148px × 100% = 1013.514%
-  // backgroundPosition 计算（基于CSS规范公式）：
-  // offset = P% × (元素宽度 - 背景图片宽度)
-  // 要让原图 n×150 对齐元素左边缘，解得 P% = n / 9 × 100%
-  const positions = [0, 11.1111, 22.2222, 33.3333, 44.4444, 55.5556, 66.6667, 77.7778, 88.8889, 100]
-  // 将前端显示索引映射到正确的图片位置
-  const imageIndex = roundBoosterBackendToImageMap[index]
-  return {
-    backgroundImage: 'url(/assets/images/round_boosters.png)',
-    backgroundSize: `${(1500 / 148) * 100}% 200%`, // 横向1013.514%，纵向200%
-    backgroundPositionX: `${positions[imageIndex]}%`,
-    backgroundPositionY: '0%' // 上半部分
-  }
+  return getRoundBoosterFrontSpriteStyleByBackendId(index + 1)
 }
 
 // 获取回合助推板后端编码（前端索引0-9对应后端编码1-10）

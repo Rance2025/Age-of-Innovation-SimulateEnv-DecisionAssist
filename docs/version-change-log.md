@@ -33,6 +33,26 @@
 
 ## 版本记录
 
+## 0.9.5.19
+- 日期：`2026-04-14`
+- 分支：`main`
+- 影响范围：
+  - `frontend/src/utils/tileSprites.js`
+  - `frontend/src/views/SetupView.vue`
+  - `frontend/src/views/GameView.vue`
+  - `docs/frontend_backend_alignment.md`
+  - `docs/version-change-log.md`
+- 更新内容：
+  - `refactor: 抽离回合计分板与回合助推板的单图切片工具，统一设置页与游戏页的索引映射和切图参数`
+  - `ui: 将游戏页回合计分板改为使用 round_scoring_tiles.png 单图切片渲染，包含常规板块、最终计分透明覆盖层与翻面图`
+  - `ui: 将游戏页回合助推板改为使用 round_boosters.png 单图切片渲染，并按同列下半区显示对应翻面背板`
+  - `refactor: 移除游戏页这两块区域对旧独立切片资源和旧编号口径的依赖，最终计分统一按 1-4 处理`
+  - `fix: 修正游戏页回合计分板切图层被拉伸导致的变形问题，按原始板块比例居中显示`
+  - `fix: 修正第 6 回合最终计分叠加层仅在当前回合高亮时才显示的问题，并同步更新前后端对齐文档中的旧 +12 编号说明`
+  - `fix: 将回合信息区改为基于容器宽度与助推板数量联动计算左侧计分栏宽度，确保左右两侧总高度始终一致且不产生横向滚动`
+- 验证方式：
+  - `cd frontend && npm run build`
+
 ## 0.9.5.18
 - 日期：`2026-04-14`
 - 分支：`main`

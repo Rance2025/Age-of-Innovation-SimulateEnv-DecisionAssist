@@ -366,18 +366,18 @@
                 </div>
               </div>
               <div class="round-info-status">
-                <div class="round-info-container">
+                <div ref="roundInfoContainerRef" class="round-info-container">
                   <!-- 左侧计分区 -->
-                  <div class="left-column" id="left-scoring-grid">
+                  <div class="left-column" id="left-scoring-grid" :style="roundInfoLeftColumnStyle">
                     <!-- 第1回合 -->
                     <div class="grid-cell round-1" data-round="1" :class="{ 'current-round': currentRound === 1, 'flipped': roundStates[1]?.isFlipped }">
                       <span class="round-label">第 1 回合</span>
                       <div class="card-container">
                         <div class="card-face front">
-                          <img :src="`/images/scoring/${roundStates[1]?.currentX ?? -1}.png`" alt="计分图标" class="scoring-image">
+                          <div aria-hidden="true" class="scoring-image" :style="getRoundScoringSpriteStyleByBackendId(roundStates[1]?.currentX)"></div>
                         </div>
                         <div class="card-face back">
-                          <img :src="`/images/scoring/0.png`" alt="计分图标背面" class="scoring-image">
+                          <div aria-hidden="true" class="scoring-image" :style="roundScoringBackSpriteStyle"></div>
                         </div>
                       </div>
                     </div>
@@ -386,10 +386,10 @@
                       <span class="round-label">第 4 回合</span>
                       <div class="card-container">
                         <div class="card-face front">
-                          <img :src="`/images/scoring/${roundStates[4]?.currentX ?? -1}.png`" alt="计分图标" class="scoring-image">
+                          <div aria-hidden="true" class="scoring-image" :style="getRoundScoringSpriteStyleByBackendId(roundStates[4]?.currentX)"></div>
                         </div>
                         <div class="card-face back">
-                          <img :src="`/images/scoring/0.png`" alt="计分图标背面" class="scoring-image">
+                          <div aria-hidden="true" class="scoring-image" :style="roundScoringBackSpriteStyle"></div>
                         </div>
                       </div>
                     </div>
@@ -398,10 +398,10 @@
                       <span class="round-label">第 2 回合</span>
                       <div class="card-container">
                         <div class="card-face front">
-                          <img :src="`/images/scoring/${roundStates[2]?.currentX ?? -1}.png`" alt="计分图标" class="scoring-image">
+                          <div aria-hidden="true" class="scoring-image" :style="getRoundScoringSpriteStyleByBackendId(roundStates[2]?.currentX)"></div>
                         </div>
                         <div class="card-face back">
-                          <img :src="`/images/scoring/0.png`" alt="计分图标背面" class="scoring-image">
+                          <div aria-hidden="true" class="scoring-image" :style="roundScoringBackSpriteStyle"></div>
                         </div>
                       </div>
                     </div>
@@ -410,10 +410,10 @@
                       <span class="round-label">第 5 回合</span>
                       <div class="card-container">
                         <div class="card-face front">
-                          <img :src="`/images/scoring/${roundStates[5]?.currentX ?? -1}.png`" alt="计分图标" class="scoring-image">
+                          <div aria-hidden="true" class="scoring-image" :style="getRoundScoringSpriteStyleByBackendId(roundStates[5]?.currentX)"></div>
                         </div>
                         <div class="card-face back">
-                          <img :src="`/images/scoring/0.png`" alt="计分图标背面" class="scoring-image">
+                          <div aria-hidden="true" class="scoring-image" :style="roundScoringBackSpriteStyle"></div>
                         </div>
                       </div>
                     </div>
@@ -422,10 +422,10 @@
                       <span class="round-label">第 3 回合</span>
                       <div class="card-container">
                         <div class="card-face front">
-                          <img :src="`/images/scoring/${roundStates[3]?.currentX ?? -1}.png`" alt="计分图标" class="scoring-image">
+                          <div aria-hidden="true" class="scoring-image" :style="getRoundScoringSpriteStyleByBackendId(roundStates[3]?.currentX)"></div>
                         </div>
                         <div class="card-face back">
-                          <img :src="`/images/scoring/0.png`" alt="计分图标背面" class="scoring-image">
+                          <div aria-hidden="true" class="scoring-image" :style="roundScoringBackSpriteStyle"></div>
                         </div>
                       </div>
                     </div>
@@ -434,13 +434,18 @@
                       <span class="round-label">第 6 回合</span>
                       <div class="card-container">
                         <div class="card-face front">
-                          <img :src="`/images/scoring/${roundStates[6]?.currentX ?? -1}.png`" alt="基础计分图标" class="base-image">
+                          <div aria-hidden="true" class="base-image" :style="getRoundScoringSpriteStyleByBackendId(roundStates[6]?.currentX)"></div>
+                          <div
+                            v-if="roundStates[6]?.finalScoringId !== null"
+                            aria-hidden="true"
+                            class="overlay-image"
+                            :style="getFinalScoringOverlaySpriteStyleByBackendId(roundStates[6]?.finalScoringId)"
+                          ></div>
                         </div>
                         <div class="card-face back">
-                          <img :src="`/images/scoring/0.png`" alt="计分图标背面" class="scoring-image">
+                          <div aria-hidden="true" class="scoring-image" :style="roundScoringBackSpriteStyle"></div>
                         </div>
                       </div>
-                      <img :src="roundStates[6]?.overlayImage || ''" alt="叠加奖励图标" class="overlay-image" :style="{ display: roundStates[6]?.overlayImage ? 'block' : 'none' }">
                     </div>
                   </div>
 
@@ -456,10 +461,10 @@
                     >
                       <div class="card-container">
                         <div class="card-face front">
-                          <img :src="`/images/bonus/${bonus.x}.png`" alt="助推板块">
+                          <div aria-hidden="true" class="bonus-sprite-image" :style="getRoundBoosterFrontSpriteStyleByBackendId(bonus.x)"></div>
                         </div>
                         <div class="card-face back">
-                          <img :src="`/images/bonus/${bonus.backX}.png`" alt="助推板块背面">
+                          <div aria-hidden="true" class="bonus-sprite-image" :style="getRoundBoosterBackSpriteStyleByBackendId(bonus.x)"></div>
                         </div>
                       </div>
                       <img
@@ -1098,6 +1103,13 @@ import { useTimerStore } from '../stores/timer'
 import Modal from '../components/Modal.vue'
 import ActionTimer from '../components/ActionTimer.vue'
 import PlayerTimer from '../components/PlayerTimer.vue'
+import {
+  getFinalScoringOverlaySpriteStyleByBackendId,
+  getRoundBoosterBackSpriteStyleByBackendId,
+  getRoundBoosterFrontSpriteStyleByBackendId,
+  getRoundScoringBackSpriteStyle,
+  getRoundScoringSpriteStyleByBackendId
+} from '../utils/tileSprites'
 import availableActionDisplayGroups from '../../../backend/game/utils/available_action_display_groups.json'
 
 defineOptions({
@@ -1433,13 +1445,14 @@ watch(gameMenuOpen, (isOpen) => {
 // 回合信息 - 默认currentRound为0表示没有高亮任何回合
 const currentRound = ref(0)
 const roundStates = reactive({
-  1: { currentX: -1, actualX: -1, isFlipped: false, overlayImage: null },
-  2: { currentX: -1, actualX: -1, isFlipped: false, overlayImage: null },
-  3: { currentX: -1, actualX: -1, isFlipped: false, overlayImage: null },
-  4: { currentX: -1, actualX: -1, isFlipped: false, overlayImage: null },
-  5: { currentX: -1, actualX: -1, isFlipped: false, overlayImage: null },
-  6: { currentX: -1, actualX: -1, isFlipped: false, overlayImage: null },
+  1: { currentX: -1, actualX: -1, isFlipped: false, finalScoringId: null },
+  2: { currentX: -1, actualX: -1, isFlipped: false, finalScoringId: null },
+  3: { currentX: -1, actualX: -1, isFlipped: false, finalScoringId: null },
+  4: { currentX: -1, actualX: -1, isFlipped: false, finalScoringId: null },
+  5: { currentX: -1, actualX: -1, isFlipped: false, finalScoringId: null },
+  6: { currentX: -1, actualX: -1, isFlipped: false, finalScoringId: null },
 })
+const roundScoringBackSpriteStyle = getRoundScoringBackSpriteStyle()
 
 // 助推板块 - 动态初始化，根据实际人数调整 (num_players + 3)
 const bonusColumns = ref([])
@@ -1447,7 +1460,6 @@ const bonusColumns = ref([])
 function createBonusColumnState(x = 0, previousBonus = null) {
   return {
     x,
-    backX: x === 0 ? 0 : x + 10,
     isFlipped: previousBonus?.isFlipped ?? false,
     holderMarkId: previousBonus?.holderMarkId ?? null,
     coinCount: previousBonus?.coinCount ?? 0
@@ -1501,17 +1513,36 @@ const globalStatus = computed(() => buildGlobalStatusFromMeta())
 const groupedActionCards = computed(() => buildGroupedActionCards(actions.value))
 const actionContentRef = ref(null)
 const actionMeasureRef = ref(null)
+const roundInfoContainerRef = ref(null)
 const isActionOverflowMode = ref(false)
 const expandedActionGroupKey = ref(null)
 const actionMeasureWidth = ref(0)
 const actionGroupBodyHeights = reactive({})
+const roundInfoLayout = reactive({
+  leftWidthPx: null
+})
+const ROUND_INFO_COLUMN_GAP_PX = 24
+const ROUND_SCORING_GRID_GAP_PX = 10
+const ROUND_BONUS_GRID_GAP_PX = 8
+const ROUND_BONUS_COLUMN_HORIZONTAL_PADDING_PX = 12
+const ROUND_SCORING_TILE_HEIGHT_PER_WIDTH = 134 / 232
+const ROUND_BOOSTER_TILE_HEIGHT_PER_WIDTH = 8 / 3
 const actionMeasureStyle = computed(() => (
   actionMeasureWidth.value > 0
     ? { width: `${actionMeasureWidth.value}px` }
     : undefined
 ))
+const roundInfoLeftColumnStyle = computed(() => (
+  Number.isFinite(roundInfoLayout.leftWidthPx) && roundInfoLayout.leftWidthPx > 0
+    ? {
+        flexBasis: `${roundInfoLayout.leftWidthPx}px`,
+        width: `${roundInfoLayout.leftWidthPx}px`
+      }
+    : undefined
+))
 let actionOverflowMeasurementFrame = 0
 let actionContentResizeObserver = null
+let roundInfoResizeObserver = null
 let playerCardResizeObserver = null
 let playerCardResizeFrame = 0
 let playerCardResizeTimeout = 0
@@ -2462,6 +2493,77 @@ function setupActionContentResizeObserver() {
     scheduleActionOverflowMeasurement()
   })
   actionContentResizeObserver.observe(actionContent)
+}
+
+function updateRoundInfoLayout() {
+  const roundInfoContainer = roundInfoContainerRef.value
+  const bonusCount = bonusColumns.value.length
+
+  if (!roundInfoContainer || bonusCount <= 0) {
+    roundInfoLayout.leftWidthPx = null
+    return
+  }
+
+  const containerWidth = roundInfoContainer.clientWidth
+  if (!Number.isFinite(containerWidth) || containerWidth <= 0) {
+    roundInfoLayout.leftWidthPx = null
+    return
+  }
+
+  const leftHeightSlope = (3 * ROUND_SCORING_TILE_HEIGHT_PER_WIDTH) / 2
+  const leftHeightConstant = ROUND_SCORING_GRID_GAP_PX * (2 - leftHeightSlope)
+  const rightHeightSlope = ROUND_BOOSTER_TILE_HEIGHT_PER_WIDTH / bonusCount
+  const rightReservedWidth = ROUND_INFO_COLUMN_GAP_PX
+    + ROUND_BONUS_COLUMN_HORIZONTAL_PADDING_PX
+    + ROUND_BONUS_GRID_GAP_PX * Math.max(0, bonusCount - 1)
+  const calculatedLeftWidth = (
+    rightHeightSlope * (containerWidth - rightReservedWidth) - leftHeightConstant
+  ) / (leftHeightSlope + rightHeightSlope)
+
+  if (!Number.isFinite(calculatedLeftWidth) || calculatedLeftWidth <= 0) {
+    roundInfoLayout.leftWidthPx = null
+    return
+  }
+
+  const minimumRightCardWidth = 28
+  const maxLeftWidth = containerWidth
+    - ROUND_INFO_COLUMN_GAP_PX
+    - ROUND_BONUS_COLUMN_HORIZONTAL_PADDING_PX
+    - ROUND_BONUS_GRID_GAP_PX * Math.max(0, bonusCount - 1)
+    - minimumRightCardWidth * bonusCount
+  if (!Number.isFinite(maxLeftWidth) || maxLeftWidth <= 0) {
+    roundInfoLayout.leftWidthPx = null
+    return
+  }
+  const minimumLeftWidth = Math.min(120, maxLeftWidth)
+  const normalizedLeftWidth = Math.max(
+    minimumLeftWidth,
+    Math.min(calculatedLeftWidth, maxLeftWidth)
+  )
+
+  roundInfoLayout.leftWidthPx = normalizedLeftWidth
+}
+
+function scheduleRoundInfoLayoutUpdate() {
+  nextTick(() => {
+    updateRoundInfoLayout()
+  })
+}
+
+function setupRoundInfoResizeObserver() {
+  if (typeof ResizeObserver === 'undefined' || roundInfoResizeObserver) {
+    return
+  }
+
+  const roundInfoContainer = roundInfoContainerRef.value
+  if (!roundInfoContainer) {
+    return
+  }
+
+  roundInfoResizeObserver = new ResizeObserver(() => {
+    updateRoundInfoLayout()
+  })
+  roundInfoResizeObserver.observe(roundInfoContainer)
 }
 
 function updatePlayerCardSize(playerId, width, height) {
@@ -3742,6 +3844,10 @@ watch(filteredActionLogs, () => {
   })
 })
 
+watch(() => bonusColumns.value.length, () => {
+  scheduleRoundInfoLayoutUpdate()
+})
+
 function togglePlayer(playerId) {
   collapsedPlayers[playerId] = !collapsedPlayers[playerId]
 }
@@ -4190,10 +4296,9 @@ function clearAllEmphasis() {
 }
 
 function setFinalRoundBonus(x) {
-  // 后端 final_scoring 范围是 1-4，前端需要 +12 映射到图片资源ID (13-16)
-  const frontendId = x + 12
-  if (frontendId < 13 || frontendId > 16) return false
-  roundStates[6].overlayImage = `/images/scoring/${frontendId}.png`
+  const finalScoringId = Number(x)
+  if (!Number.isInteger(finalScoringId) || finalScoringId < 1 || finalScoringId > 4) return false
+  roundStates[6].finalScoringId = finalScoringId
   return true
 }
 
@@ -4641,7 +4746,7 @@ function handleSSEMessage(message) {
       break
 
     case 'final_scoring':
-      if (data.scoring_id >= 13 && data.scoring_id <= 16) {
+      if (data.scoring_id >= 1 && data.scoring_id <= 4) {
         setFinalRoundBonus(data.scoring_id)
       }
       break
@@ -4973,6 +5078,8 @@ onMounted(async () => {
   await nextTick()
   setupPlayerCardResizeObserver()
   setupActionContentResizeObserver()
+  setupRoundInfoResizeObserver()
+  updateRoundInfoLayout()
   scheduleActionOverflowMeasurement({ resetExpanded: true })
   // 建立 SSE 连接
   connectSSE()
@@ -4989,6 +5096,10 @@ onUnmounted(() => {
   if (actionContentResizeObserver) {
     actionContentResizeObserver.disconnect()
     actionContentResizeObserver = null
+  }
+  if (roundInfoResizeObserver) {
+    roundInfoResizeObserver.disconnect()
+    roundInfoResizeObserver = null
   }
   if (playerCardResizeObserver) {
     playerCardResizeObserver.disconnect()
@@ -6089,16 +6200,18 @@ onUnmounted(() => {
 
 .round-info-container {
   display: flex;
+  align-items: flex-start;
   gap: 24px;
 }
 
 .left-column {
+  flex: 0 0 30%;
   width: 30%;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
-  min-height: 100%;
+  align-content: start;
+  min-width: 0;
 }
 
 .grid-cell {
@@ -6109,7 +6222,8 @@ onUnmounted(() => {
   position: relative;
   overflow: hidden;
   width: 100%;
-  height: 100%;
+  height: auto;
+  aspect-ratio: 232 / 134;
   transition: all 0.3s ease;
 }
 
@@ -6129,6 +6243,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
 }
 
 .card-face.back {
@@ -6194,10 +6309,22 @@ onUnmounted(() => {
   z-index: 30;
 }
 
-.grid-cell img {
+.scoring-image,
+.base-image,
+.overlay-image,
+.bonus-sprite-image {
+  display: block;
+  background-repeat: no-repeat;
+  background-color: transparent;
+}
+
+.scoring-image,
+.base-image,
+.overlay-image {
   width: 100%;
-  height: 100%;
-  object-fit: contain;
+  max-width: 100%;
+  max-height: 100%;
+  aspect-ratio: 232 / 134;
 }
 
 .round-6 {
@@ -6212,34 +6339,13 @@ onUnmounted(() => {
 .base-image,
 .overlay-image {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.grid-cell.current-round.round-6 .overlay-image {
-  position: absolute;
-  top: 6px;
-  left: 6px;
-  width: calc(100% - 12px);
-  height: calc(100% - 12px);
-  object-fit: contain;
-  z-index: 20;
-  display: block;
+  inset: 0;
+  margin: auto;
   pointer-events: none;
 }
 
-.grid-cell.round-6 .overlay-image {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
+.overlay-image {
   z-index: 2;
-  display: none;
 }
 
 .round-label {
@@ -6255,6 +6361,7 @@ onUnmounted(() => {
 }
 
 .right-column {
+  flex: 1 1 auto;
   width: 70%;
   display: flex;
   gap: 8px;
@@ -6262,6 +6369,7 @@ onUnmounted(() => {
   min-height: 100px;
   box-sizing: border-box;
   overflow: hidden;
+  min-width: 0;
 }
 
 .bonus-cell {
@@ -6306,10 +6414,10 @@ onUnmounted(() => {
   transform: rotateY(180deg);
 }
 
-.bonus-cell img {
+.bonus-cell img,
+.bonus-cell .bonus-sprite-image {
   width: 100%;
   height: 100%;
-  object-fit: contain;
   box-sizing: border-box;
 }
 
