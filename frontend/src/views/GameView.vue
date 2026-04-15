@@ -583,75 +583,77 @@
                 </div>
               </div>
               <div class="science-ability-status">
-                <div ref="scienceAbilityLeftRef" class="science-ability-left">
-                  <div ref="leftBoardsStackRef" class="left-boards-stack">
-                    <!-- 科学板块 -->
-                    <div class="science-board-wrapper">
-                      <div class="science-board" :class="['science-board-' + numPlayers, (numPlayers === 3 || numPlayers === 5) ? 'crop-top' : '']" :style="(numPlayers === 3 || numPlayers === 5) ? {} : { backgroundImage: 'url(/assets/images/science_board_' + numPlayers + '.png)' }">
-                        <div v-if="numPlayers === 3 || numPlayers === 5" class="science-board-inner">
-                          <img class="science-board-img" :src="'/assets/images/science_board_' + numPlayers + '.png'" alt="science board" />
-                          <div
-                            v-for="(tileId, idx) in scienceTilesOrder"
-                            :key="'sci-' + idx"
-                            class="science-board-tile"
-                            :style="getScienceBoardTileStyle(tileId, idx)"
-                            :tabindex="tileId ? 0 : -1"
-                            :title="''"
-                            :aria-label="tileId ? `预览科学板块 ${tileId}` : undefined"
-                            @mouseenter="handleScienceTileMouseEnter(tileId, $event)"
-                            @mouseleave="handleScienceTileMouseLeave"
-                            @focus="handleScienceTileMouseEnter(tileId, $event)"
-                            @blur="handleScienceTileMouseLeave"
-                            @keydown.esc.prevent="hideEntityPreview"
-                          >
-                            <span v-if="tileId" class="tile-index-badge">{{ tileId }}</span>
+                <div ref="scienceAbilityLayoutRef" class="science-ability-layout">
+                  <div class="science-ability-left">
+                    <div ref="leftBoardsStackRef" :class="['left-boards-stack', 'left-boards-stack-' + numPlayers]">
+                      <!-- 科学板块 -->
+                      <div class="science-board-wrapper">
+                        <div class="science-board" :class="['science-board-' + numPlayers, (numPlayers === 3 || numPlayers === 5) ? 'crop-top' : '']" :style="(numPlayers === 3 || numPlayers === 5) ? {} : { backgroundImage: 'url(/assets/images/science_board_' + numPlayers + '.png)' }">
+                          <div v-if="numPlayers === 3 || numPlayers === 5" class="science-board-inner">
+                            <img class="science-board-img" :src="'/assets/images/science_board_' + numPlayers + '.png'" alt="science board" />
+                            <div
+                              v-for="(tileId, idx) in scienceTilesOrder"
+                              :key="'sci-' + idx"
+                              class="science-board-tile"
+                              :style="getScienceBoardTileStyle(tileId, idx)"
+                              :tabindex="tileId ? 0 : -1"
+                              :title="''"
+                              :aria-label="tileId ? `预览科学板块 ${tileId}` : undefined"
+                              @mouseenter="handleScienceTileMouseEnter(tileId, $event)"
+                              @mouseleave="handleScienceTileMouseLeave"
+                              @focus="handleScienceTileMouseEnter(tileId, $event)"
+                              @blur="handleScienceTileMouseLeave"
+                              @keydown.esc.prevent="hideEntityPreview"
+                            >
+                              <span v-if="tileId" class="tile-index-badge">{{ tileId }}</span>
+                            </div>
                           </div>
+                          <template v-else>
+                            <div
+                              v-for="(tileId, idx) in scienceTilesOrder"
+                              :key="'sci-' + idx"
+                              class="science-board-tile"
+                              :style="getScienceBoardTileStyle(tileId, idx)"
+                              :tabindex="tileId ? 0 : -1"
+                              :title="''"
+                              :aria-label="tileId ? `预览科学板块 ${tileId}` : undefined"
+                              @mouseenter="handleScienceTileMouseEnter(tileId, $event)"
+                              @mouseleave="handleScienceTileMouseLeave"
+                              @focus="handleScienceTileMouseEnter(tileId, $event)"
+                              @blur="handleScienceTileMouseLeave"
+                              @keydown.esc.prevent="hideEntityPreview"
+                            >
+                              <span v-if="tileId" class="tile-index-badge">{{ tileId }}</span>
+                            </div>
+                          </template>
                         </div>
-                        <template v-else>
+                      </div>
+                      <!-- 能力板块 -->
+                      <div class="ability-board-wrapper">
+                        <div class="ability-board" :style="{ backgroundImage: 'url(/assets/images/ability_tiles_board.jpg)' }">
                           <div
-                            v-for="(tileId, idx) in scienceTilesOrder"
-                            :key="'sci-' + idx"
-                            class="science-board-tile"
-                            :style="getScienceBoardTileStyle(tileId, idx)"
+                            v-for="(tileId, idx) in abilityTilesOrder"
+                            :key="'abi-' + idx"
+                            class="ability-board-tile"
+                            :style="getAbilityBoardTileStyle(tileId, idx)"
                             :tabindex="tileId ? 0 : -1"
                             :title="''"
-                            :aria-label="tileId ? `预览科学板块 ${tileId}` : undefined"
-                            @mouseenter="handleScienceTileMouseEnter(tileId, $event)"
-                            @mouseleave="handleScienceTileMouseLeave"
-                            @focus="handleScienceTileMouseEnter(tileId, $event)"
-                            @blur="handleScienceTileMouseLeave"
+                            :aria-label="tileId ? `预览能力板块 ${tileId}` : undefined"
+                            @mouseenter="handleAbilityTileMouseEnter(tileId, $event)"
+                            @mouseleave="handleAbilityTileMouseLeave"
+                            @focus="handleAbilityTileMouseEnter(tileId, $event)"
+                            @blur="handleAbilityTileMouseLeave"
                             @keydown.esc.prevent="hideEntityPreview"
                           >
                             <span v-if="tileId" class="tile-index-badge">{{ tileId }}</span>
                           </div>
-                        </template>
-                      </div>
-                    </div>
-                    <!-- 能力板块 -->
-                    <div class="ability-board-wrapper">
-                      <div class="ability-board" :style="{ backgroundImage: 'url(/assets/images/ability_tiles_board.jpg)' }">
-                        <div
-                          v-for="(tileId, idx) in abilityTilesOrder"
-                          :key="'abi-' + idx"
-                          class="ability-board-tile"
-                          :style="getAbilityBoardTileStyle(tileId, idx)"
-                          :tabindex="tileId ? 0 : -1"
-                          :title="''"
-                          :aria-label="tileId ? `预览能力板块 ${tileId}` : undefined"
-                          @mouseenter="handleAbilityTileMouseEnter(tileId, $event)"
-                          @mouseleave="handleAbilityTileMouseLeave"
-                          @focus="handleAbilityTileMouseEnter(tileId, $event)"
-                          @blur="handleAbilityTileMouseLeave"
-                          @keydown.esc.prevent="hideEntityPreview"
-                        >
-                          <span v-if="tileId" class="tile-index-badge">{{ tileId }}</span>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-                <div class="cult-board-section">
-                  <img src="/assets/images/cult_board.jpg" alt="cult board" class="cult-board-image" />
+                  <div ref="cultBoardSectionRef" class="cult-board-section">
+                    <img src="/assets/images/cult_board.jpg" alt="cult board" class="cult-board-image" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -1629,9 +1631,17 @@ const recommendedActionId = ref(null)
 const abilityTilesOrder = ref([])
 const scienceTilesOrder = ref([])
 const numPlayers = ref(3)
+const scienceAbilityLayoutRef = ref(null)
 const leftBoardsStackRef = ref(null)
-const scienceAbilityLeftRef = ref(null)
+const cultBoardSectionRef = ref(null)
 let scienceAbilityResizeObserver = null
+
+const SCIENCE_ABILITY_LEFT_WIDTH_PER_HEIGHT = Object.freeze({
+  3: 850 / (443 + 403),
+  4: 850 / (634 + 403),
+  5: 850 / (584 + 403)
+})
+const CULT_BOARD_WIDTH_PER_HEIGHT = 861 / 1309
 
 const recommendedActionStrategyId = ref('')
 const controlCenterPendingMode = ref('')
@@ -2881,29 +2891,63 @@ function scheduleRoundInfoLayoutUpdate() {
   })
 }
 
-function updateScienceAbilityLayout() {
-  const leftContainer = scienceAbilityLeftRef.value
+function resetScienceAbilityLayoutStyles() {
   const stack = leftBoardsStackRef.value
-  if (!leftContainer || !stack) return
-
-  const availableHeight = leftContainer.clientHeight
-  if (!Number.isFinite(availableHeight) || availableHeight <= 0) return
-
-  // 能力板高度/宽度 = 403 / 850 (等比例于 253 / 534.6)
-  const abilityRatio = 403 / 850
-  // 科学板高度/宽度（裁剪顶部 50px 后）
-  let scienceRatio
-  if (numPlayers.value === 3) {
-    scienceRatio = (493 - 50) / 850 // 443 / 850
-  } else if (numPlayers.value === 4) {
-    scienceRatio = 634 / 850
-  } else {
-    scienceRatio = (634 - 50) / 850 // 584 / 850
+  const cultSection = cultBoardSectionRef.value
+  if (stack) {
+    stack.style.height = ''
+    stack.style.width = ''
+    stack.style.maxWidth = ''
   }
-  const totalRatio = abilityRatio + scienceRatio
+  if (cultSection) {
+    cultSection.style.height = ''
+    cultSection.style.width = ''
+  }
+}
 
-  const maxWidth = availableHeight / totalRatio
-  stack.style.maxWidth = `${maxWidth}px`
+function getFlexGapPx(element) {
+  if (!element || typeof window === 'undefined') return 0
+
+  const styles = window.getComputedStyle(element)
+  return Number.parseFloat(styles.columnGap || styles.gap || '0') || 0
+}
+
+function updateScienceAbilityLayout() {
+  if (collapsedCards.tactical) return
+
+  const layout = scienceAbilityLayoutRef.value
+  const stack = leftBoardsStackRef.value
+  const cultSection = cultBoardSectionRef.value
+  if (!layout || !stack || !cultSection) return
+
+  resetScienceAbilityLayoutStyles()
+
+  const availableHeight = layout.clientHeight
+  const availableWidth = layout.clientWidth
+  if (!Number.isFinite(availableHeight) || availableHeight <= 0 || !Number.isFinite(availableWidth) || availableWidth <= 0) return
+
+  const leftRatio = SCIENCE_ABILITY_LEFT_WIDTH_PER_HEIGHT[numPlayers.value] ?? SCIENCE_ABILITY_LEFT_WIDTH_PER_HEIGHT[3]
+  const cultRatio = CULT_BOARD_WIDTH_PER_HEIGHT
+  const gap = getFlexGapPx(layout)
+  if (!Number.isFinite(leftRatio) || leftRatio <= 0 || !Number.isFinite(cultRatio) || cultRatio <= 0 || availableWidth <= gap) {
+    return
+  }
+
+  const commonHeight = Math.min(
+    availableHeight,
+    (availableWidth - gap) / (leftRatio + cultRatio)
+  )
+  if (!Number.isFinite(commonHeight) || commonHeight <= 0) {
+    return
+  }
+
+  const leftWidth = commonHeight * leftRatio
+  const cultWidth = commonHeight * cultRatio
+  stack.style.height = `${commonHeight}px`
+  stack.style.width = `${leftWidth}px`
+  stack.style.maxWidth = `${leftWidth}px`
+  cultSection.style.height = `${commonHeight}px`
+  cultSection.style.width = `${cultWidth}px`
 }
 
 function setupScienceAbilityResizeObserver() {
@@ -2911,15 +2955,15 @@ function setupScienceAbilityResizeObserver() {
     return
   }
 
-  const leftContainer = scienceAbilityLeftRef.value
-  if (!leftContainer) {
+  const layout = scienceAbilityLayoutRef.value
+  if (!layout) {
     return
   }
 
   scienceAbilityResizeObserver = new ResizeObserver(() => {
     updateScienceAbilityLayout()
   })
-  scienceAbilityResizeObserver.observe(leftContainer)
+  scienceAbilityResizeObserver.observe(layout)
 }
 
 function setupRoundInfoResizeObserver() {
@@ -4299,6 +4343,12 @@ function togglePlayer(playerId) {
 
 function toggleCard(cardName) {
   collapsedCards[cardName] = !collapsedCards[cardName]
+
+  if (cardName === 'tactical' && !collapsedCards[cardName]) {
+    nextTick(() => {
+      updateScienceAbilityLayout()
+    })
+  }
 }
 
 function showTerrainTooltip() {
@@ -7001,22 +7051,29 @@ onUnmounted(() => {
 
 .science-ability-status {
   flex: 1;
-  display: flex;
   overflow: hidden;
   min-height: 0;
   transition: opacity 0.3s ease;
   opacity: 1;
   padding: 14px 22px;
+}
+
+.science-ability-layout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   gap: 18px;
+  min-height: 0;
 }
 
 .science-ability-left {
-  flex: 1;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
   min-height: 0;
+  min-width: 0;
 }
 
 .left-boards-stack {
@@ -7026,7 +7083,20 @@ onUnmounted(() => {
   justify-content: center;
   max-width: 100%;
   max-height: 100%;
-  width: 100%;
+  width: auto;
+  height: auto;
+}
+
+.left-boards-stack.left-boards-stack-3 {
+  aspect-ratio: 850 / 846;
+}
+
+.left-boards-stack.left-boards-stack-4 {
+  aspect-ratio: 850 / 1037;
+}
+
+.left-boards-stack.left-boards-stack-5 {
+  aspect-ratio: 850 / 987;
 }
 
 .science-board-wrapper {
@@ -7161,18 +7231,22 @@ onUnmounted(() => {
 
 .cult-board-section {
   flex: 0 0 auto;
-  height: 100%;
+  aspect-ratio: 861 / 1309;
   display: flex;
   align-items: center;
   justify-content: center;
+  align-self: center;
+  max-height: 100%;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .cult-board-image {
+  width: 100%;
   height: 100%;
-  width: auto;
-  max-width: 100%;
   object-fit: contain;
   border-radius: 8px;
+  display: block;
 }
 
 /* ===== 右侧：全局信息区 (21%) ===== */

@@ -17,6 +17,7 @@ ENV/
 # Vue/Vite 构建输出 - 自动生成
 dist/
 frontend/dist/
+frontend/.vite/
 dist-ssr/
 *.local
 
