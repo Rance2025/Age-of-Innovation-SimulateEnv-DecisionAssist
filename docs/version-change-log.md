@@ -33,6 +33,23 @@
 
 ## 版本记录
 
+## 0.9.5.25
+- 日期：`2026-04-16`
+- 分支：`main`
+- 影响范围：
+  - `docs/TODO.md`
+  - `frontend/src/views/GameView.vue`
+  - `frontend/assets/images/cult_board.jpg`
+  - `frontend/assets/images/tracks_board.png`
+  - `docs/version-change-log.md`
+- 更新内容：
+  - `docs: 将 TODO 中的“游戏历史记录（回放功能）”重构为“游戏记录与历史记录”规划，并补充玩家面板、控制中台与游戏区域补充事项。`
+  - `ui: 将科学能力框右侧图片由 cult_board.jpg 替换为 tracks_board.png。`
+  - `fix: 同步更新右侧 tracks_board 图片的宽高比常量与 CSS（861/1309 → 861/1248），确保左右两侧板块等高且上下端对齐。`
+  - `chore: 移除不再使用的 cult_board.jpg 旧资源，并纳入 tracks_board.png 新资源。`
+- 验证方式：
+  - `git status --short`
+
 ## 0.9.5.24
 - 日期：`2026-04-15`
 - 分支：`main`

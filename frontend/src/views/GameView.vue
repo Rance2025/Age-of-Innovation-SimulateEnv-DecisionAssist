@@ -676,7 +676,7 @@
                     </div>
                   </div>
                   <div ref="cultBoardSectionRef" class="cult-board-section">
-                    <img src="/assets/images/cult_board.jpg" alt="cult board" class="cult-board-image" />
+                    <img src="/assets/images/tracks_board.png" alt="tracks board" class="cult-board-image" />
                   </div>
                 </div>
               </div>
@@ -1668,7 +1668,7 @@ const SCIENCE_ABILITY_LEFT_WIDTH_PER_HEIGHT = Object.freeze({
   4: 850 / (634 + 403),
   5: 850 / (584 + 403)
 })
-const CULT_BOARD_WIDTH_PER_HEIGHT = 861 / 1309
+const CULT_BOARD_WIDTH_PER_HEIGHT = 861 / 1248
 const HOLDER_MARK_URLS = Object.freeze({
   1: new URL('../../assets/images/items/mark/1.png', import.meta.url).href,
   2: new URL('../../assets/images/items/mark/2.png', import.meta.url).href,
@@ -7492,7 +7492,7 @@ onUnmounted(() => {
 
 .cult-board-section {
   flex: 0 0 auto;
-  aspect-ratio: 861 / 1309;
+  aspect-ratio: 861 / 1248;
   display: flex;
   align-items: center;
   justify-content: center;
