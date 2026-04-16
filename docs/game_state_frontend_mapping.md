@@ -204,6 +204,8 @@ class ScienceTrackState:
 class DisplayBoardState:
     """展示板状态"""
     science_tracks: Dict[str, ScienceTrackState] = field(default_factory=dict)
+    ability_tile_owners: Dict[int, List[int]] = field(default_factory=dict)  # 能力板块 owner_list 快照
+    science_tile_owners: Dict[int, List[int]] = field(default_factory=dict)  # 高科板块 owner_list 快照
 
 @dataclass
 class GameSetup:
@@ -384,6 +386,9 @@ class GameStateSyncManager:
         diffs.extend(map_diffs)
         
         # 5. 对比 display_board
+        # science_tracks 走普通递归 diff；
+        # ability_tile_owners / science_tile_owners 基于 owner_list 变化整表替换，
+        # 方便前端直接重建每个 tile 的持有者标记。
         diffs.extend(self._calculate_diff(
             asdict(old_state.display_board),
             asdict(new_state.display_board)
@@ -412,7 +417,7 @@ class GameStateSyncManager:
             setup=self._extract_setup(gs) if gs else GameSetup(),
             players=self._extract_players(gs.players) if gs else [],
             map_state=self._extract_map_state(gs.map_board_state) if gs else MapState(),
-            display_board=self._extract_display_board(gs.display_board_state) if gs else DisplayBoardState(),
+            display_board=self._extract_display_board(gs.display_board_state, gs) if gs else DisplayBoardState(),
             available_actions=self._extract_available_actions(request.available_actions),
             action_history=self._extract_action_history(gs) if gs else [],
             final_scores=self._extract_final_scores(request.final_scores) if request.is_game_over else None
@@ -642,7 +647,7 @@ class GameStateSyncManager:
         
         return diffs
     
-    def _extract_display_board(self, display: 'DisplayBoardState') -> DisplayBoardState:
+    def _extract_display_board(self, display: 'DisplayBoardState', gs: 'GameStateBase') -> DisplayBoardState:
         """提取展示板状态"""
         return DisplayBoardState(
             science_tracks={
@@ -662,6 +667,14 @@ class GameStateSyncManager:
                     is_crowned=display.science_tracks['medical']['is_crowned'],
                     meeples=list(display.science_tracks['medical']['meeples'])
                 )
+            },
+            ability_tile_owners={
+                tile_id: list(gs.all_available_object_dict['ability_tile'][tile_id].owner_list)
+                for tile_id in gs.setup.ability_tiles_order
+            },
+            science_tile_owners={
+                tile_id: list(gs.all_available_object_dict['science_tile'][tile_id].owner_list)
+                for tile_id in gs.setup.science_tiles_order
             }
         )
     

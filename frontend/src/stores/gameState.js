@@ -136,7 +136,9 @@ const createDefaultDisplayBoard = () => ({
     law: { is_crowned: false, meeples: [false, false, false, false] },
     engineering: { is_crowned: false, meeples: [false, false, false, false] },
     medical: { is_crowned: false, meeples: [false, false, false, false] }
-  }
+  },
+  ability_tile_owners: {},
+  science_tile_owners: {}
 })
 
 export const useGameStateStore = defineStore('gameState', () => {

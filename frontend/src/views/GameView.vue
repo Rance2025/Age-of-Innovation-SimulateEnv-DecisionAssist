@@ -605,6 +605,13 @@
                               @blur="handleScienceTileMouseLeave"
                               @keydown.esc.prevent="hideEntityPreview"
                             >
+                              <img
+                                v-if="tileId && getScienceTileOwnerMarkId(tileId) !== null"
+                                :src="getBonusHolderMarkSrc(getScienceTileOwnerMarkId(tileId))"
+                                alt=""
+                                aria-hidden="true"
+                                class="science-tile-owner-mark"
+                              >
                               <span v-if="tileId" class="tile-index-badge">{{ tileId }}</span>
                             </div>
                           </div>
@@ -623,6 +630,13 @@
                               @blur="handleScienceTileMouseLeave"
                               @keydown.esc.prevent="hideEntityPreview"
                             >
+                              <img
+                                v-if="tileId && getScienceTileOwnerMarkId(tileId) !== null"
+                                :src="getBonusHolderMarkSrc(getScienceTileOwnerMarkId(tileId))"
+                                alt=""
+                                aria-hidden="true"
+                                class="science-tile-owner-mark"
+                              >
                               <span v-if="tileId" class="tile-index-badge">{{ tileId }}</span>
                             </div>
                           </template>
@@ -645,7 +659,17 @@
                             @blur="handleAbilityTileMouseLeave"
                             @keydown.esc.prevent="hideEntityPreview"
                           >
+                            <div v-if="tileId" class="ability-tile-owner-strip" aria-hidden="true">
+                              <img
+                                v-for="(markId, ownerIndex) in getAbilityTileOwnerMarkIds(tileId)"
+                                :key="`abi-owner-${tileId}-${ownerIndex}-${markId}`"
+                                :src="getBonusHolderMarkSrc(markId)"
+                                alt=""
+                                class="ability-tile-owner-mark"
+                              >
+                            </div>
                             <span v-if="tileId" class="tile-index-badge">{{ tileId }}</span>
+                            <span v-if="tileId" class="ability-tile-remaining-badge">×{{ getAbilityTileRemainingCount(tileId) }}</span>
                           </div>
                         </div>
                       </div>
@@ -1630,11 +1654,14 @@ const recommendedActionId = ref(null)
 // 科学能力板块状态
 const abilityTilesOrder = ref([])
 const scienceTilesOrder = ref([])
+const abilityTileOwners = reactive({})
+const scienceTileOwners = reactive({})
 const numPlayers = ref(3)
 const scienceAbilityLayoutRef = ref(null)
 const leftBoardsStackRef = ref(null)
 const cultBoardSectionRef = ref(null)
 let scienceAbilityResizeObserver = null
+const ABILITY_TILE_INITIAL_SUPPLY = 4
 
 const SCIENCE_ABILITY_LEFT_WIDTH_PER_HEIGHT = Object.freeze({
   3: 850 / (443 + 403),
@@ -1642,6 +1669,15 @@ const SCIENCE_ABILITY_LEFT_WIDTH_PER_HEIGHT = Object.freeze({
   5: 850 / (584 + 403)
 })
 const CULT_BOARD_WIDTH_PER_HEIGHT = 861 / 1309
+const HOLDER_MARK_URLS = Object.freeze({
+  1: new URL('../../assets/images/items/mark/1.png', import.meta.url).href,
+  2: new URL('../../assets/images/items/mark/2.png', import.meta.url).href,
+  3: new URL('../../assets/images/items/mark/3.png', import.meta.url).href,
+  4: new URL('../../assets/images/items/mark/4.png', import.meta.url).href,
+  5: new URL('../../assets/images/items/mark/5.png', import.meta.url).href,
+  6: new URL('../../assets/images/items/mark/6.png', import.meta.url).href,
+  7: new URL('../../assets/images/items/mark/7.png', import.meta.url).href
+})
 
 const recommendedActionStrategyId = ref('')
 const controlCenterPendingMode = ref('')
@@ -2045,7 +2081,138 @@ function getPlanningCardColor(planningCardId) {
 }
 
 function getBonusHolderMarkSrc(markId) {
-  return `/images/items/mark/${markId}.png`
+  return HOLDER_MARK_URLS[markId] || ''
+}
+
+function normalizeTileOwnerPlayerIds(ownerList) {
+  if (!Array.isArray(ownerList)) {
+    return []
+  }
+
+  return ownerList
+    .map((playerId) => Number(playerId))
+    .filter((playerId) => Number.isInteger(playerId) && playerId >= 0)
+}
+
+function normalizeTileOwnerMap(ownerMap, orderedTileIds = []) {
+  const normalizedMap = {}
+
+  if (ownerMap && typeof ownerMap === 'object') {
+    Object.entries(ownerMap).forEach(([tileId, ownerList]) => {
+      const normalizedTileId = Number(tileId)
+      if (!Number.isInteger(normalizedTileId) || normalizedTileId <= 0) {
+        return
+      }
+
+      normalizedMap[normalizedTileId] = normalizeTileOwnerPlayerIds(ownerList)
+    })
+  }
+
+  if (Array.isArray(orderedTileIds)) {
+    orderedTileIds.forEach((tileId) => {
+      const normalizedTileId = Number(tileId)
+      if (!Number.isInteger(normalizedTileId) || normalizedTileId <= 0) {
+        return
+      }
+
+      if (!Object.prototype.hasOwnProperty.call(normalizedMap, normalizedTileId)) {
+        normalizedMap[normalizedTileId] = []
+      }
+    })
+  }
+
+  return normalizedMap
+}
+
+function replaceTileOwnerMap(targetMap, ownerMap, orderedTileIds = []) {
+  const normalizedMap = normalizeTileOwnerMap(ownerMap, orderedTileIds)
+
+  Object.keys(targetMap).forEach((tileId) => {
+    delete targetMap[tileId]
+  })
+
+  Object.entries(normalizedMap).forEach(([tileId, ownerList]) => {
+    targetMap[tileId] = ownerList
+  })
+}
+
+function applyTileOwnerMapChange(targetMap, remainingKeys, value, changeType, orderedTileIds = []) {
+  if (!remainingKeys.length) {
+    replaceTileOwnerMap(targetMap, value, orderedTileIds)
+    return
+  }
+
+  const tileId = Number.parseInt(remainingKeys[0], 10)
+  if (!Number.isInteger(tileId) || tileId <= 0) {
+    return
+  }
+
+  if (remainingKeys.length === 1) {
+    targetMap[tileId] = changeType === 'removed' ? [] : normalizeTileOwnerPlayerIds(value)
+    return
+  }
+
+  const ownerIndex = Number.parseInt(remainingKeys[1], 10)
+  if (!Number.isInteger(ownerIndex) || ownerIndex < 0) {
+    return
+  }
+
+  const nextOwnerList = Array.isArray(targetMap[tileId]) ? [...targetMap[tileId]] : []
+  if (changeType === 'removed' || value === null || value === undefined) {
+    nextOwnerList.splice(ownerIndex, 1)
+  } else {
+    nextOwnerList[ownerIndex] = Number(value)
+  }
+
+  targetMap[tileId] = normalizeTileOwnerPlayerIds(nextOwnerList)
+}
+
+function applyDisplayBoardState(displayBoard) {
+  replaceTileOwnerMap(
+    abilityTileOwners,
+    displayBoard?.ability_tile_owners,
+    abilityTilesOrder.value
+  )
+  replaceTileOwnerMap(
+    scienceTileOwners,
+    displayBoard?.science_tile_owners,
+    scienceTilesOrder.value
+  )
+}
+
+function getTileOwnerPlayerIds(ownerMap, tileId) {
+  const normalizedTileId = Number(tileId)
+  if (!Number.isInteger(normalizedTileId) || normalizedTileId <= 0) {
+    return []
+  }
+
+  return normalizeTileOwnerPlayerIds(ownerMap[normalizedTileId] ?? ownerMap[String(normalizedTileId)])
+}
+
+function getTileOwnerMarkIdByPlayerId(playerId) {
+  const normalizedPlayerId = Number(playerId)
+  if (!Number.isInteger(normalizedPlayerId) || normalizedPlayerId < 0) {
+    return null
+  }
+
+  const planningCardId = normalizePlanningCardId(players.value[normalizedPlayerId]?.planningCardId)
+  return planningCardId ?? (normalizedPlayerId + 1)
+}
+
+function getScienceTileOwnerMarkId(tileId) {
+  const [playerId] = getTileOwnerPlayerIds(scienceTileOwners, tileId)
+  return getTileOwnerMarkIdByPlayerId(playerId)
+}
+
+function getAbilityTileOwnerMarkIds(tileId) {
+  return getTileOwnerPlayerIds(abilityTileOwners, tileId)
+    .slice(0, ABILITY_TILE_INITIAL_SUPPLY)
+    .map((playerId) => getTileOwnerMarkIdByPlayerId(playerId))
+    .filter((markId) => Number.isInteger(markId) && markId > 0)
+}
+
+function getAbilityTileRemainingCount(tileId) {
+  return Math.max(ABILITY_TILE_INITIAL_SUPPLY - getTileOwnerPlayerIds(abilityTileOwners, tileId).length, 0)
 }
 
 function getFactionBadgeStyle(factionId) {
@@ -5079,6 +5246,9 @@ function applyGameViewFullState(state) {
 
   if (state.timer_state) {
     timerStore.updateFromTimerState(state.timer_state)
+    if (gameMeta.is_game_over) {
+      timerStore.dispose()
+    }
   }
 
   if (state.setup) {
@@ -5118,6 +5288,8 @@ function applyGameViewFullState(state) {
 
     syncBonusColumnsFromPlayers(state.players)
   }
+
+  applyDisplayBoardState(state.display_board)
 
   setAvailableActions(state.available_actions)
   setActionLogsFromHistory(state.action_history)
@@ -5304,6 +5476,7 @@ function handleSSEMessage(message) {
       applyMetaState({ is_game_over: true })
       setFinalScores(data?.final_scores)
       setAvailableActions([])
+      timerStore.dispose()
       break
 
     default:
@@ -5393,7 +5566,24 @@ function applyGameViewChange(path, value, changeType, pendingBuildingRenders = n
   }
 
   if (rootKey === 'timer_state' && keys.length >= 2) {
-    timerStore.updateFromTimerState({ [keys[1]]: value })
+    if (!gameMeta.is_game_over) {
+      timerStore.updateFromTimerState({ [keys[1]]: value })
+    }
+    return
+  }
+
+  if (rootKey === 'display_board') {
+    if (keys.length === 1) {
+      applyDisplayBoardState(changeType === 'removed' ? null : value)
+      return
+    }
+
+    const displayBoardKey = keys[1]
+    if (displayBoardKey === 'ability_tile_owners') {
+      applyTileOwnerMapChange(abilityTileOwners, keys.slice(2), value, changeType, abilityTilesOrder.value)
+    } else if (displayBoardKey === 'science_tile_owners') {
+      applyTileOwnerMapChange(scienceTileOwners, keys.slice(2), value, changeType, scienceTilesOrder.value)
+    }
     return
   }
 
@@ -5427,6 +5617,12 @@ function applyGameViewChange(path, value, changeType, pendingBuildingRenders = n
     } else if (setupKey === 'selected_round_boosters' && Array.isArray(value)) {
       setBonusColumns(value)
       syncBonusColumnsFromPlayers()
+    } else if (setupKey === 'ability_tiles_order' && Array.isArray(value)) {
+      abilityTilesOrder.value = value
+      replaceTileOwnerMap(abilityTileOwners, abilityTileOwners, value)
+    } else if (setupKey === 'science_tiles_order' && Array.isArray(value)) {
+      scienceTilesOrder.value = value
+      replaceTileOwnerMap(scienceTileOwners, scienceTileOwners, value)
     } else if (setupKey === 'round_booster_coin_counts') {
       if (keys.length === 2 && value && typeof value === 'object') {
         setRoundBoosterCoinCounts(value)
@@ -7199,16 +7395,58 @@ onUnmounted(() => {
   box-shadow: 3px 3px 6px rgba(0, 0, 0, 0.35);
 }
 
+.science-tile-owner-mark {
+  position: absolute;
+  top: -8px;
+  right: -6px;
+  width: 38%;
+  min-width: 18px;
+  max-width: 32px;
+  height: auto;
+  z-index: 11;
+  pointer-events: none;
+  object-fit: contain;
+  transform: scale(1.1);
+  transform-origin: center center;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
+}
+
+.ability-tile-owner-strip {
+  position: absolute;
+  top: -7px;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  z-index: 11;
+  pointer-events: none;
+}
+
+.ability-tile-owner-mark {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  flex: 0 0 auto;
+  transform: scale(1.1);
+  transform-origin: center center;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.35));
+}
+
+.ability-tile-owner-mark + .ability-tile-owner-mark {
+  margin-left: -4px;
+}
+
 .tile-index-badge {
   position: absolute;
   bottom: 2px;
   left: 2px;
-  width: 20px;
-  height: 20px;
+  width: 17px;
+  height: 17px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.6rem;
+  font-size: 0.52rem;
   font-weight: 800;
   color: #f7fbff;
   background: var(--accent);
@@ -7224,9 +7462,32 @@ onUnmounted(() => {
 }
 
 .ability-board-tile .tile-index-badge {
-  width: 18px;
-  height: 18px;
-  font-size: 0.58rem;
+  width: 15px;
+  height: 15px;
+  font-size: 0.46rem;
+}
+
+.ability-tile-remaining-badge {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  min-width: 20px;
+  height: 16px;
+  padding: 0 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(25, 32, 44, 0.92);
+  border: 1px solid rgba(149, 196, 230, 0.42);
+  color: #f7fbff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
+  z-index: 10;
+  pointer-events: none;
+  font-size: 0.48rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 
 .cult-board-section {

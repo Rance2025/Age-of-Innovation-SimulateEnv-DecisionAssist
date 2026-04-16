@@ -193,7 +193,7 @@ class GameStateManager:
             setup=self._extract_setup(gs) if gs else GameSetup(),
             players=self._extract_players(gs.players) if gs else [],
             map_state=self._extract_map_state(gs.map_board_state) if gs else MapState(),
-            display_board=self._extract_display_board(gs.display_board_state) if gs else DisplayBoardState(),
+            display_board=self._extract_display_board(gs.display_board_state, gs) if gs else DisplayBoardState(),
             available_actions=self._extract_available_actions(request.available_actions),
             action_history=self._extract_action_history(gs) if gs else [],
             final_scores=self._extract_final_scores(request.final_scores) if request.is_game_over else None,
@@ -474,7 +474,7 @@ class GameStateManager:
             bridges={str(k): v for k, v in map_board.bridges_is_conneted.items()}
         )
     
-    def _extract_display_board(self, display: 'DisplayBoardState') -> DisplayBoardState:
+    def _extract_display_board(self, display: 'DisplayBoardState', gs: 'GameStateBase') -> DisplayBoardState:
         """提取展示板状态"""
         science_tracks = {}
         for track_name in ['bank', 'law', 'engineering', 'medical']:
@@ -486,8 +486,34 @@ class GameStateManager:
                 )
             else:
                 science_tracks[track_name] = ScienceTrackState()
-        
-        return DisplayBoardState(science_tracks=science_tracks)
+
+        return DisplayBoardState(
+            science_tracks=science_tracks,
+            ability_tile_owners=self._extract_tile_owner_map(gs, 'ability_tile', gs.setup.ability_tiles_order),
+            science_tile_owners=self._extract_tile_owner_map(gs, 'science_tile', gs.setup.science_tiles_order)
+        )
+
+    def _extract_tile_owner_map(
+        self,
+        gs: 'GameStateBase',
+        tile_type: str,
+        ordered_tile_ids: List[int]
+    ) -> Dict[int, List[int]]:
+        """提取能力/高科板块的 owner_list，供前端按顺序展示持有者标记。"""
+        all_available_object_dict = getattr(gs, 'all_available_object_dict', {}) or {}
+        tile_objects = all_available_object_dict.get(tile_type, {}) if isinstance(all_available_object_dict, dict) else {}
+
+        owner_map: Dict[int, List[int]] = {}
+        for tile_id in ordered_tile_ids:
+            tile = tile_objects.get(tile_id) if isinstance(tile_objects, dict) else None
+            owner_list = getattr(tile, 'owner_list', []) if tile is not None else []
+            owner_map[tile_id] = [
+                int(player_id)
+                for player_id in owner_list
+                if isinstance(player_id, int)
+            ]
+
+        return owner_map
     
     def _extract_available_actions(self, actions: Dict[int, str]) -> List[AvailableAction]:
         """提取可选行动"""
@@ -586,8 +612,7 @@ class GameStateManager:
         ))
         
         # 5. 对比 display_board
-        diffs.extend(self._calculate_object_diff(
-            'display_board',
+        diffs.extend(self._calculate_display_board_diff(
             old_state.get('display_board', {}),
             new_dict.get('display_board', {})
         ))
@@ -628,6 +653,32 @@ class GameStateManager:
             new_dict.get('timer_state')
         ))
         
+        return diffs
+
+    def _calculate_display_board_diff(self, old_display: Dict, new_display: Dict) -> List[StateDiff]:
+        """展示板差异计算，对 owner_list 派生字段按整表替换，便于前端应用。"""
+        if not isinstance(old_display, dict) or not isinstance(new_display, dict):
+            return self._calculate_object_diff('display_board', old_display, new_display)
+
+        diffs = self._calculate_object_diff(
+            'display_board.science_tracks',
+            old_display.get('science_tracks', {}),
+            new_display.get('science_tracks', {})
+        )
+
+        for key in ('ability_tile_owners', 'science_tile_owners'):
+            old_value = old_display.get(key, {})
+            new_value = new_display.get(key, {})
+            if old_value == new_value:
+                continue
+
+            diffs.append(StateDiff(
+                f'display_board.{key}',
+                old_value,
+                new_value,
+                ChangeType.MODIFIED
+            ))
+
         return diffs
     
     def _calculate_object_diff(self, path: str, old: Any, new: Any) -> List[StateDiff]:

@@ -33,6 +33,30 @@
 
 ## 版本记录
 
+## 0.9.5.24
+- 日期：`2026-04-15`
+- 分支：`main`
+- 影响范围：
+  - `backend/game/utils/frontend_state_types.py`
+  - `backend/game/utils/game_state_manager.py`
+  - `frontend/src/stores/gameState.js`
+  - `frontend/src/views/GameView.vue`
+  - `docs/game_state_frontend_mapping.md`
+  - `docs/version-change-log.md`
+- 更新内容：
+  - `feat: 为 display_board 新增能力板块与高科板块 owner_list 快照，并在 owner_list 变化时通过增量更新整表推送对应持有者状态。`
+  - `refactor: 补齐前端 gameState store 的 display_board 默认结构，避免重置状态时残留旧的能力板块与高科板块 owner map。`
+  - `fix: 修正科学板块与能力板块持有者 item 标记的资源路径，改为由 Vite 正确打包的 frontend/assets mark 图片，恢复前端标记显示。`
+  - `ui: 对局页科学板块 tile 在右上角显示当前持有玩家颜色标记，标记样式复用回合助推板的 item 标记资源。`
+  - `ui: 对局页能力板块 tile 在上边缘按 owner_list 顺序显示最多 4 个玩家标记，并在右下角显示当前剩余数量。`
+  - `ui: 微调左侧科学能力板块角标样式，将能力板块剩余数量改为 ×N，缩小左下角编号标签，并放大顶部玩家标记且允许轻微重叠与越界摆放。`
+  - `ui: 进一步微调左侧顶部玩家标记，改为以当前中心点为基准轻微等比放大，保持标记位置不漂移且增大的部分同时向上向下扩展。`
+  - `docs: 同步更新游戏状态映射文档中 display_board 的新增字段与 owner_list 派生规则。`
+  - `fix: 游戏自然结束时前端停止本地计时器 interval，确保主倒计时与玩家剩余时间均定格在最终数值。`
+- 验证方式：
+  - `cd frontend && npm run build`
+  - `python -m py_compile backend/game/utils/frontend_state_types.py backend/game/utils/game_state_manager.py`
+
 ## 0.9.5.23
 - 日期：`2026-04-15`
 - 分支：`main`

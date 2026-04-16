@@ -193,6 +193,8 @@ class ScienceTrackState:
 class DisplayBoardState:
     """展示板状态"""
     science_tracks: Dict[str, ScienceTrackState] = field(default_factory=dict)  # 四条科技轨状态
+    ability_tile_owners: Dict[int, List[int]] = field(default_factory=dict)     # 能力板块拥有者列表（按 owner_list 顺序）
+    science_tile_owners: Dict[int, List[int]] = field(default_factory=dict)     # 高科板块拥有者列表（按 owner_list 顺序）
 
 
 @dataclass
