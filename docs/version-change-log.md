@@ -33,6 +33,25 @@
 
 ## 版本记录
 
+## 0.9.5.26
+- 日期：`2026-04-16`
+- 分支：`main`
+- 影响范围：
+  - `backend/game/utils/frontend_state_types.py`
+  - `backend/game/utils/game_state_manager.py`
+  - `frontend/src/stores/gameState.js`
+  - `frontend/src/views/GameView.vue`
+- 更新内容：
+  - `feat: 对接后端 science_tracks 数据结构，将 meeples 字段从 bool[] 改为 int[]（-1 表示空位，0~n-1 为玩家 id），并同步更新前后端类型定义与默认值。`
+  - `feat: 在 tracks_board 图片上叠加 layout 层，实现四座科技塔（银行、法律、工程、医学）的玩家标记渲染。`
+  - `ui: 实现塔楼 0~12 层玩家标记定位与平滑移动动画（CSS transition），同一层支持最多 5 名玩家标记自动扇形排布。`
+  - `ui: 实现基座 2×2 格子的 meeple 标记渲染，按 display_board.science_tracks[type].meeples 状态显示对应玩家标记。`
+  - `feat: 支持 display_board.science_tracks 的全量与增量更新，包括 meeples 单个索引变更的细粒度处理。`
+  - `feat: 接入 players[*].tracks 到前端本地状态，塔楼标记随玩家科技轨进度实时更新。`
+- 验证方式：
+  - `cd frontend && npm run build`
+  - `python -m py_compile backend/game/utils/frontend_state_types.py backend/game/utils/game_state_manager.py`
+
 ## 0.9.5.25
 - 日期：`2026-04-16`
 - 分支：`main`

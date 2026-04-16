@@ -186,7 +186,7 @@ class MapState:
 class ScienceTrackState:
     """科技轨展示状态"""
     is_crowned: bool = False                            # 是否有加冕标记
-    meeples: List[bool] = field(default_factory=lambda: [False]*4)  # 米宝位置标记
+    meeples: List[int] = field(default_factory=lambda: [-1]*4)      # 米宝位置标记，-1表示空，0~n-1为玩家id
 
 
 @dataclass

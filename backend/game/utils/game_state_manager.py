@@ -482,7 +482,7 @@ class GameStateManager:
                 track_data = display.science_tracks[track_name]
                 science_tracks[track_name] = ScienceTrackState(
                     is_crowned=track_data.get('is_crowned', False),
-                    meeples=list(track_data.get('meeples', [False]*4))
+                    meeples=list(track_data.get('meeples', [-1]*4))
                 )
             else:
                 science_tracks[track_name] = ScienceTrackState()

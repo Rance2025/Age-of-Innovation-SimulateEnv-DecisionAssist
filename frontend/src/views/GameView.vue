@@ -677,6 +677,24 @@
                   </div>
                   <div ref="cultBoardSectionRef" class="cult-board-section">
                     <img src="/assets/images/tracks_board.png" alt="tracks board" class="cult-board-image" />
+                    <div class="tracks-board-overlay">
+                      <div
+                        v-for="m in allTrackMarkers"
+                        :key="m.key"
+                        class="track-marker track-tower-marker"
+                        :style="m.style"
+                      >
+                        <img :src="getBonusHolderMarkSrc(m.markId)" alt="" />
+                      </div>
+                      <div
+                        v-for="m in allBaseMeepleMarkers"
+                        :key="m.key"
+                        class="track-marker track-base-marker"
+                        :style="m.style"
+                      >
+                        <img :src="getBonusHolderMarkSrc(m.markId)" alt="" />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1542,6 +1560,7 @@ function createDefaultPlayerDisplayState() {
     law: 0,
     engineering: 0,
     medical: 0,
+    tracks: { bank: 0, law: 0, engineering: 0, medical: 0 },
     magic1: 5,
     magic2: 7,
     magic3: 0,
@@ -1656,6 +1675,12 @@ const abilityTilesOrder = ref([])
 const scienceTilesOrder = ref([])
 const abilityTileOwners = reactive({})
 const scienceTileOwners = reactive({})
+const scienceTracks = reactive({
+  bank: { is_crowned: false, meeples: [-1, -1, -1, -1] },
+  law: { is_crowned: false, meeples: [-1, -1, -1, -1] },
+  engineering: { is_crowned: false, meeples: [-1, -1, -1, -1] },
+  medical: { is_crowned: false, meeples: [-1, -1, -1, -1] }
+})
 const numPlayers = ref(3)
 const scienceAbilityLayoutRef = ref(null)
 const leftBoardsStackRef = ref(null)
@@ -1856,6 +1881,85 @@ const selectedControlStrategySummaryLabel = computed(() => (
     ? `${selectedControlStrategyOption.value.label} · ${selectedControlStrategyOption.value.description}`
     : selectedControlStrategyOption.value.label
 ))
+
+const TRACK_TYPES = ['bank', 'law', 'engineering', 'medical']
+const TRACK_CENTERS = { bank: 15.25, law: 37.75, engineering: 60.75, medical: 83.5 }
+const TRACK_LEVEL_TOPS = [
+  78.5, // 0
+  71.5, // 1
+  66.4, // 2
+  59.2, // 3
+  54.2, // 4
+  46.5, // 5
+  41.5, // 6
+  34.5, // 7
+  27.5, // 8
+  22.5, // 9
+  18.0, // 10
+  13.5, // 11
+  6.0   // 12
+]
+
+const allTrackMarkers = computed(() => {
+  const markers = []
+  for (const type of TRACK_TYPES) {
+    const centerX = TRACK_CENTERS[type]
+    const levelMap = new Map()
+    for (const player of players.value) {
+      const level = Number(player.tracks?.[type] ?? 0)
+      if (!levelMap.has(level)) levelMap.set(level, [])
+      levelMap.get(level).push(player.id)
+    }
+    for (const [level, playerIds] of levelMap) {
+      const topPct = TRACK_LEVEL_TOPS[Math.min(Math.max(level, 0), 12)]
+      const count = playerIds.length
+      playerIds.forEach((pid, idx) => {
+        const offsetPct = (idx - (count - 1) / 2) * 3.5
+        const markId = getTileOwnerMarkIdByPlayerId(pid)
+        if (!markId) return
+        markers.push({
+          key: `tower-${type}-${level}-${pid}`,
+          markId,
+          style: {
+            left: `${centerX + offsetPct}%`,
+            top: `${topPct}%`,
+            zIndex: 10 + level
+          }
+        })
+      })
+    }
+  }
+  return markers
+})
+
+const allBaseMeepleMarkers = computed(() => {
+  const markers = []
+  for (const type of TRACK_TYPES) {
+    const centerX = TRACK_CENTERS[type]
+    const meeples = scienceTracks[type]?.meeples ?? [-1, -1, -1, -1]
+    const rowTops = [85.5, 94.5]
+    const colOffsets = [-5.45, 5.45]
+    for (let i = 0; i < 4; i++) {
+      const pid = Number(meeples[i])
+      if (pid < 0) continue
+      const row = i < 2 ? 0 : 1
+      const col = i % 2
+      const markId = getTileOwnerMarkIdByPlayerId(pid)
+      if (!markId) continue
+      markers.push({
+        key: `base-${type}-${i}-${pid}`,
+        markId,
+        style: {
+          left: `${centerX + colOffsets[col]}%`,
+          top: `${rowTops[row]}%`,
+          zIndex: 5
+        }
+      })
+    }
+  }
+  return markers
+})
+
 const hasRecommendedAction = computed(() => {
   const normalizedRecommendedActionId = normalizeAvailableActionId(recommendedActionId.value)
   if (normalizedRecommendedActionId === null) {
@@ -2178,6 +2282,17 @@ function applyDisplayBoardState(displayBoard) {
     displayBoard?.science_tile_owners,
     scienceTilesOrder.value
   )
+  if (displayBoard?.science_tracks) {
+    for (const type of ['bank', 'law', 'engineering', 'medical']) {
+      const trackData = displayBoard.science_tracks[type]
+      if (trackData) {
+        scienceTracks[type].is_crowned = trackData.is_crowned ?? false
+        scienceTracks[type].meeples = Array.isArray(trackData.meeples)
+          ? [...trackData.meeples]
+          : [-1, -1, -1, -1]
+      }
+    }
+  }
 }
 
 function getTileOwnerPlayerIds(ownerMap, tileId) {
@@ -4220,6 +4335,12 @@ function applyPlayerState(player, backendPlayer) {
   player.law = backendPlayer.law ?? player.law
   player.engineering = backendPlayer.engineering ?? player.engineering
   player.medical = backendPlayer.medical ?? player.medical
+  if (backendPlayer.tracks) {
+    player.tracks.bank = backendPlayer.tracks.bank ?? player.tracks.bank
+    player.tracks.law = backendPlayer.tracks.law ?? player.tracks.law
+    player.tracks.engineering = backendPlayer.tracks.engineering ?? player.tracks.engineering
+    player.tracks.medical = backendPlayer.tracks.medical ?? player.tracks.medical
+  }
   player.magic1 = backendPlayer.magic1 ?? player.magic1
   player.magic2 = backendPlayer.magic2 ?? player.magic2
   player.magic3 = backendPlayer.magic3 ?? player.magic3
@@ -5583,6 +5704,23 @@ function applyGameViewChange(path, value, changeType, pendingBuildingRenders = n
       applyTileOwnerMapChange(abilityTileOwners, keys.slice(2), value, changeType, abilityTilesOrder.value)
     } else if (displayBoardKey === 'science_tile_owners') {
       applyTileOwnerMapChange(scienceTileOwners, keys.slice(2), value, changeType, scienceTilesOrder.value)
+    } else if (displayBoardKey === 'science_tracks' && keys.length >= 3) {
+      const trackType = keys[2]
+      if (scienceTracks[trackType]) {
+        if (keys.length === 3) {
+          if (changeType !== 'removed' && value && typeof value === 'object') {
+            scienceTracks[trackType].is_crowned = value.is_crowned ?? false
+            scienceTracks[trackType].meeples = Array.isArray(value.meeples) ? [...value.meeples] : [-1, -1, -1, -1]
+          }
+        } else if (keys[3] === 'is_crowned') {
+          scienceTracks[trackType].is_crowned = changeType === 'removed' ? false : Boolean(value)
+        } else if (keys[3] === 'meeples' && keys.length >= 5) {
+          const meepleIdx = parseInt(keys[4], 10)
+          if (!Number.isNaN(meepleIdx) && meepleIdx >= 0 && meepleIdx < 4) {
+            scienceTracks[trackType].meeples[meepleIdx] = changeType === 'removed' ? -1 : Number(value)
+          }
+        }
+      }
     }
     return
   }
@@ -7491,6 +7629,7 @@ onUnmounted(() => {
 }
 
 .cult-board-section {
+  position: relative;
   flex: 0 0 auto;
   aspect-ratio: 861 / 1248;
   display: flex;
@@ -7508,6 +7647,27 @@ onUnmounted(() => {
   object-fit: contain;
   border-radius: 8px;
   display: block;
+}
+
+.tracks-board-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.track-marker {
+  position: absolute;
+  width: 6%;
+  transform: translate(-50%, -50%);
+  transition: top 0.4s ease, left 0.4s ease;
+  pointer-events: none;
+}
+
+.track-marker img {
+  width: 100%;
+  height: auto;
+  display: block;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
 }
 
 /* ===== 右侧：全局信息区 (21%) ===== */

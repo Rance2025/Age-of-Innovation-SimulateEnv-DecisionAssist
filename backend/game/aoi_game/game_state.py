@@ -623,19 +623,19 @@ class GameStateBase:
             self.science_tracks = {
                 'bank': {
                     'is_crowned': False,    # 是否被登顶
-                    'meeples': [False] * 4  # 4个米宝位置
+                    'meeples': [-1] * 4  # 4个米宝位置
                 },
                 'law': {
                     'is_crowned': False,
-                    'meeples': [False] * 4
+                    'meeples': [-1] * 4
                 },
                 'engineering': {
                     'is_crowned': False,
-                    'meeples': [False] * 4
+                    'meeples': [-1] * 4
                 },
                 'medical': {
                     'is_crowned': False,
-                    'meeples': [False] * 4
+                    'meeples': [-1] * 4
                 }
             }     
 
@@ -1423,8 +1423,8 @@ class GameStateBase:
                     typ = args
                     self.players[player_id].resources['meeples'] -= 1
                     for i in range(4):
-                        if self.display_board_state.science_tracks[typ]['meeples'][i] == False:
-                            self.display_board_state.science_tracks[typ]['meeples'][i] = True
+                        if self.display_board_state.science_tracks[typ]['meeples'][i] == -1:
+                            self.display_board_state.science_tracks[typ]['meeples'][i] = player_id
                             if i == 0:
                                 climb_num = 3
                             else:

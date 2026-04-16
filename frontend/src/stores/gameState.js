@@ -131,11 +131,11 @@ const createDefaultSetup = () => ({
 
 // 展示板状态
 const createDefaultDisplayBoard = () => ({
-  science_tracks: {
-    bank: { is_crowned: false, meeples: [false, false, false, false] },
-    law: { is_crowned: false, meeples: [false, false, false, false] },
-    engineering: { is_crowned: false, meeples: [false, false, false, false] },
-    medical: { is_crowned: false, meeples: [false, false, false, false] }
+    science_tracks: {
+    bank: { is_crowned: false, meeples: [-1, -1, -1, -1] },
+    law: { is_crowned: false, meeples: [-1, -1, -1, -1] },
+    engineering: { is_crowned: false, meeples: [-1, -1, -1, -1] },
+    medical: { is_crowned: false, meeples: [-1, -1, -1, -1] }
   },
   ability_tile_owners: {},
   science_tile_owners: {}
