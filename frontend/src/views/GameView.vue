@@ -154,12 +154,13 @@
                     >
                       <div class="stat-content">
                         <div class="stat-icon-wrapper">
-                          <img
+                          <canvas
                             v-if="item.type === 'building'"
-                            :src="getPlayerBuildingIconSrc(player, item.buildingId)"
-                            :alt="item.label"
+                            :key="`bld-${player.planningCardId}-${item.buildingId}`"
                             class="stat-image"
-                          >
+                            :ref="el => drawPlayerBuildingIcon(el, player, item.buildingId)"
+                            :aria-label="item.label"
+                          ></canvas>
                           <div
                             v-else-if="item.type === 'magic'"
                             class="icon-stack"
@@ -547,13 +548,12 @@
                           <div aria-hidden="true" class="bonus-sprite-image" :style="getRoundBoosterBackSpriteStyleByBackendId(bonus.x)"></div>
                         </div>
                       </div>
-                      <img
+                      <canvas
                         v-if="bonus.isFlipped && bonus.holderMarkId !== null"
-                        :src="getBonusHolderMarkSrc(bonus.holderMarkId)"
-                        alt=""
-                        aria-hidden="true"
+                        :key="`bm-${bonus.x}-${bonus.holderMarkId}`"
                         class="bonus-holder-mark"
-                      >
+                        :ref="el => drawBonusHolderMark(el, bonus.holderMarkId)"
+                      ></canvas>
                       <span
                         v-if="!bonus.isFlipped && bonus.coinCount > 0"
                         class="bonus-coin-badge"
@@ -603,15 +603,14 @@
                               @mouseleave="handleScienceTileMouseLeave"
                               @focus="handleScienceTileMouseEnter(tileId, $event)"
                               @blur="handleScienceTileMouseLeave"
-                              @keydown.esc.prevent="hideEntityPreview"
+@keydown.esc.prevent="hideEntityPreview"
                             >
-                              <img
+                              <canvas
                                 v-if="tileId && getScienceTileOwnerMarkId(tileId) !== null"
-                                :src="getBonusHolderMarkSrc(getScienceTileOwnerMarkId(tileId))"
-                                alt=""
-                                aria-hidden="true"
+                                :key="`stm-${tileId}-${getScienceTileOwnerMarkId(tileId)}`"
                                 class="science-tile-owner-mark"
-                              >
+                                :ref="el => drawScienceTileOwnerMark(el, getScienceTileOwnerMarkId(tileId))"
+                              ></canvas>
                               <span v-if="tileId" class="tile-index-badge">{{ tileId }}</span>
                             </div>
                           </div>
@@ -628,15 +627,14 @@
                               @mouseleave="handleScienceTileMouseLeave"
                               @focus="handleScienceTileMouseEnter(tileId, $event)"
                               @blur="handleScienceTileMouseLeave"
-                              @keydown.esc.prevent="hideEntityPreview"
+@keydown.esc.prevent="hideEntityPreview"
                             >
-                              <img
+                              <canvas
                                 v-if="tileId && getScienceTileOwnerMarkId(tileId) !== null"
-                                :src="getBonusHolderMarkSrc(getScienceTileOwnerMarkId(tileId))"
-                                alt=""
-                                aria-hidden="true"
+                                :key="`stm2-${tileId}-${getScienceTileOwnerMarkId(tileId)}`"
                                 class="science-tile-owner-mark"
-                              >
+                                :ref="el => drawScienceTileOwnerMark(el, getScienceTileOwnerMarkId(tileId))"
+                              ></canvas>
                               <span v-if="tileId" class="tile-index-badge">{{ tileId }}</span>
                             </div>
                           </template>
@@ -660,13 +658,12 @@
                             @keydown.esc.prevent="hideEntityPreview"
                           >
                             <div v-if="tileId" class="ability-tile-owner-strip" aria-hidden="true">
-                              <img
+                              <canvas
                                 v-for="(markId, ownerIndex) in getAbilityTileOwnerMarkIds(tileId)"
                                 :key="`abi-owner-${tileId}-${ownerIndex}-${markId}`"
-                                :src="getBonusHolderMarkSrc(markId)"
-                                alt=""
                                 class="ability-tile-owner-mark"
-                              >
+                                :ref="el => drawAbilityTileOwnerMark(el, markId)"
+                              ></canvas>
                             </div>
                             <span v-if="tileId" class="tile-index-badge">{{ tileId }}</span>
                             <span v-if="tileId" class="ability-tile-remaining-badge">×{{ getAbilityTileRemainingCount(tileId) }}</span>
@@ -678,22 +675,20 @@
                   <div ref="cultBoardSectionRef" class="cult-board-section">
                     <img src="/assets/images/tracks_board.png" alt="tracks board" class="cult-board-image" />
                     <div class="tracks-board-overlay">
-                      <div
+                      <canvas
                         v-for="m in allTrackMarkers"
                         :key="m.key"
                         class="track-marker track-tower-marker"
                         :style="m.style"
-                      >
-                        <img :src="getBonusHolderMarkSrc(m.markId)" alt="" />
-                      </div>
-                      <div
+                        :ref="el => drawTrackTowerMarker(el, m.markId)"
+                      ></canvas>
+                      <canvas
                         v-for="m in allBaseMeepleMarkers"
                         :key="m.key"
                         class="track-marker track-base-marker"
                         :style="m.style"
-                      >
-                        <img :src="getBonusHolderMarkSrc(m.markId)" alt="" />
-                      </div>
+                        :ref="el => drawTrackBaseMeeple(el, m.markId)"
+                      ></canvas>
                     </div>
                   </div>
                 </div>
@@ -1694,15 +1689,92 @@ const SCIENCE_ABILITY_LEFT_WIDTH_PER_HEIGHT = Object.freeze({
   5: 850 / (584 + 403)
 })
 const CULT_BOARD_WIDTH_PER_HEIGHT = 861 / 1248
-const HOLDER_MARK_URLS = Object.freeze({
-  1: new URL('../../assets/images/items/mark/1.png', import.meta.url).href,
-  2: new URL('../../assets/images/items/mark/2.png', import.meta.url).href,
-  3: new URL('../../assets/images/items/mark/3.png', import.meta.url).href,
-  4: new URL('../../assets/images/items/mark/4.png', import.meta.url).href,
-  5: new URL('../../assets/images/items/mark/5.png', import.meta.url).href,
-  6: new URL('../../assets/images/items/mark/6.png', import.meta.url).href,
-  7: new URL('../../assets/images/items/mark/7.png', import.meta.url).href
-})
+
+const SPRITESHEET_URL = new URL('../../assets/images/structures.png', import.meta.url).href
+const SPRITE_CELL_WIDTH = 141
+const SPRITE_CELL_HEIGHT = 158
+const SPRITE_SCALE_MAP_BUILDING = 0.25
+
+const COLOR_TO_SPRITE_COL = {
+  0: 7,
+  1: 3,
+  2: 5,
+  3: 2,
+  4: 0,
+  5: 6,
+  6: 4,
+  7: 1,
+  8: 7
+}
+
+const BUILDING_TO_SPRITE_ROW = {
+  1: 0,
+  2: 1,
+  3: 2,
+  4: 3,
+  5: 4,
+  6: 6,
+  7: 5,
+  8: 7
+}
+
+const SPECIAL_BUILDINGS = new Set([6, 7, 8])
+
+const spriteSheet = new Image()
+spriteSheet.src = SPRITESHEET_URL
+let spriteSheetLoaded = false
+spriteSheet.onload = () => { spriteSheetLoaded = true }
+
+function drawSprite(canvas, sx, sy, sWidth, sHeight, cssWidth, cssHeight) {
+  if (!canvas) return
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+
+  let targetWidth = cssWidth
+  let targetHeight = cssHeight
+  if (!targetWidth || !targetHeight) {
+    const rect = canvas.getBoundingClientRect()
+    targetWidth = rect.width
+    targetHeight = rect.height
+  }
+  if (!targetWidth || !targetHeight) {
+    requestAnimationFrame(() => drawSprite(canvas, sx, sy, sWidth, sHeight, cssWidth, cssHeight))
+    return
+  }
+
+  const dpr = window.devicePixelRatio || 1
+  canvas.width = Math.round(targetWidth * dpr)
+  canvas.height = Math.round(targetHeight * dpr)
+  if (cssWidth && cssHeight) {
+    canvas.style.width = cssWidth + 'px'
+    canvas.style.height = cssHeight + 'px'
+  }
+
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+  const doDraw = () => {
+    ctx.save()
+    ctx.scale(dpr, dpr)
+    ctx.drawImage(spriteSheet, sx, sy, sWidth, sHeight, 0, 0, targetWidth, targetHeight)
+    ctx.restore()
+  }
+
+  if (spriteSheet.complete && spriteSheet.naturalWidth !== 0) {
+    doDraw()
+  } else {
+    const onLoad = () => {
+      doDraw()
+      spriteSheet.removeEventListener('load', onLoad)
+    }
+    spriteSheet.addEventListener('load', onLoad)
+  }
+}
+
+function drawSpriteCell(canvas, col, row, width, height) {
+  drawSprite(canvas, col * SPRITE_CELL_WIDTH, row * SPRITE_CELL_HEIGHT, SPRITE_CELL_WIDTH, SPRITE_CELL_HEIGHT, width, height)
+}
 
 const recommendedActionStrategyId = ref('')
 const controlCenterPendingMode = ref('')
@@ -1918,7 +1990,7 @@ const allTrackMarkers = computed(() => {
         const markId = getTileOwnerMarkIdByPlayerId(pid)
         if (!markId) return
         markers.push({
-          key: `tower-${type}-${level}-${pid}`,
+          key: `tower-${type}-${pid}`,
           markId,
           style: {
             left: `${centerX + offsetPct}%`,
@@ -2184,8 +2256,87 @@ function getPlanningCardColor(planningCardId) {
   return planningCardId ? planningCardIdToColor[planningCardId] || 'transparent' : 'transparent'
 }
 
-function getBonusHolderMarkSrc(markId) {
-  return HOLDER_MARK_URLS[markId] || ''
+function drawBonusHolderMark(canvas, markId) {
+  if (!markId || !canvas) return
+  const col = COLOR_TO_SPRITE_COL[Number(markId)] ?? 7
+  drawSpriteCell(canvas, col, 6, 90, 108)
+}
+
+function drawScienceTileOwnerMark(canvas, markId) {
+  if (!markId || !canvas) return
+  const col = COLOR_TO_SPRITE_COL[Number(markId)] ?? 7
+  drawSpriteCell(canvas, col, 6, 80, 96)
+}
+
+function drawAbilityTileOwnerMark(canvas, markId) {
+  if (!markId || !canvas) return
+  const col = COLOR_TO_SPRITE_COL[Number(markId)] ?? 7
+  drawSpriteCell(canvas, col, 6, 48, 56)
+}
+
+function drawTrackTowerMarker(canvas, markId) {
+  if (!markId || !canvas) return
+  const col = COLOR_TO_SPRITE_COL[Number(markId)] ?? 7
+  drawSpriteCell(canvas, col, 6)
+}
+
+function drawTrackBaseMeeple(canvas, markId) {
+  if (!markId || !canvas) return
+  const col = COLOR_TO_SPRITE_COL[Number(markId)] ?? 7
+  drawSpriteCell(canvas, col, 5)
+}
+
+function drawPlayerBuildingIcon(canvas, player, buildingId) {
+  if (!canvas) return
+  const colorId = player?.planningCardId ?? 0
+  const col = SPECIAL_BUILDINGS.has(Number(buildingId)) ? 7 : (COLOR_TO_SPRITE_COL[colorId] ?? 7)
+  const row = BUILDING_TO_SPRITE_ROW[Number(buildingId)] ?? 0
+
+  const rect = canvas.getBoundingClientRect()
+  const boxW = rect.width
+  const boxH = rect.height
+  if (!boxW || !boxH) return
+
+  const spriteRatio = SPRITE_CELL_WIDTH / SPRITE_CELL_HEIGHT
+  const boxRatio = boxW / boxH
+  let drawW, drawH, offsetX, offsetY
+  if (boxRatio > spriteRatio) {
+    drawH = boxH
+    drawW = boxH * spriteRatio
+    offsetX = (boxW - drawW) / 2
+    offsetY = 0
+  } else {
+    drawW = boxW
+    drawH = boxW / spriteRatio
+    offsetX = 0
+    offsetY = (boxH - drawH) / 2
+  }
+
+  const dpr = window.devicePixelRatio || 1
+  canvas.width = Math.round(boxW * dpr)
+  canvas.height = Math.round(boxH * dpr)
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+  const doDraw = () => {
+    ctx.save()
+    ctx.scale(dpr, dpr)
+    ctx.drawImage(spriteSheet, col * SPRITE_CELL_WIDTH, row * SPRITE_CELL_HEIGHT, SPRITE_CELL_WIDTH, SPRITE_CELL_HEIGHT, offsetX, offsetY, drawW, drawH)
+    ctx.restore()
+  }
+
+  if (spriteSheet.complete && spriteSheet.naturalWidth !== 0) {
+    doDraw()
+  } else {
+    const onLoad = () => {
+      doDraw()
+      spriteSheet.removeEventListener('load', onLoad)
+    }
+    spriteSheet.addEventListener('load', onLoad)
+  }
 }
 
 function normalizeTileOwnerPlayerIds(ownerList) {
@@ -2311,7 +2462,7 @@ function getTileOwnerMarkIdByPlayerId(playerId) {
   }
 
   const planningCardId = normalizePlanningCardId(players.value[normalizedPlayerId]?.planningCardId)
-  return planningCardId ?? (normalizedPlayerId + 1)
+  return planningCardId ?? null
 }
 
 function getScienceTileOwnerMarkId(tileId) {
@@ -4193,11 +4344,6 @@ function buildPlayerStatusRows(player) {
   })))
 }
 
-function getPlayerBuildingIconSrc(player, buildingId) {
-  const planningCardId = player?.planningCardId ?? 0
-  return `/images/buildings/${planningCardId}-${buildingId}.png`
-}
-
 function getMapBuildingColorId(controller) {
   const normalizedController = Number(controller)
   if (!Number.isInteger(normalizedController) || normalizedController < 0) {
@@ -4210,20 +4356,6 @@ function getMapBuildingColorId(controller) {
   }
 
   return normalizedController + 1
-}
-
-function getMapBuildingIconSrc(cell) {
-  const buildingId = Number(cell?.building_id)
-  if (!Number.isInteger(buildingId) || buildingId <= 0) {
-    return null
-  }
-
-  const colorId = cell?.is_neutral ? 0 : getMapBuildingColorId(cell?.controller)
-  if (!Number.isInteger(colorId) || colorId < 0) {
-    return null
-  }
-
-  return `/images/buildings/${colorId}-${buildingId}.png`
 }
 
 function getAbilityBoardTileStyle(tileId, idx) {
@@ -4446,13 +4578,13 @@ function renderBuildingForCell(row, col) {
     return
   }
 
-  const imageSrc = getMapBuildingIconSrc(cell)
-  if (!imageSrc) {
+  const colorId = cell?.is_neutral ? 0 : getMapBuildingColorId(cell?.controller)
+  if (!Number.isInteger(colorId) || colorId < 0) {
     clearPlacedElementsAt(row, col)
     return
   }
 
-  void placeElement(row, col, imageSrc, cell.building_id, 'replace', renderToken)
+  void placeElement(row, col, colorId, cell.building_id, 'replace', renderToken)
 }
 
 function applyPlayerFieldChange(player, remainingKeys, value, changeType = '') {
@@ -4983,7 +5115,7 @@ function setHexHighlights(hexList) {
 
 // ========== 建筑放置功能 ==========
 
-async function placeElement(hexRow, hexCol, imageSrc, buildingId, mode = 'replace', renderToken = null) {
+function placeElement(hexRow, hexCol, colorId, buildingId, mode = 'replace', renderToken = null) {
   // 计算位置ID (A1, B2等)
   const positionId = getHexPositionId(hexRow, hexCol)
 
@@ -4991,14 +5123,14 @@ async function placeElement(hexRow, hexCol, imageSrc, buildingId, mode = 'replac
   const hexElement = document.getElementById(`hex-${positionId}`)
   if (!hexElement) {
     console.error(`六边形 ${positionId} 不存在`)
-    return
+    return false
   }
 
   // 获取元素层
   const elementsLayer = document.getElementById('hex-elements')
   if (!elementsLayer) {
     console.error('元素层不存在')
-    return
+    return false
   }
 
   // 获取六边形的中心坐标
@@ -5011,47 +5143,44 @@ async function placeElement(hexRow, hexCol, imageSrc, buildingId, mode = 'replac
     clearPlacedElementsAt(hexRow, hexCol)
   }
 
-  // 创建建筑图片
-  const image = document.createElementNS('http://www.w3.org/2000/svg', 'image')
-  image.setAttribute('class', 'hex-element')
-  image.setAttribute('data-position', positionId)
-  image.setAttribute('data-building-id', String(buildingId))
-  const planningCardId = imageSrc.replace(/-\d+\.png$/, '')
-  const buildingType = buildingId
-
-  try {
-    // 预加载图片获取原始尺寸
-    const img = new Image()
-    img.src = imageSrc
-
-    await new Promise((resolve, reject) => {
-      img.onload = resolve
-      img.onerror = reject
-    })
-
-    // 计算25%的尺寸
-    const scaledWidth = img.naturalWidth * 0.25
-    const scaledHeight = img.naturalHeight * 0.25
-    if (renderToken !== null && !isLatestBuildingRender(hexRow, hexCol, renderToken)) {
-      return false
-    }
-
-    // 设置正确尺寸
-    image.setAttribute('x', centerX - scaledWidth / 2)
-    image.setAttribute('y', bottomY - scaledHeight)
-    image.setAttribute('width', scaledWidth)
-    image.setAttribute('height', scaledHeight)
-    image.setAttribute('href', imageSrc)
-
-    console.log(`已加载建筑: ${planningCardId}-${buildingType}.png`)
-  } catch (error) {
-    console.error(`加载建筑图片失败: ${planningCardId}-${buildingType}.png`, error)
-    // 使用错误指示
-    image.setAttribute('href', 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="red" stroke-width="2"/><line x1="8" y1="8" x2="16" y2="16" stroke="red" stroke-width="2"/><line x1="16" y1="8" x2="8" y2="16" stroke="red" stroke-width="2"/></svg>')
+  const normalizedBuildingId = Number(buildingId)
+  if (!Number.isInteger(normalizedBuildingId) || normalizedBuildingId <= 0) {
+    return false
   }
 
-  // 添加到元素层
-  elementsLayer.appendChild(image)
+  const normalizedColorId = Number(colorId) || 0
+  const spriteCol = SPECIAL_BUILDINGS.has(normalizedBuildingId) ? 7 : (COLOR_TO_SPRITE_COL[normalizedColorId] ?? 7)
+  const spriteRow = BUILDING_TO_SPRITE_ROW[normalizedBuildingId] ?? 0
+
+  const displayWidth = 35
+  const displayHeight = 40
+
+  if (renderToken !== null && !isLatestBuildingRender(hexRow, hexCol, renderToken)) {
+    return false
+  }
+
+  // 创建 foreignObject 包裹 canvas 以绘制精灵图切片
+  const foreignObject = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject')
+  foreignObject.setAttribute('class', 'hex-element')
+  foreignObject.setAttribute('data-position', positionId)
+  foreignObject.setAttribute('data-building-id', String(normalizedBuildingId))
+  foreignObject.setAttribute('x', centerX - displayWidth / 2)
+  foreignObject.setAttribute('y', bottomY - displayHeight)
+  foreignObject.setAttribute('width', displayWidth)
+  foreignObject.setAttribute('height', displayHeight)
+
+  const canvas = document.createElement('canvas')
+  canvas.setAttribute('width', String(displayWidth))
+  canvas.setAttribute('height', String(displayHeight))
+  canvas.style.width = `${displayWidth}px`
+  canvas.style.height = `${displayHeight}px`
+  canvas.style.display = 'block'
+
+  drawSpriteCell(canvas, spriteCol, spriteRow, displayWidth, displayHeight)
+
+  foreignObject.appendChild(canvas)
+  elementsLayer.appendChild(foreignObject)
+  console.log(`已加载建筑: ${normalizedColorId}-${normalizedBuildingId}`)
   return true
 }
 
@@ -5346,7 +5475,7 @@ function applyFullState(state) {
             // 获取控制者的规划卡ID来构建图片路径
             const controllerPlayer = state.players?.[cell.controller]
             const planningCardId = controllerPlayer?.planning_card_id || (cell.controller + 1)
-            placeElement(rowIdx, colIdx, planningCardId, buildingType, 'replace')
+            placeElement(rowIdx, colIdx, planningCardId, cell.building_id, 'replace')
           }
         }
       })
@@ -5853,7 +5982,7 @@ function applySingleChange(path, value, changeType) {
               const cell = mapState.grid?.[row]?.[col]
               const controller = cell?.controller ?? 0
               const planningCardId = players.value[controller]?.planningCardId ?? (controller + 1)
-              placeElement(row, col, planningCardId, buildingType, 'replace')
+              placeElement(row, col, planningCardId, value, 'replace')
             }
           }
         } else if (field === 'controller') {
@@ -6634,6 +6763,7 @@ onUnmounted(() => {
 }
 
 .stat-image {
+  display: block;
   width: var(--player-building-icon-size);
   height: var(--player-building-icon-size);
   object-fit: contain;
@@ -7305,8 +7435,8 @@ onUnmounted(() => {
   position: absolute;
   top: 15%;
   left: 47.5%;
-  width: 60%;
-  height: auto;
+  width: 90px;
+  height: 108px;
   transform: translate(-50%, -50%);
   z-index: 6;
   pointer-events: none;
@@ -7537,10 +7667,8 @@ onUnmounted(() => {
   position: absolute;
   top: -8px;
   right: -6px;
-  width: 38%;
-  min-width: 18px;
-  max-width: 32px;
-  height: auto;
+  width: 80px;
+  height: 96px;
   z-index: 11;
   pointer-events: none;
   object-fit: contain;
@@ -7551,7 +7679,7 @@ onUnmounted(() => {
 
 .ability-tile-owner-strip {
   position: absolute;
-  top: -7px;
+  top: -20px;
   left: 0;
   right: 0;
   display: flex;
@@ -7562,8 +7690,8 @@ onUnmounted(() => {
 }
 
 .ability-tile-owner-mark {
-  width: 18px;
-  height: 18px;
+  width: 48px;
+  height: 56px;
   object-fit: contain;
   flex: 0 0 auto;
   transform: scale(1.1);
@@ -7657,15 +7785,17 @@ onUnmounted(() => {
 
 .track-marker {
   position: absolute;
-  width: 6%;
+  width: 12%;
+  height: auto;
+  aspect-ratio: 67 / 80;
   transform: translate(-50%, -50%);
   transition: top 0.4s ease, left 0.4s ease;
   pointer-events: none;
 }
 
-.track-marker img {
+.track-marker canvas {
   width: 100%;
-  height: auto;
+  height: 100%;
   display: block;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
 }

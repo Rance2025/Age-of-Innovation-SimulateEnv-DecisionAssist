@@ -33,6 +33,26 @@
 
 ## 版本记录
 
+## 0.9.5.11
+- 日期：`2026-04-18`
+- 分支：`main`
+- 影响范围：
+  - `frontend/src/views/GameView.vue`
+  - `frontend/assets/images/structures.png`
+  - `frontend/assets/images/buildings/*`
+  - `frontend/assets/images/items/mark/*`
+- 更新内容：
+  - `fix: 玩家状态面板建筑图标添加 display: block 解决 inline canvas 基线对齐问题，确保图标在 stat-icon-wrapper 中垂直居中。`
+  - `fix: 地图上建筑渲染改用 SVG foreignObject + Canvas 方案读取 structures.png 精灵图并绘制为 35×40px，避免 CSS 缩放导致的模糊。`
+  - `fix: 所有玩家标记改用 structures.png 第7行(1-indexed，即0-indexed第6行)切片，移除独立的 items/mark 目录。`
+  - `fix: 回合助推板标记尺寸放大至 75×90，Canvas 绘制 75×90 像素内容（1.5倍）。`
+  - `fix: 科学板块标记尺寸放大至 60×72，Canvas 绘制 60×72 像素内容（1.5倍）。`
+  - `fix: 能力板块标记尺寸放大至 36×42，Canvas 绘制 36×42 像素内容（1.5倍）。`
+  - `fix: 科技塔标记宽度从 6% 调整为 9%，保持 aspect-ratio: 67/80（1.5倍）。`
+  - `fix: 修复回合信息（助推板持有者标记）和科学能力板块（科学/能力板块所有者标记、科技塔/基座标记）的玩家颜色映射，统一使用 COLOR_TO_SPRITE_COL 映射表，确保与建筑切分颜色一致。`
+- 验证方式：
+  - `cd frontend && npm run build`
+
 ## 0.9.5.26
 - 日期：`2026-04-16`
 - 分支：`main`
