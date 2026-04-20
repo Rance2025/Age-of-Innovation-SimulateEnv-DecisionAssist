@@ -79,7 +79,7 @@ class GameEngine:
             for round_idx in range(1, 5):
                 # 确定本轮玩家顺序
                 if round_idx % 2 == 1:
-                    current_turn_order = self.game_state.pass_order
+                    current_turn_order = list(reversed(self.game_state.current_player_order))
                 else:
                     current_turn_order = self.game_state.current_player_order
 
@@ -105,13 +105,13 @@ class GameEngine:
             # 构建初始建筑摆放顺序列表
             match faction_8_owner_id, faction_10_owner_id:
                 case -1, -1:
-                    build_order = self.game_state.pass_order + self.game_state.current_player_order
+                    build_order = list(reversed(self.game_state.current_player_order)) + self.game_state.current_player_order
                 case _, -1:
-                    build_order = [idx for idx in self.game_state.pass_order + self.game_state.current_player_order if idx != faction_8_owner_id] + [faction_8_owner_id]
+                    build_order = [idx for idx in list(reversed(self.game_state.current_player_order)) + self.game_state.current_player_order if idx != faction_8_owner_id] + [faction_8_owner_id]
                 case -1, _:
-                    build_order = self.game_state.pass_order + self.game_state.current_player_order + [faction_10_owner_id]
+                    build_order = list(reversed(self.game_state.current_player_order)) + self.game_state.current_player_order + [faction_10_owner_id]
                 case _, _:
-                    build_order = [idx for idx in self.game_state.pass_order + self.game_state.current_player_order if idx != faction_8_owner_id] + [faction_10_owner_id, faction_8_owner_id]
+                    build_order = [idx for idx in list(reversed(self.game_state.current_player_order)) + self.game_state.current_player_order if idx != faction_8_owner_id] + [faction_10_owner_id, faction_8_owner_id]
 
             # 按照初始建筑摆放顺序列表轮流进行初始建筑摆放行动
             for player_idx in build_order:
@@ -121,7 +121,7 @@ class GameEngine:
             self.game_state.setup_build_is_completed = True
 
             # 执行可能存在的初始效果
-            for player_idx in self.game_state.pass_order:
+            for player_idx in list(reversed(self.game_state.current_player_order)):
                 cur_player_setup_list = self.game_state.players[player_idx].setup_effect_list
                 while cur_player_setup_list:
                     effect = cur_player_setup_list.pop(0)
@@ -162,7 +162,8 @@ class GameEngine:
                     yield from effect_object.round_end()
             
             # 将本回合pass顺序作为下回合的行动顺序
-            self.game_state.current_player_order = self.game_state.pass_order.copy()
+            if self.game_state.round != 6:
+                self.game_state.current_player_order = self.game_state.pass_order.copy()
 
         # 初始设置阶段
         yield from initial_setup_phase()

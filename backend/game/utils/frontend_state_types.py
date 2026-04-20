@@ -27,6 +27,8 @@ class GameMeta:
     is_game_over: bool = False          # 游戏是否结束
     setup_choice_is_completed: bool = False  # 初始板块选择阶段是否完成
     setup_build_is_completed: bool = False   # 初始建筑摆放阶段是否完成
+    current_player_order: List[int] = field(default_factory=list)  # 当前回合未pass的玩家顺序
+    pass_order: List[int] = field(default_factory=list)            # 本回合已pass的玩家顺序
 
 
 @dataclass

@@ -211,7 +211,9 @@ class GameStateManager:
             action_type=request.action_type,
             is_game_over=request.is_game_over,
             setup_choice_is_completed=setup_choice_is_completed,
-            setup_build_is_completed=setup_build_is_completed
+            setup_build_is_completed=setup_build_is_completed,
+            current_player_order=list(getattr(gs, 'current_player_order', [])) if gs else [],
+            pass_order=list(getattr(gs, 'pass_order', [])) if gs else []
         )
 
     def _extract_timer_state(self) -> TimerState:
@@ -586,10 +588,30 @@ class GameStateManager:
         new_dict = asdict(new_state)
         
         # 1. 对比 meta
+        old_meta = old_state.get('meta', {})
+        new_meta = new_dict.get('meta', {})
+        
+        # 对 current_player_order 和 pass_order 使用整体替换（而非逐元素 diff）
+        # 因为列表顺序和长度变化需要一次性更新，避免前端逐元素应用导致状态不一致
+        for list_key in ('current_player_order', 'pass_order'):
+            old_list = old_meta.get(list_key)
+            new_list = new_meta.get(list_key)
+            if old_list != new_list:
+                diffs.append(StateDiff(
+                    f'meta.{list_key}',
+                    old_list,
+                    new_list,
+                    ChangeType.MODIFIED
+                ))
+        
+        # 过滤掉已特殊处理的列表字段，对比 meta 的其他字段
+        filtered_old_meta = {k: v for k, v in old_meta.items() if k not in ('current_player_order', 'pass_order')}
+        filtered_new_meta = {k: v for k, v in new_meta.items() if k not in ('current_player_order', 'pass_order')}
+        
         diffs.extend(self._calculate_object_diff(
             'meta', 
-            old_state.get('meta', {}), 
-            new_dict.get('meta', {})
+            filtered_old_meta, 
+            filtered_new_meta
         ))
         
         # 2. 对比 setup（通常只在初始化时变化）

@@ -651,7 +651,7 @@ class GameStateBase:
         self.round:int = 0                                                                                      # 当前回合 (0表示设置阶段)
         self.init_player_order = self.setup.init_player_order                                                   # 初始玩家顺位
         self.current_player_order = self.init_player_order.copy()                                               # 当前玩家顺位
-        self.pass_order = list(reversed(self.current_player_order))                                             # 本回合玩家结束顺序
+        self.pass_order = []                                                                                    # 本回合玩家结束顺序
         self.setup_choice_is_completed:bool = False                                                             # 初始选择是否完成
         self.setup_build_is_completed:bool = False                                                              # 初始建造是否完成
         self.check = self.init_check()                                                                          # 初始化检查函数

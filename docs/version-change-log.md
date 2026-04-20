@@ -26,6 +26,33 @@
 
 ## 版本记录
 
+## 0.9.5.31
+- 日期：`2026-04-20`
+- 分支：`main`
+- 影响范围：
+  - `backend/game/aoi_game/game_engine.py`
+  - `backend/game/aoi_game/game_state.py`
+  - `backend/game/utils/frontend_state_types.py`
+  - `backend/game/utils/game_state_manager.py`
+  - `frontend/src/views/GameView.vue`
+  - `docs/version-change-log.md`
+  - `AGENTS.md`
+- 更新内容：
+  - `feat: 玩家面板按 current_player_order 和 pass_order 排序显示，支持 pass 动画和平滑过渡`
+  - `feat: 后端 GameMeta 新增 current_player_order 和 pass_order 字段，传递回合玩家顺序状态`
+  - `feat: 前端使用 Vue TransitionGroup 实现玩家卡片的列表重排、进入/退出平滑动画`
+  - `feat: 玩家 pass 后自动折叠卡片，分割线显示"已略过"，pass 玩家显示在分割线下侧`
+  - `feat: 回合刷新时所有玩家平滑过渡回活跃列表，分割线动画回到底部`
+  - `fix: 后端增量更新对 current_player_order 和 pass_order 使用整体替换策略，避免逐元素 diff 导致前端状态不一致`
+  - `ui: 分割线常驻显示，参考 action-log-divider 样式，上下区域添加空状态提示`
+  - `ui: 取消当前玩家自动展开已折叠卡片的功能，保持用户手动控制折叠状态`
+  - `fix: 空提示添加 stateVersion > 0 条件，避免页面刷新时闪烁"无活跃玩家"`
+  - `fix: leave-active 添加 position: absolute，使离开元素不占空间，其他卡片直接重排至正确位置，避免空提示消失导致的闪烁`
+- 验证方式：
+  - 启动游戏，观察玩家面板初始排序是否与 init_player_order 一致
+  - 进行游戏，当玩家 pass 后验证动画效果（淡出缩小、其他卡片平滑移动、分割线出现、pass 卡片淡入放大）
+  - 回合刷新时验证所有玩家回到活跃列表，分割线消失
+
 ## 0.9.5.30
 - 日期：`2026-04-20`
 - 分支：`main`

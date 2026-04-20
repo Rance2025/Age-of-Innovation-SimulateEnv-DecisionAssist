@@ -8,10 +8,15 @@
           <div>玩家面板</div>
         </div>
         <div class="monitor-content">
-          <div class="player-grid" id="player-grid">
+          <TransitionGroup
+            tag="div"
+            class="player-grid"
+            id="player-grid"
+            name="player-card"
+          >
             <div
-              v-for="player in players"
-              :key="player.id"
+              v-for="player in activePlayerItems"
+              :key="`player-${player.id}`"
               class="player-card"
               :data-player-id="player.id"
               :class="{
@@ -188,7 +193,212 @@
                 </div>
               </div>
             </div>
-          </div>
+            <!-- 活跃玩家空状态 -->
+            <div
+              v-if="stateVersion > 0 && activePlayerItems.length === 0"
+              key="__active-empty__"
+              class="player-empty-state"
+            >
+              <span class="player-empty-state-text">无活跃玩家</span>
+            </div>
+            <!-- 分割线 -->
+            <div
+              :key="'__divider__'"
+              class="player-pass-divider"
+            >
+              <span class="player-pass-divider-line"></span>
+              <span class="player-pass-divider-text">已略过</span>
+              <span class="player-pass-divider-line"></span>
+            </div>
+            <!-- 已pass玩家空状态 -->
+            <div
+              v-if="stateVersion > 0 && passedPlayerItems.length === 0"
+              key="__passed-empty__"
+              class="player-empty-state"
+            >
+              <span class="player-empty-state-text">当前无已略过玩家</span>
+            </div>
+            <!-- 已pass玩家 -->
+            <div
+              v-for="player in passedPlayerItems"
+              :key="`player-${player.id}`"
+              class="player-card is-passed"
+              :data-player-id="player.id"
+              :class="{
+                collapsed: collapsedPlayers[player.id],
+                'is-current-action-player': currentActionPlayerId === player.id,
+                'is-transitioning': playerCardTransitionStates[player.id]
+              }"
+              :ref="(element) => setPlayerCardRef(player.id, element)"
+            >
+              <svg
+                v-if="currentActionPlayerId === player.id && hasPlayerCardRingGeometry(player.id)"
+                class="player-card-ring"
+                :viewBox="getPlayerCardRingViewBox(player.id)"
+                :style="getPlayerCardRingStyle(player.id)"
+                aria-hidden="true"
+              >
+                <path
+                  class="player-card-ring-flow-aura"
+                  :d="getPlayerCardRingPath(player.id)"
+                  pathLength="100"
+                />
+                <path
+                  class="player-card-ring-flow-soft"
+                  :d="getPlayerCardRingPath(player.id)"
+                  pathLength="100"
+                />
+                <path
+                  class="player-card-ring-flow-mid"
+                  :d="getPlayerCardRingPath(player.id)"
+                  pathLength="100"
+                />
+                <path
+                  class="player-card-ring-flow-core"
+                  :d="getPlayerCardRingPath(player.id)"
+                  pathLength="100"
+                />
+                <path
+                  class="player-card-ring-flow-bright"
+                  :d="getPlayerCardRingPath(player.id)"
+                  pathLength="100"
+                />
+              </svg>
+              <div class="player-header" @click="togglePlayer(player.id)">
+                <div class="player-header-left">
+                  <div class="planning-card-indicator">
+                    <div
+                      class="planning-card-circle"
+                      :tabindex="player.planningCardId !== null ? 0 : -1"
+                      title=""
+                      :aria-label="player.planningCardId !== null ? `预览${player.planningCard}规划卡` : '未分配规划卡'"
+                      :class="{ 'is-visible': player.planningCardId !== null }"
+                      :style="{ backgroundColor: getPlanningCardColor(player.planningCardId) }"
+                      @mouseenter="handlePlanningCardMouseEnter(player.planningCardId, player.planningCard, $event)"
+                      @mouseleave="handlePlanningCardMouseLeave"
+                      @focus="handlePlanningCardMouseEnter(player.planningCardId, player.planningCard, $event)"
+                      @blur="handlePlanningCardMouseLeave"
+                      @keydown.esc.prevent="hideEntityPreview"
+                    ></div>
+                  </div>
+                  <div class="player-title">
+                    <span class="player-name">玩家 {{ player.id + 1 }}</span>
+                    <span
+                      class="palace-tile-badge"
+                      :class="{
+                        'is-inactive': player.palaceTileId !== null && !player.isGotPalace,
+                        'is-hidden-placeholder': player.palaceTileId === null
+                      }"
+                      :tabindex="player.palaceTileId !== null ? 0 : -1"
+                      title=""
+                      :aria-label="player.palaceTileId !== null ? `预览${player.palaceTileId}号宫殿板块${player.isGotPalace ? '' : '（未激活）'}` : undefined"
+                      :aria-hidden="player.palaceTileId === null ? 'true' : 'false'"
+                      @mouseenter="handlePalaceTileMouseEnter(player.palaceTileId, player.isGotPalace, $event)"
+                      @mouseleave="handlePalaceTileMouseLeave"
+                      @focus="handlePalaceTileMouseEnter(player.palaceTileId, player.isGotPalace, $event)"
+                      @blur="handlePalaceTileMouseLeave"
+                      @keydown.esc.prevent="hideEntityPreview"
+                    >
+                      <span class="palace-tile-badge-value">{{ player.palaceTileId }}</span>
+                      <span
+                        v-if="!player.isGotPalace"
+                        class="palace-tile-badge-status"
+                        aria-hidden="true"
+                      >
+                        <i class="fas fa-ban"></i>
+                      </span>
+                    </span>
+                    <span
+                      v-if="player.factionId !== null"
+                      class="faction-badge"
+                    >
+                      <span
+                        class="faction-badge-avatar"
+                        tabindex="0"
+                        title=""
+                        :aria-label="`预览${player.faction}派系板块`"
+                        @mouseenter="handleFactionBadgeMouseEnter(player.factionId, player.faction, $event)"
+                        @mouseleave="handleFactionBadgeMouseLeave"
+                        @focus="handleFactionBadgeMouseEnter(player.factionId, player.faction, $event)"
+                        @blur="handleFactionBadgeMouseLeave"
+                        @keydown.esc.prevent="hideEntityPreview"
+                      >
+                        <span
+                          class="faction-badge-avatar-image"
+                          aria-hidden="true"
+                          :style="getFactionBadgeStyle(player.factionId)"
+                        ></span>
+                      </span>
+                      <span class="faction-badge-name">{{ player.faction }}</span>
+                    </span>
+                  </div>
+                </div>
+                <div class="player-header-right">
+                  <PlayerTimer :player-id="player.id" :current-player-id="currentActionPlayerId" />
+                  <div class="player-score">{{ player.score }}</div>
+                </div>
+              </div>
+              <div
+                class="player-status"
+                @transitionrun="handlePlayerStatusTransitionStart(player.id, $event)"
+                @transitionend="handlePlayerStatusTransitionEnd(player.id, $event)"
+                @transitioncancel="handlePlayerStatusTransitionEnd(player.id, $event)"
+              >
+                <div class="player-stats">
+                  <div
+                    v-for="(row, rowIndex) in buildPlayerStatusRows(player)"
+                    :key="`player-${player.id}-row-${rowIndex}`"
+                    class="stat-row"
+                    :style="{ '--stat-columns': row.length }"
+                    :class="{
+                      'is-building-row': row.some((item) => item.type === 'building'),
+                      'is-wide-row': row.length >= 5,
+                      'is-ultra-wide-row': row.length >= 6
+                    }"
+                  >
+                    <div
+                      v-for="item in row"
+                      :key="item.key"
+                      class="stat-item"
+                      :title="item.label"
+                    >
+                      <div class="stat-content">
+                        <div class="stat-icon-wrapper">
+                          <canvas
+                            v-if="item.type === 'building'"
+                            :key="`bld-${player.planningCardId}-${item.buildingId}`"
+                            class="stat-image"
+                            :ref="el => drawPlayerBuildingIcon(el, player, item.buildingId)"
+                            :aria-label="item.label"
+                          ></canvas>
+                          <div
+                            v-else-if="item.type === 'magic'"
+                            class="icon-stack"
+                            aria-hidden="true"
+                          >
+                            <span class="magic-disc"></span>
+                            <span class="magic-disc-label">{{ item.magicValue }}</span>
+                          </div>
+                          <i
+                            v-else
+                            :class="[item.iconClass, 'stat-icon']"
+                            aria-hidden="true"
+                          ></i>
+                          <span
+                            v-if="item.badgeValue !== null && item.badgeValue !== undefined"
+                            class="stat-badge"
+                          >
+                            {{ item.badgeValue }}
+                          </span>
+                        </div>
+                        <span class="stat-value">{{ item.value }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </TransitionGroup>
         </div>
       </div>
 
@@ -1801,7 +2011,9 @@ const gameMeta = reactive({
   action_type: '',
   is_game_over: false,
   setup_choice_is_completed: false,
-  setup_build_is_completed: false
+  setup_build_is_completed: false,
+  current_player_order: [],
+  pass_order: []
 })
 const globalStatus = computed(() => buildGlobalStatusFromMeta())
 const groupedActionCards = computed(() => buildGroupedActionCards(actions.value))
@@ -1901,6 +2113,23 @@ const filteredActionLogs = computed(() => {
     return true
   })
 })
+
+const activePlayerItems = computed(() => {
+  const activeOrder = gameMeta.current_player_order || []
+  return activeOrder
+    .map((playerId) => players.value.find((p) => p.id === playerId))
+    .filter(Boolean)
+})
+
+const passedPlayerItems = computed(() => {
+  const passOrder = gameMeta.pass_order || []
+  return passOrder
+    .map((playerId) => players.value.find((p) => p.id === playerId))
+    .filter(Boolean)
+})
+
+const hasPassedPlayers = computed(() => (gameMeta.pass_order || []).length > 0)
+
 const currentActionPlayerId = computed(() => {
   if (gameMeta.is_game_over) {
     return null
@@ -1909,14 +2138,30 @@ const currentActionPlayerId = computed(() => {
   return normalizeActionLogPlayerId(gameMeta.current_player_id)
 })
 watch(currentActionPlayerId, (playerId) => {
-  expandCurrentActionPlayerCard(playerId)
-}, { immediate: true })
+  // 当前玩家变化时不再自动展开卡片，保持用户手动控制折叠状态
+  // expandCurrentActionPlayerCard(playerId)
+}, { immediate: false })
 watch(
   [currentActionPlayerId, () => gameMeta.action_type, () => gameMeta.is_game_over],
   () => {
     clearRecommendedAction()
   }
 )
+
+// 监听 pass_order 变化，自动折叠已pass玩家的卡片
+watch(() => gameMeta.pass_order, (newPassOrder, oldPassOrder) => {
+  const oldSet = new Set(oldPassOrder || [])
+
+  // 新pass的玩家，自动折叠
+  newPassOrder?.forEach((playerId) => {
+    if (!oldSet.has(playerId)) {
+      collapsedPlayers[playerId] = true
+    }
+  })
+
+  // 回合刷新时，pass_order 清空，所有玩家回到活跃列表
+  // 不需要特别处理展开，保持用户当前折叠状态即可
+}, { deep: true })
 const currentActionOwnerLabel = computed(() => {
   if (gameMeta.is_game_over) {
     return '游戏结束'
@@ -9142,6 +9387,73 @@ onUnmounted(() => {
   font-weight: 700;
   letter-spacing: 0.04em;
   white-space: nowrap;
+}
+
+/* 玩家面板分割线 - 参考 action-log-divider 样式 */
+.player-pass-divider {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 24px;
+  color: rgba(198, 211, 224, 0.72);
+  margin: 4px 0;
+}
+
+.player-pass-divider-line {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(120, 160, 200, 0.26), transparent);
+}
+
+.player-pass-divider-text {
+  color: rgba(198, 211, 224, 0.78);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+/* 空状态提示 */
+.player-empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 8px 0;
+  color: rgba(198, 211, 224, 0.42);
+  font-size: 0.75rem;
+  font-style: italic;
+}
+
+/* TransitionGroup 列表动画 */
+.player-card-move {
+  transition: transform 0.5s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.player-card-enter-active {
+  transition: opacity 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.player-card-leave-active {
+  position: absolute;
+  width: 100%;
+  transition: opacity 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.player-card-enter-from {
+  opacity: 0;
+  transform: scale(0.96);
+}
+
+.player-card-leave-to {
+  opacity: 0;
+  transform: scale(0.96);
+}
+
+/* 已pass玩家卡片样式 */
+.player-card.is-passed {
+  opacity: 0.75;
+  filter: grayscale(0.15);
 }
 
 .action-log-entry {
