@@ -5020,6 +5020,23 @@ function togglePlayer(playerId) {
 }
 
 function toggleCard(cardName) {
+  // 对地图卡片特殊处理：折叠前固定 SVG 高度，避免缩小动画
+  if (cardName === 'map') {
+    const svg = document.getElementById('hex-grid-svg')
+    if (svg) {
+      if (!collapsedCards['map']) {
+        // 即将折叠：将 SVG 高度固定为当前渲染高度（像素值）
+        const rect = svg.getBoundingClientRect()
+        svg.style.height = `${rect.height}px`
+      } else {
+        // 即将展开：延迟恢复 height: 100%，等待动画完成
+        setTimeout(() => {
+          svg.style.height = ''
+        }, 300)
+      }
+    }
+  }
+
   collapsedCards[cardName] = !collapsedCards[cardName]
 
   if (cardName === 'tactical' && !collapsedCards[cardName]) {
@@ -7416,10 +7433,7 @@ onUnmounted(() => {
 .map-container-full {
   width: 100%;
   max-height: 100%;
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  padding: 12px 20px;
   background-color: transparent;
   overflow: hidden;
   box-sizing: border-box;
@@ -7428,6 +7442,7 @@ onUnmounted(() => {
 #hex-grid-svg {
   display: block;
   width: 100%;
+  height: 100%;
 }
 
 /* 回合信息 */
