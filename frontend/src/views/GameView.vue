@@ -3572,8 +3572,12 @@ function scheduleRoundInfoLayoutUpdate() {
 }
 
 function resetScienceAbilityLayoutStyles() {
+  const layout = scienceAbilityLayoutRef.value
   const stack = leftBoardsStackRef.value
   const cultSection = cultBoardSectionRef.value
+  if (layout) {
+    layout.style.maxHeight = ''
+  }
   if (stack) {
     stack.style.height = ''
     stack.style.width = ''
@@ -3602,7 +3606,12 @@ function updateScienceAbilityLayout() {
 
   resetScienceAbilityLayoutStyles()
 
-  const availableHeight = layout.clientHeight
+  // 基于父容器 .science-ability-status 的可用高度计算，避免 layout 自身被内容撑大
+  const statusEl = layout.parentElement
+  const statusStyles = statusEl ? window.getComputedStyle(statusEl) : null
+  const paddingTop = statusStyles ? (Number.parseFloat(statusStyles.paddingTop) || 0) : 0
+  const paddingBottom = statusStyles ? (Number.parseFloat(statusStyles.paddingBottom) || 0) : 0
+  const availableHeight = statusEl ? (statusEl.clientHeight - paddingTop - paddingBottom) : layout.clientHeight
   const availableWidth = layout.clientWidth
   if (!Number.isFinite(availableHeight) || availableHeight <= 0 || !Number.isFinite(availableWidth) || availableWidth <= 0) return
 
@@ -3623,6 +3632,8 @@ function updateScienceAbilityLayout() {
 
   const leftWidth = commonHeight * leftRatio
   const cultWidth = commonHeight * cultRatio
+  // 锁定 layout 自身的 max-height，确保内容不会溢出父容器
+  layout.style.maxHeight = `${availableHeight}px`
   stack.style.height = `${commonHeight}px`
   stack.style.width = `${leftWidth}px`
   stack.style.maxWidth = `${leftWidth}px`
@@ -5012,9 +5023,10 @@ function toggleCard(cardName) {
   collapsedCards[cardName] = !collapsedCards[cardName]
 
   if (cardName === 'tactical' && !collapsedCards[cardName]) {
-    nextTick(() => {
+    // 等待 CSS transition (max-height 0.3s) 完成后，父容器高度稳定了再计算布局
+    setTimeout(() => {
       updateScienceAbilityLayout()
-    })
+    }, 350)
   }
 }
 

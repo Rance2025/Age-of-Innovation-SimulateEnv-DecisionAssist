@@ -26,6 +26,20 @@
 
 ## 版本记录
 
+## 0.9.5.32
+- 日期：`2026-04-20`
+- 分支：`main`
+- 影响范围：
+  - `frontend/src/views/GameView.vue`
+  - `docs/version-change-log.md`
+- 更新内容：
+  - `fix: 修复4/5人局科学能力区域内容底部溢出被遮挡的问题`
+  - `fix: 布局计算改用父容器(.science-ability-status)的可用高度(扣除padding)作为基准，避免layout被内容撑大后获取错误高度`
+  - `fix: 给.science-ability-layout设置max-height锁定为父容器可用高度，确保内容不会溢出父容器`
+  - `fix: resetScienceAbilityLayoutStyles增加清理layout的max-height`
+  - `fix: toggleCard展开科学能力卡片时延迟350ms调用updateScienceAbilityLayout，等待CSS transition完成后父容器高度稳定再计算布局，避免展开后左侧内容被压缩到0x0`
+- 验证方式：在4/5人局游戏下检查科学能力卡片的科学板块和能力板块底部是否完整显示，无裁剪遮挡
+
 ## 0.9.5.31
 - 日期：`2026-04-20`
 - 分支：`main`
