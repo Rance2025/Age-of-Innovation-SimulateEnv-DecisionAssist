@@ -675,13 +675,15 @@
                   <div ref="cultBoardSectionRef" class="cult-board-section">
                     <img src="/assets/images/tracks_board.png" alt="tracks board" class="cult-board-image" />
                     <div class="tracks-board-overlay">
-                      <canvas
-                        v-for="m in allTrackMarkers"
-                        :key="m.key"
-                        class="track-marker track-tower-marker"
-                        :style="m.style"
-                        :ref="el => drawTrackTowerMarker(el, m.markId)"
-                      ></canvas>
+                      <TransitionGroup name="track-marker-fade">
+                        <canvas
+                          v-for="m in allTrackMarkers"
+                          :key="m.key"
+                          class="track-marker track-tower-marker"
+                          :style="m.style"
+                          :ref="el => drawTrackTowerMarker(el, m.markId)"
+                        ></canvas>
+                      </TransitionGroup>
                       <canvas
                         v-for="m in allBaseMeepleMarkers"
                         :key="m.key"
@@ -1984,11 +1986,11 @@ const allTrackMarkers = computed(() => {
     }
     for (const [level, playerIds] of levelMap) {
       const topPct = TRACK_LEVEL_TOPS[Math.min(Math.max(level, 0), 12)]
-      const count = playerIds.length
-      playerIds.forEach((pid, idx) => {
+      const visiblePlayerIds = playerIds.filter(pid => getTileOwnerMarkIdByPlayerId(pid))
+      const count = visiblePlayerIds.length
+      visiblePlayerIds.forEach((pid, idx) => {
         const offsetPct = (idx - (count - 1) / 2) * 3.5
         const markId = getTileOwnerMarkIdByPlayerId(pid)
-        if (!markId) return
         markers.push({
           key: `tower-${type}-${pid}`,
           markId,
@@ -2265,13 +2267,13 @@ function drawBonusHolderMark(canvas, markId) {
 function drawScienceTileOwnerMark(canvas, markId) {
   if (!markId || !canvas) return
   const col = COLOR_TO_SPRITE_COL[Number(markId)] ?? 7
-  drawSpriteCell(canvas, col, 6, 80, 96)
+  drawSpriteCell(canvas, col, 6, 48, 56)
 }
 
 function drawAbilityTileOwnerMark(canvas, markId) {
   if (!markId || !canvas) return
   const col = COLOR_TO_SPRITE_COL[Number(markId)] ?? 7
-  drawSpriteCell(canvas, col, 6, 48, 56)
+  drawSpriteCell(canvas, col, 6, 40, 48)
 }
 
 function drawTrackTowerMarker(canvas, markId) {
@@ -7651,7 +7653,6 @@ onUnmounted(() => {
   width: 100%;
   height: auto;
   border-radius: 0 0 8px 8px;
-  overflow: hidden;
 }
 
 .science-board-tile,
@@ -7665,42 +7666,38 @@ onUnmounted(() => {
 
 .science-tile-owner-mark {
   position: absolute;
-  top: -8px;
-  right: -6px;
-  width: 80px;
-  height: 96px;
+  top: -28px;
+  right: -18px;
+  width: 48px;
+  height: 56px;
   z-index: 11;
   pointer-events: none;
   object-fit: contain;
-  transform: scale(1.1);
-  transform-origin: center center;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
 }
 
 .ability-tile-owner-strip {
   position: absolute;
-  top: -20px;
-  left: 0;
+  top: -24px;
+  left: -14px;
   right: 0;
   display: flex;
   align-items: flex-start;
-  gap: 0;
+  justify-content: flex-start;
   z-index: 11;
   pointer-events: none;
 }
 
 .ability-tile-owner-mark {
-  width: 48px;
-  height: 56px;
+  width: 40px;
+  height: 48px;
   object-fit: contain;
   flex: 0 0 auto;
-  transform: scale(1.1);
-  transform-origin: center center;
   filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.35));
 }
 
 .ability-tile-owner-mark + .ability-tile-owner-mark {
-  margin-left: -4px;
+  margin-left: -29px;
 }
 
 .tile-index-badge {
@@ -7789,8 +7786,18 @@ onUnmounted(() => {
   height: auto;
   aspect-ratio: 67 / 80;
   transform: translate(-50%, -50%);
-  transition: top 0.4s ease, left 0.4s ease;
+  transition: top 0.7s ease, left 0.7s ease;
   pointer-events: none;
+}
+
+.track-marker-fade-enter-active,
+.track-marker-fade-leave-active {
+  transition: top 0.7s ease, left 0.7s ease, opacity 0.7s ease;
+}
+
+.track-marker-fade-enter-from,
+.track-marker-fade-leave-to {
+  opacity: 0;
 }
 
 .track-marker canvas {
