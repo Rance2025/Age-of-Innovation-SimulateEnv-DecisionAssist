@@ -2,20 +2,6 @@
 
 该文档用于记录每个数字版本号对应的实质更新内容，便于后续回溯、比对和回退。
 
-## 0.9.5.29
-- 日期：`2026-04-20`
-- 分支：`main`
-- 影响范围：
-  - `frontend/src/views/SpriteTestView.vue`
-  - `frontend/src/router/index.js`
-  - `backend/game/aoi_game/`
-- 更新内容：
-  - `chore: 删除前端测试页面 SpriteTestView.vue 及其路由 /test。`
-  - `fix: 用户自行修复 backend/game/aoi_game/ 内的 bug。`
-- 验证方式：
-  - `git status --short`
-  - `cd frontend && npm run build`
-
 ## 本次修改
 
 说明：本区用于记录尚未分配版本号的未提交改动。待用户给出版本号并准备 Git 时，再将本区内容归档到正式版本条目中。`更新内容` 中的每一条都必须使用 `type: 中文描述` 格式。
@@ -39,6 +25,35 @@
 - 验证方式：
 
 ## 版本记录
+
+## 0.9.5.30
+- 日期：`2026-04-20`
+- 分支：`main`
+- 影响范围：
+  - `frontend/src/views/GameView.vue`
+  - `docs/version-change-log.md`
+  - `AGENTS.md`
+- 更新内容：
+  - `fix: 修复游戏结束时可选行动右上角倒计时仍然显示的问题，游戏结束时隐藏 ActionTimer 组件。`
+  - `docs: 修正 version-change-log.md 中 0.9.5.29 被错误放置的位置，移至版本记录区域。`
+  - `docs: 更新 AGENTS.md，强调每次完成代码修改后必须立即更新版本变更文档，不得遗漏。`
+- 验证方式：
+  - 启动游戏并进行到结束，检查可选行动头部右上角倒计时是否隐藏
+  - `git status --short`
+
+## 0.9.5.29
+- 日期：`2026-04-20`
+- 分支：`main`
+- 影响范围：
+  - `frontend/src/views/SpriteTestView.vue`
+  - `frontend/src/router/index.js`
+  - `backend/game/aoi_game/`
+- 更新内容：
+  - `chore: 删除前端测试页面 SpriteTestView.vue 及其路由 /test。`
+  - `fix: 用户自行修复 backend/game/aoi_game/ 内的 bug。`
+- 验证方式：
+  - `git status --short`
+  - `cd frontend && npm run build`
 
 ## 0.9.5.28
 - 日期：`2026-04-20`

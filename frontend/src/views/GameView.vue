@@ -756,7 +756,7 @@
               </div>
               <div class="action-subtitle">{{ actionSubtitle }}</div>
             </div>
-            <div class="action-header-timer">
+            <div v-if="!gameMeta.is_game_over" class="action-header-timer">
               <ActionTimer />
             </div>
             <div class="action-header-meta">
@@ -6648,6 +6648,9 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   height: 100%;
+  width: 1.6rem;
+  justify-content: flex-end;
+  font-variant-numeric: tabular-nums;
 }
 
 .player-timer {
@@ -8448,7 +8451,6 @@ onUnmounted(() => {
 }
 
 .action-mode-chip {
-  font-family: 'Consolas', monospace;
   letter-spacing: 0.02em;
 }
 
