@@ -25,7 +25,7 @@ const routes = [
     name: 'History',
     component: () => import('../views/HistoryView.vue'),
     meta: { title: '历史对局 | Age of Innovation' }
-  }
+  },
 ]
 
 const router = createRouter({

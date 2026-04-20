@@ -2,6 +2,20 @@
 
 该文档用于记录每个数字版本号对应的实质更新内容，便于后续回溯、比对和回退。
 
+## 0.9.5.29
+- 日期：`2026-04-20`
+- 分支：`main`
+- 影响范围：
+  - `frontend/src/views/SpriteTestView.vue`
+  - `frontend/src/router/index.js`
+  - `backend/game/aoi_game/`
+- 更新内容：
+  - `chore: 删除前端测试页面 SpriteTestView.vue 及其路由 /test。`
+  - `fix: 用户自行修复 backend/game/aoi_game/ 内的 bug。`
+- 验证方式：
+  - `git status --short`
+  - `cd frontend && npm run build`
+
 ## 本次修改
 
 说明：本区用于记录尚未分配版本号的未提交改动。待用户给出版本号并准备 Git 时，再将本区内容归档到正式版本条目中。`更新内容` 中的每一条都必须使用 `type: 中文描述` 格式。
@@ -26,7 +40,7 @@
 
 ## 版本记录
 
-## 0.9.5.12
+## 0.9.5.28
 - 日期：`2026-04-20`
 - 分支：`main`
 - 影响范围：
@@ -45,7 +59,7 @@
 - 验证方式：
   - `cd frontend && npm run build`
 
-## 0.9.5.11
+## 0.9.5.27
 - 日期：`2026-04-18`
 - 分支：`main`
 - 影响范围：

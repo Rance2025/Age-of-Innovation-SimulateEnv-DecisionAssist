@@ -290,11 +290,11 @@ class ActionSystem:
             self.player.main_action_is_done = True
             # 获取玩家将交还的回合助推板id
             returned_booster_id = self.player.booster_ids[-1]
+            # 将本回合的回合助推板交还（必须先交还，不然会导致pass_effect重复结算）
+            yield from self.all_available_object_dict['round_booster'][returned_booster_id].back(self.player_id)
             if args != 'final':
                 # 获取所选回合助推效果板块
                 yield from self.all_available_object_dict['round_booster'][args].get(self.player_id)
-            # 将本回合的回合助推板交还
-            yield from self.all_available_object_dict['round_booster'][returned_booster_id].back(self.player_id)
             # 设置玩家已跳过
             self.player.ispass = True
 
