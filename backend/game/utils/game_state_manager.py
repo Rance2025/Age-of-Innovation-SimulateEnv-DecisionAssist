@@ -8,6 +8,9 @@
 """
 
 import copy
+import json
+import os
+import time
 from typing import Dict, List, Optional, Any, Callable, TYPE_CHECKING
 from dataclasses import asdict
 from datetime import datetime
@@ -91,10 +94,55 @@ class GameStateManager:
             'byo_yomi_time_limit': 0,
             'all_players_remaining': []
         }
+        
+        # 行动展示分组数据（缓存）
+        self._action_display_groups = None
+        self._action_id_to_display_group = {}
+        
+        # 行动用时记录
+        self._pending_action_durations: Dict[int, int] = {}
 
     def set_message_callback(self, callback: Callable[[Dict], None]):
         """设置消息推送回调函数"""
         self._message_callback = callback
+
+    def _load_action_display_groups(self):
+        """加载行动展示分组数据"""
+        if self._action_display_groups is not None:
+            return
+        
+        try:
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            json_path = os.path.join(current_dir, 'available_action_display_groups.json')
+            
+            with open(json_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            self._action_display_groups = data.get('groups', [])
+            
+            # 构建 action_id 到显示组的映射
+            for group in self._action_display_groups:
+                group_label = group.get('group_label', '')
+                items = group.get('items', {})
+                for action_id_str, item in items.items():
+                    action_id = int(action_id_str)
+                    self._action_id_to_display_group[action_id] = {
+                        'group_key': group.get('group_key', ''),
+                        'group_label': group_label,
+                        'minor_label': item.get('minor_label', ''),
+                        'minor_detail': item.get('minor_detail', ''),
+                        'source_action': item.get('source_action', '')
+                    }
+        except Exception as e:
+            # 如果加载失败，使用空数据
+            self._action_display_groups = []
+            self._action_id_to_display_group = {}
+    
+    def _get_action_display_group(self, action_id: int) -> dict:
+        """获取指定 action_id 的显示组信息"""
+        if self._action_display_groups is None:
+            self._load_action_display_groups()
+        return self._action_id_to_display_group.get(action_id, {})
 
     def update_timer_state(self, **kwargs):
         """更新计时器状态（由 GameController 调用）"""
@@ -294,6 +342,18 @@ class GameStateManager:
             'selection_strategy': normalized_strategy
         }
 
+    def record_action_duration(
+        self,
+        raw_action_index: int,
+        duration_ms: int
+    ):
+        """登记下一条底层行动记录对应的用时（毫秒）。"""
+        if not isinstance(raw_action_index, int) or raw_action_index <= 0:
+            return
+        if not isinstance(duration_ms, int) or duration_ms < 0:
+            return
+        self._pending_action_durations[raw_action_index] = duration_ms
+
     def _append_action_history_divider(self, stage_key: str):
         """在结构化行动历史中追加阶段分割线。"""
         if stage_key not in ACTION_LOG_STAGE_LABELS:
@@ -330,7 +390,21 @@ class GameStateManager:
         player_id, action_type, action_id = record[:3]
         action_detail = detailed_actions.get(action_id, {}) if isinstance(detailed_actions, dict) else {}
         description = action_detail.get('description', f'action {action_id}')
+        action_key = action_detail.get('action', '')
         selection_metadata = self._pending_action_selection_metadata.pop(raw_action_index, None) or {}
+        
+        # 从 display groups 获取分类信息
+        display_group = self._get_action_display_group(action_id)
+        category = display_group.get('group_label', action_key) if display_group else action_key
+        subcategory = display_group.get('minor_label', '') if display_group else ''
+        detail = display_group.get('minor_detail', '') if display_group else ''
+        
+        # 获取玩家剩余时间
+        all_players_remaining = self._timer_state.get('all_players_remaining', [])
+        player_remaining = all_players_remaining[player_id] if 0 <= player_id < len(all_players_remaining) else 0
+        
+        # 获取行动用时
+        duration_ms = self._pending_action_durations.pop(raw_action_index, 0)
 
         return ActionHistoryEntry(
             kind='action',
@@ -340,7 +414,12 @@ class GameStateManager:
             action_id=action_id,
             description=description,
             selection_source=selection_metadata.get('selection_source', 'manual'),
-            selection_strategy=selection_metadata.get('selection_strategy', '')
+            selection_strategy=selection_metadata.get('selection_strategy', ''),
+            action_category=category,
+            action_subcategory=subcategory,
+            action_detail=detail,
+            duration_ms=duration_ms,
+            player_remaining_ms=player_remaining
         )
     
     def _extract_setup(self, gs: 'GameStateBase') -> GameSetup:

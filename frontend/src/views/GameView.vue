@@ -438,8 +438,8 @@
                         <h3>地形色环与图例</h3>
                         <div class="color-ring-wrapper">
                           <svg
-                            width="200"
-                            height="200"
+                            width="140"
+                            height="140"
                             viewBox="0 0 400 400"
                             xmlns="http://www.w3.org/2000/svg"
                           >
@@ -1182,11 +1182,22 @@
                     {{ actionLogActiveFilterCount }}
                   </span>
                 </button>
-                <div
-                  v-if="actionLogFilterModalOpen"
-                  class="action-filter-popup"
-                  @click.stop
-                >
+              </div>
+            </div>
+          </div>
+          <!-- 行动记录筛选全屏弹窗 -->
+          <Modal
+            v-model="actionLogFilterModalOpen"
+            title="筛选行动记录"
+            size="default"
+            :show-close="true"
+            :close-on-overlay="true"
+            class="action-log-filter-modal"
+          >
+            <div class="action-filter-modal-body">
+              <div class="action-filter-row">
+                <!-- 第一列：检索、剩余时间、策略 -->
+                <div class="action-filter-column">
                   <div class="action-filter-section">
                     <div class="action-filter-section-title">按记录检索</div>
                     <div class="action-filter-search-grid">
@@ -1212,39 +1223,38 @@
                     </div>
                   </div>
                   <div class="action-filter-section">
-                    <div class="action-filter-section-title">按玩家筛选</div>
-                    <div class="action-filter-options">
+                    <div class="action-filter-section-title">按剩余时间筛选</div>
+                    <div class="action-filter-options action-filter-options--wrap">
                       <button
-                        v-for="playerOption in actionLogPlayerFilterOptions"
-                        :key="playerOption.id"
+                        v-for="remainingOption in ACTION_LOG_REMAINING_OPTIONS"
+                        :key="remainingOption.id"
                         type="button"
                         class="action-filter-option"
-                        :class="{ 'is-active': draftActionLogPlayerFilters.includes(playerOption.id) }"
-                        @click="toggleDraftActionLogPlayer(playerOption.id)"
+                        :class="{ 'is-active': draftActionLogRemainingFilters.includes(remainingOption.id) }"
+                        @click.stop="toggleDraftActionLogRemaining(remainingOption.id)"
                       >
-                        <span
-                          class="action-filter-player-dot"
-                          :style="{ backgroundColor: playerOption.color }"
-                        ></span>
-                        <span>{{ playerOption.label }}</span>
+                        <span>{{ remainingOption.label }}</span>
                       </button>
                     </div>
                   </div>
                   <div class="action-filter-section">
-                    <div class="action-filter-section-title">按行动类型筛选</div>
-                    <div class="action-filter-options">
+                    <div class="action-filter-section-title">按策略筛选</div>
+                    <div class="action-filter-options action-filter-options--wrap">
                       <button
-                        v-for="typeOption in ACTION_LOG_TYPE_OPTIONS"
-                        :key="typeOption.id"
+                        v-for="strategyOption in ACTION_LOG_STRATEGY_OPTIONS"
+                        :key="strategyOption.id"
                         type="button"
                         class="action-filter-option"
-                        :class="{ 'is-active': draftActionLogTypeFilters.includes(typeOption.id) }"
-                        @click="toggleDraftActionLogType(typeOption.id)"
+                        :class="{ 'is-active': draftActionLogStrategyFilters.includes(strategyOption.id) }"
+                        @click.stop="toggleDraftActionLogStrategy(strategyOption.id)"
                       >
-                        <span>{{ typeOption.label }}</span>
+                        <span>{{ strategyOption.label }}</span>
                       </button>
                     </div>
                   </div>
+                </div>
+                <!-- 第二列：阶段、玩家、行动类型、耗时 -->
+                <div class="action-filter-column">
                   <div class="action-filter-section">
                     <div class="action-filter-section-title">按阶段筛选</div>
                     <div class="action-filter-stage-groups">
@@ -1269,7 +1279,7 @@
                               'is-active': draftActionLogStageFilters.includes(stageOption.id),
                               'is-round-chip': stageGroup.id === 'rounds'
                             }"
-                            @click="toggleDraftActionLogStage(stageOption.id)"
+                            @click.stop="toggleDraftActionLogStage(stageOption.id)"
                           >
                             <span>{{ stageOption.label }}</span>
                           </button>
@@ -1277,18 +1287,102 @@
                       </div>
                     </div>
                   </div>
-                  <div class="action-filter-actions">
-                    <button type="button" class="action-filter-footer-btn is-ghost" @click="clearDraftActionLogFilters">
-                      重置
-                    </button>
-                    <button type="button" class="action-filter-footer-btn is-primary" @click="applyActionLogFilters">
-                      应用
-                    </button>
+                  <div class="action-filter-section">
+                    <div class="action-filter-section-title">按玩家筛选</div>
+                    <div class="action-filter-options action-filter-options--wrap">
+                      <button
+                        v-for="playerOption in actionLogPlayerFilterOptions"
+                        :key="playerOption.id"
+                        type="button"
+                        class="action-filter-option"
+                        :class="{ 'is-active': draftActionLogPlayerFilters.includes(playerOption.id) }"
+                        @click.stop="toggleDraftActionLogPlayer(playerOption.id)"
+                      >
+                        <span
+                          class="action-filter-player-dot"
+                          :style="{ backgroundColor: playerOption.color }"
+                        ></span>
+                        <span>{{ playerOption.label }}</span>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="action-filter-section">
+                    <div class="action-filter-section-title">按行动类型筛选</div>
+                    <div class="action-filter-options action-filter-options--wrap">
+                      <button
+                        v-for="typeOption in ACTION_LOG_TYPE_OPTIONS"
+                        :key="typeOption.id"
+                        type="button"
+                        class="action-filter-option"
+                        :class="{ 'is-active': draftActionLogTypeFilters.includes(typeOption.id) }"
+                        @click.stop="toggleDraftActionLogType(typeOption.id)"
+                      >
+                        <span>{{ typeOption.label }}</span>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="action-filter-section">
+                    <div class="action-filter-section-title">按单行动耗时筛选</div>
+                    <div class="action-filter-options action-filter-options--wrap">
+                      <button
+                        v-for="durationOption in ACTION_LOG_DURATION_OPTIONS"
+                        :key="durationOption.id"
+                        type="button"
+                        class="action-filter-option"
+                        :class="{ 'is-active': draftActionLogDurationFilters.includes(durationOption.id) }"
+                        @click.stop="toggleDraftActionLogDuration(durationOption.id)"
+                      >
+                        <span>{{ durationOption.label }}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <!-- 第三列：大类、细类 -->
+                <div class="action-filter-column">
+                  <div class="action-filter-section">
+                    <div class="action-filter-section-title">按行动大类筛选</div>
+                    <div class="action-filter-options action-filter-options--wrap">
+                      <button
+                        v-for="categoryOption in actionLogCategoryFilterOptions"
+                        :key="categoryOption.id"
+                        type="button"
+                        class="action-filter-option"
+                        :class="{ 'is-active': draftActionLogCategoryFilters.includes(categoryOption.id) }"
+                        @click.stop="toggleDraftActionLogCategory(categoryOption.id)"
+                      >
+                        <span>{{ categoryOption.label }}</span>
+                      </button>
+                    </div>
+                  </div>
+                  <div v-if="draftActionLogCategoryFilters.length > 0" class="action-filter-section">
+                    <div class="action-filter-section-title">按行动细类筛选</div>
+                    <div class="action-filter-options action-filter-options--wrap">
+                      <button
+                        v-for="subcategoryOption in actionLogSubcategoryFilterOptions"
+                        :key="subcategoryOption.id"
+                        type="button"
+                        class="action-filter-option"
+                        :class="{ 'is-active': draftActionLogSubcategoryFilters.includes(subcategoryOption.id) }"
+                        @click.stop="toggleDraftActionLogSubcategory(subcategoryOption.id)"
+                      >
+                        <span>{{ subcategoryOption.label }}</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
+            <template #footer>
+              <div class="action-filter-modal-footer">
+                <button type="button" class="action-filter-footer-btn is-ghost" @click.stop="clearDraftActionLogFilters">
+                  重置
+                </button>
+                <button type="button" class="action-filter-footer-btn is-primary" @click.stop="applyActionLogFilters">
+                  应用
+                </button>
+              </div>
+            </template>
+          </Modal>
           <div id="action-log-content" class="action-log-content">
             <template
               v-for="log in filteredActionLogs"
@@ -1312,7 +1406,14 @@
               >
                 <span class="action-log-player-dot"></span>
                 <span class="action-log-record-id">{{ log.uid }}</span>
-                <span class="action-log-text">{{ log.description }}</span>
+                <span class="action-log-description-inline">
+                  <span v-if="log.actionCategory" class="action-log-category-inline">{{ log.actionCategory }}</span>
+                  <span v-if="log.actionSubcategory" class="action-log-separator">·</span>
+                  <span v-if="log.actionSubcategory" class="action-log-subcategory-inline">{{ log.actionSubcategory }}</span>
+                  <span v-if="log.actionDetail" class="action-log-separator">·</span>
+                  <span v-if="log.actionDetail" class="action-log-detail-inline">{{ log.actionDetail }}</span>
+                  <span v-if="!log.actionCategory && !log.actionSubcategory && !log.actionDetail" class="action-log-text">{{ log.description }}</span>
+                </span>
               </div>
             </template>
             <div v-if="filteredActionLogs.length === 0" class="panel-empty-state panel-empty-state--log">
@@ -1694,6 +1795,25 @@ const ACTION_LOG_STAGE_FILTER_GROUPS = Object.freeze([
     }))
   }
 ])
+const ACTION_LOG_DURATION_OPTIONS = Object.freeze([
+  { id: 'lt10', label: '< 10s', max: 10 * 1000 },
+  { id: '10to30', label: '10 ~ 30s', min: 10 * 1000, max: 30 * 1000 },
+  { id: '30to60', label: '30 ~ 60s', min: 30 * 1000, max: 60 * 1000 },
+  { id: '60to180', label: '60 ~ 180s', min: 60 * 1000, max: 180 * 1000 },
+  { id: 'gt180', label: '180s +', min: 180 * 1000 }
+])
+const ACTION_LOG_REMAINING_OPTIONS = Object.freeze([
+  { id: '0', label: '0%', min: 0, max: 0 },
+  { id: '0to30', label: '0 ~ 30%', min: 0.001, max: 0.3 },
+  { id: '30to80', label: '30 ~ 80%', min: 0.3, max: 0.8 },
+  { id: '80to100', label: '80% +', min: 0.8, max: 1 }
+])
+const ACTION_LOG_STRATEGY_OPTIONS = Object.freeze([
+  { id: 'manual', label: '玩家选择' },
+  { id: 'system', label: '系统执行' },
+  { id: 'random_pure', label: '完全随机' },
+  { id: 'random_fast_action', label: '快速行动优化' }
+])
 const ACTION_LOG_STAGE_MAP = Object.freeze(Object.fromEntries(
   ACTION_LOG_STAGE_DEFINITIONS.map((stage, index) => [stage.id, { ...stage, index }])
 ))
@@ -1997,11 +2117,21 @@ const selectedControlStrategyId = ref(CONTROL_CENTER_STRATEGY_OPTIONS[0]?.id ?? 
 const appliedActionLogPlayerFilters = ref([])
 const appliedActionLogTypeFilters = ref([])
 const appliedActionLogStageFilters = ref([])
+const appliedActionLogCategoryFilters = ref([])
+const appliedActionLogSubcategoryFilters = ref([])
+const appliedActionLogDurationFilters = ref([])
+const appliedActionLogRemainingFilters = ref([])
+const appliedActionLogStrategyFilters = ref([])
 const appliedActionLogActionIdFilter = ref('')
 const appliedActionLogUidFilter = ref('')
 const draftActionLogPlayerFilters = ref([])
 const draftActionLogTypeFilters = ref([])
 const draftActionLogStageFilters = ref([])
+const draftActionLogCategoryFilters = ref([])
+const draftActionLogSubcategoryFilters = ref([])
+const draftActionLogDurationFilters = ref([])
+const draftActionLogRemainingFilters = ref([])
+const draftActionLogStrategyFilters = ref([])
 const draftActionLogActionIdFilter = ref('')
 const draftActionLogUidFilter = ref('')
 const stateVersion = ref(0)
@@ -2064,6 +2194,32 @@ const actionLogPlayerFilterOptions = computed(() => players.value.map((player) =
   label: `玩家 ${player.id + 1}`,
   color: getActionLogPlayerColor(player.id)
 })))
+const actionLogCategoryFilterOptions = computed(() => {
+  const categories = new Set()
+  renderedActionLogs.value.forEach((entry) => {
+    if (entry.kind === 'action' && entry.actionCategory) {
+      categories.add(entry.actionCategory)
+    }
+  })
+  return Array.from(categories).sort().map((category) => ({
+    id: category,
+    label: category
+  }))
+})
+const actionLogSubcategoryFilterOptions = computed(() => {
+  const subcategories = new Set()
+  renderedActionLogs.value.forEach((entry) => {
+    if (entry.kind === 'action' && entry.actionSubcategory) {
+      if (draftActionLogCategoryFilters.value.length === 0 || draftActionLogCategoryFilters.value.includes(entry.actionCategory)) {
+        subcategories.add(entry.actionSubcategory)
+      }
+    }
+  })
+  return Array.from(subcategories).sort().map((subcategory) => ({
+    id: subcategory,
+    label: subcategory
+  }))
+})
 const renderedActionLogs = computed(() => Array.isArray(actionLogs.value) ? actionLogs.value : [])
 const normalizedAppliedActionLogActionIdFilter = computed(() => normalizeActionLogSearchValue(appliedActionLogActionIdFilter.value))
 const normalizedAppliedActionLogUidFilter = computed(() => normalizeActionLogSearchValue(appliedActionLogUidFilter.value))
@@ -2071,6 +2227,11 @@ const hasActiveActionLogFilters = computed(() => (
   appliedActionLogPlayerFilters.value.length > 0
   || appliedActionLogTypeFilters.value.length > 0
   || appliedActionLogStageFilters.value.length > 0
+  || appliedActionLogCategoryFilters.value.length > 0
+  || appliedActionLogSubcategoryFilters.value.length > 0
+  || appliedActionLogDurationFilters.value.length > 0
+  || appliedActionLogRemainingFilters.value.length > 0
+  || appliedActionLogStrategyFilters.value.length > 0
   || normalizedAppliedActionLogActionIdFilter.value.length > 0
   || normalizedAppliedActionLogUidFilter.value.length > 0
 ))
@@ -2078,6 +2239,11 @@ const actionLogActiveFilterCount = computed(() => (
   appliedActionLogPlayerFilters.value.length
   + appliedActionLogTypeFilters.value.length
   + appliedActionLogStageFilters.value.length
+  + appliedActionLogCategoryFilters.value.length
+  + appliedActionLogSubcategoryFilters.value.length
+  + appliedActionLogDurationFilters.value.length
+  + appliedActionLogRemainingFilters.value.length
+  + appliedActionLogStrategyFilters.value.length
   + (normalizedAppliedActionLogActionIdFilter.value.length > 0 ? 1 : 0)
   + (normalizedAppliedActionLogUidFilter.value.length > 0 ? 1 : 0)
 ))
@@ -2103,12 +2269,60 @@ const filteredActionLogs = computed(() => {
       return false
     }
 
+    if (appliedActionLogCategoryFilters.value.length > 0 && !appliedActionLogCategoryFilters.value.includes(entry.actionCategory)) {
+      return false
+    }
+
+    if (appliedActionLogSubcategoryFilters.value.length > 0 && !appliedActionLogSubcategoryFilters.value.includes(entry.actionSubcategory)) {
+      return false
+    }
+
     if (actionIdFilter.length > 0 && entry.actionIdText !== actionIdFilter) {
       return false
     }
 
     if (uidFilter.length > 0 && !entry.uid.toLowerCase().includes(uidFilter)) {
       return false
+    }
+
+    // 单行动耗时筛选
+    if (appliedActionLogDurationFilters.value.length > 0) {
+      const durationMs = entry.durationMs || 0
+      const matches = appliedActionLogDurationFilters.value.some((filterId) => {
+        const option = ACTION_LOG_DURATION_OPTIONS.find((opt) => opt.id === filterId)
+        if (!option) return false
+        if (filterId === 'lt10') {
+          // <10s包含0秒（四舍五入后小于1秒的情况）
+          return durationMs <= option.max
+        }
+        if (filterId === 'gt180') {
+          return durationMs >= option.min
+        }
+        return durationMs > option.min && durationMs <= option.max
+      })
+      if (!matches) return false
+    }
+
+    // 剩余时间筛选（基于百分比）
+    if (appliedActionLogRemainingFilters.value.length > 0) {
+      const remainingPct = getRemainingPercentage(entry)
+      const matches = appliedActionLogRemainingFilters.value.some((filterId) => {
+        const option = ACTION_LOG_REMAINING_OPTIONS.find((opt) => opt.id === filterId)
+        if (!option) return false
+        if (filterId === '0') {
+          return remainingPct === 0
+        }
+        return remainingPct > option.min * 100 && remainingPct <= option.max * 100
+      })
+      if (!matches) return false
+    }
+
+    // 策略筛选
+    if (appliedActionLogStrategyFilters.value.length > 0) {
+      const strategy = entry.selectionSource === 'system' ? (entry.selectionStrategy || 'system') : 'manual'
+      if (!appliedActionLogStrategyFilters.value.includes(strategy)) {
+        return false
+      }
     }
 
     return true
@@ -2507,7 +2721,7 @@ function getPlanningCardColor(planningCardId) {
 function drawBonusHolderMark(canvas, markId) {
   if (!markId || !canvas) return
   const col = COLOR_TO_SPRITE_COL[Number(markId)] ?? 7
-  drawSpriteCell(canvas, col, 6, 90, 108)
+  drawSpriteCell(canvas, col, 6)
 }
 
 function drawScienceTileOwnerMark(canvas, markId) {
@@ -4175,7 +4389,12 @@ function normalizeActionHistoryEntry(entry, actionSequence) {
     stageLabel: stageDefinition.label,
     description: entry?.description || '未提供行动描述',
     selectionSource: entry?.selection_source === 'system' ? 'system' : 'manual',
-    selectionStrategy: typeof entry?.selection_strategy === 'string' ? entry.selection_strategy : ''
+    selectionStrategy: typeof entry?.selection_strategy === 'string' ? entry.selection_strategy : '',
+    actionCategory: entry?.action_category || '',
+    actionSubcategory: entry?.action_subcategory || '',
+    actionDetail: entry?.action_detail || '',
+    durationMs: entry?.duration_ms || 0,
+    playerRemainingMs: entry?.player_remaining_ms || 0
   }
 }
 
@@ -4268,6 +4487,11 @@ function openActionLogFilterModal() {
   draftActionLogPlayerFilters.value = [...appliedActionLogPlayerFilters.value]
   draftActionLogTypeFilters.value = [...appliedActionLogTypeFilters.value]
   draftActionLogStageFilters.value = [...appliedActionLogStageFilters.value]
+  draftActionLogCategoryFilters.value = [...appliedActionLogCategoryFilters.value]
+  draftActionLogSubcategoryFilters.value = [...appliedActionLogSubcategoryFilters.value]
+  draftActionLogDurationFilters.value = [...appliedActionLogDurationFilters.value]
+  draftActionLogRemainingFilters.value = [...appliedActionLogRemainingFilters.value]
+  draftActionLogStrategyFilters.value = [...appliedActionLogStrategyFilters.value]
   draftActionLogActionIdFilter.value = appliedActionLogActionIdFilter.value
   draftActionLogUidFilter.value = appliedActionLogUidFilter.value
   actionLogFilterModalOpen.value = true
@@ -4544,10 +4768,46 @@ function toggleDraftActionLogStage(stageKey) {
   toggleFilterValue(draftActionLogStageFilters, stageKey)
 }
 
+function toggleDraftActionLogCategory(category) {
+  toggleFilterValue(draftActionLogCategoryFilters, category)
+  // 清除不属于已选大类的细类筛选
+  draftActionLogSubcategoryFilters.value = draftActionLogSubcategoryFilters.value.filter((sub) => {
+    const validCategories = draftActionLogCategoryFilters.value
+    if (validCategories.length === 0) return false
+    // 检查这个细类是否属于已选大类
+    return renderedActionLogs.value.some((entry) =>
+      entry.kind === 'action' &&
+      entry.actionSubcategory === sub &&
+      validCategories.includes(entry.actionCategory)
+    )
+  })
+}
+
+function toggleDraftActionLogSubcategory(subcategory) {
+  toggleFilterValue(draftActionLogSubcategoryFilters, subcategory)
+}
+
+function toggleDraftActionLogDuration(durationId) {
+  toggleFilterValue(draftActionLogDurationFilters, durationId)
+}
+
+function toggleDraftActionLogRemaining(remainingId) {
+  toggleFilterValue(draftActionLogRemainingFilters, remainingId)
+}
+
+function toggleDraftActionLogStrategy(strategyId) {
+  toggleFilterValue(draftActionLogStrategyFilters, strategyId)
+}
+
 function clearDraftActionLogFilters() {
   draftActionLogPlayerFilters.value = []
   draftActionLogTypeFilters.value = []
   draftActionLogStageFilters.value = []
+  draftActionLogCategoryFilters.value = []
+  draftActionLogSubcategoryFilters.value = []
+  draftActionLogDurationFilters.value = []
+  draftActionLogRemainingFilters.value = []
+  draftActionLogStrategyFilters.value = []
   draftActionLogActionIdFilter.value = ''
   draftActionLogUidFilter.value = ''
 }
@@ -4556,6 +4816,11 @@ function applyActionLogFilters() {
   appliedActionLogPlayerFilters.value = [...draftActionLogPlayerFilters.value]
   appliedActionLogTypeFilters.value = [...draftActionLogTypeFilters.value]
   appliedActionLogStageFilters.value = [...draftActionLogStageFilters.value]
+  appliedActionLogCategoryFilters.value = [...draftActionLogCategoryFilters.value]
+  appliedActionLogSubcategoryFilters.value = [...draftActionLogSubcategoryFilters.value]
+  appliedActionLogDurationFilters.value = [...draftActionLogDurationFilters.value]
+  appliedActionLogRemainingFilters.value = [...draftActionLogRemainingFilters.value]
+  appliedActionLogStrategyFilters.value = [...draftActionLogStrategyFilters.value]
   appliedActionLogActionIdFilter.value = normalizeActionLogSearchValue(draftActionLogActionIdFilter.value)
   appliedActionLogUidFilter.value = normalizeActionLogSearchValue(draftActionLogUidFilter.value)
   actionLogFilterModalOpen.value = false
@@ -4569,6 +4834,23 @@ function getActionLogEntryStyle(log) {
       ? 'none'
       : '0 0 0 1px rgba(255, 255, 255, 0.08)'
   }
+}
+
+function formatDuration(ms) {
+  if (!ms || ms <= 0) return '0:00'
+  const totalSeconds = Math.floor(ms / 1000)
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes}:${String(seconds).padStart(2, '0')}`
+}
+
+function getRemainingPercentage(log) {
+  const remainingMs = log.playerRemainingMs || 0
+  // 使用玩家总时长计算百分比
+  const totalMs = timerStore.mainTimeLimit || 0
+  if (totalMs <= 0) return remainingMs > 0 ? 100 : 0
+  const pct = Math.round((remainingMs / totalMs) * 100)
+  return Math.min(100, Math.max(0, pct))
 }
 
 function buildActionLogEntryTitle(log) {
@@ -4604,8 +4886,28 @@ function buildActionLogEntryTitle(log) {
     titleLines.push(`选择策略 ${log.selectionStrategy}`)
   }
 
+  // 添加行动分类信息（大类、细类、细节），分三行显示
+  if (log.actionCategory) {
+    titleLines.push(`大类：${log.actionCategory}`)
+  }
+  if (log.actionSubcategory) {
+    titleLines.push(`细类：${log.actionSubcategory}`)
+  }
+  if (log.actionDetail) {
+    titleLines.push(`细节：${log.actionDetail}`)
+  }
+
   if (log.description && titleLines[titleLines.length - 1] !== log.description) {
-    titleLines.push(log.description)
+    titleLines.push(`描述：${log.description}`)
+  }
+
+  if (log.durationMs > 0) {
+    titleLines.push(`用时 ${formatDuration(log.durationMs)}`)
+  }
+
+  if (log.playerRemainingMs > 0) {
+    const pct = getRemainingPercentage(log)
+    titleLines.push(`剩余时长 ${formatDuration(log.playerRemainingMs)} (${pct}%)`)
   }
 
   return titleLines.join('\n')
@@ -5447,8 +5749,8 @@ function placeElement(hexRow, hexCol, colorId, buildingId, mode = 'replace', ren
   const spriteCol = SPECIAL_BUILDINGS.has(normalizedBuildingId) ? 7 : (COLOR_TO_SPRITE_COL[normalizedColorId] ?? 7)
   const spriteRow = BUILDING_TO_SPRITE_ROW[normalizedBuildingId] ?? 0
 
-  const displayWidth = 35
-  const displayHeight = 40
+  const displayWidth = 40
+  const displayHeight = 46
 
   if (renderToken !== null && !isLatestBuildingRender(hexRow, hexCol, renderToken)) {
     return false
@@ -6324,7 +6626,8 @@ function handleDocumentClick(e) {
   if (!tooltipContainer && terrainTooltipOpen.value) {
     terrainTooltipOpen.value = false
   }
-  if (!actionLogFilterContainer && actionLogFilterModalOpen.value) {
+  const modalContent = e.target.closest('.modal-content')
+  if (!actionLogFilterContainer && !modalContent && actionLogFilterModalOpen.value) {
     actionLogFilterModalOpen.value = false
   }
 }
@@ -7167,7 +7470,7 @@ onUnmounted(() => {
 .middle-section {
   background-color: #171717;
   border-radius: var(--border-radius);
-  width: 43%;
+  width: 40%;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -7330,16 +7633,16 @@ onUnmounted(() => {
   right: 0;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 15px;
+  border-radius: 10px;
+  padding: 10px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   z-index: 1000;
-  min-width: 200px;
+  min-width: 160px;
   opacity: 0;
   visibility: hidden;
-  transform: translateY(-10px);
+  transform: translateY(-8px);
   transition: all 0.3s ease;
-  margin-top: 8px;
+  margin-top: 6px;
   pointer-events: none;
 }
 
@@ -7365,42 +7668,43 @@ onUnmounted(() => {
 }
 
 .tooltip-content h3 {
-  margin: 0 0 15px 0;
-  font-size: 1rem;
+  margin: 0 0 10px 0;
+  font-size: 0.85rem;
   color: var(--text-primary);
   text-align: center;
   border-bottom: 1px solid var(--border);
-  padding-bottom: 10px;
+  padding-bottom: 6px;
 }
 
 .color-ring-wrapper {
   display: flex;
   justify-content: center;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
 .legend {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px 20px;
+  gap: 8px 12px;
   justify-items: center;
   justify-content: center;
   margin: 0 auto;
-  max-width: 280px;
+  max-width: 220px;
 }
 
 .legend-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
   justify-content: center;
+  font-size: 0.8rem;
 }
 
 .color-box {
-  width: 16px;
-  height: 16px;
-  border-radius: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
   flex-shrink: 0;
 }
 
@@ -7731,8 +8035,9 @@ onUnmounted(() => {
   position: absolute;
   top: 15%;
   left: 47.5%;
-  width: 90px;
-  height: 108px;
+  width: 135%;
+  height: auto;
+  aspect-ratio: 90 / 108;
   transform: translate(-50%, -50%);
   z-index: 6;
   pointer-events: none;
@@ -8106,7 +8411,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: var(--game-column-gap);
-  width: 21%;
+  width: 25%;
   height: 100%;
 }
 
@@ -9114,7 +9419,7 @@ onUnmounted(() => {
 .action-option-button[data-color='white'] { --action-option-accent-color: #ffffff; }
 
 .action-log-section {
-  width: 19%;
+  width: 18%;
   height: 100%;
   min-height: 0;
   display: flex;
@@ -9123,7 +9428,7 @@ onUnmounted(() => {
 }
 
 .action-log-panel {
-  --action-log-count-width: 112px;
+  --action-log-count-width: 100px;
   --action-toolbar-pill-width: 78px;
   --action-toolbar-pill-height: 28px;
   --action-toolbar-pill-gap: 6px;
@@ -9420,6 +9725,66 @@ onUnmounted(() => {
   border-color: #0069d9;
 }
 
+/* 筛选弹窗全屏布局样式 */
+.action-filter-modal-body {
+  padding: 20px 0;
+}
+
+.action-filter-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr) minmax(0, 1.15fr);
+}
+
+.action-filter-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 0 20px;
+  border-right: 1px solid var(--border);
+  max-height: calc(80vh - 180px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-width: 0;
+}
+
+.action-filter-column:last-child {
+  border-right: none;
+}
+
+.action-filter-column:first-child {
+  padding-left: 24px;
+}
+
+.action-filter-column:last-child {
+  padding-right: 24px;
+}
+
+.action-filter-options--wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.action-filter-options--inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* 扩大筛选弹窗宽度 */
+.action-log-filter-modal :deep(.modal-content) {
+  max-width: 60vw;
+}
+
+.action-filter-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+}
+
 .action-log-divider {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
@@ -9557,6 +9922,57 @@ onUnmounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.action-log-description-inline {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0 4px;
+  min-width: 0;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.action-log-category-inline {
+  color: #f0f4f8;
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.action-log-separator {
+  color: rgba(198, 211, 224, 0.3);
+  font-size: 0.75rem;
+  line-height: 1.3;
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+
+.action-log-subcategory-inline {
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.action-log-detail-inline {
+  color: rgba(198, 211, 224, 0.5);
+  font-size: 0.68rem;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .panel-empty-state {

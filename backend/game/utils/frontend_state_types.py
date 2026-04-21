@@ -236,6 +236,11 @@ class ActionHistoryEntry:
     description: str = ""               # 行动描述文本
     selection_source: str = "manual"    # 选择来源（manual / system）
     selection_strategy: str = ""        # 选择策略标识
+    action_category: str = ""           # 行动大类（如：选择规划卡、建造、升级等）
+    action_subcategory: str = ""        # 行动细类（如：平原、车间等）
+    action_detail: str = ""             # 行动细节（额外描述）
+    duration_ms: int = 0                # 行动用时（毫秒）
+    player_remaining_ms: int = 0        # 该玩家剩余时长（毫秒）
 
 
 @dataclass

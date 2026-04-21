@@ -253,7 +253,12 @@ class GameController:
 
         action_id, selection_metadata = self._resolve_action_decision(request, player_id)
 
-        self._update_player_time_after_action(player_id)
+        # 计算下一个 action_index（用于记录用时）
+        game_state = getattr(request, 'game_state', None)
+        raw_history = list(getattr(game_state, 'action_history', []) or [])
+        next_action_index = len(raw_history) + 1
+
+        self._update_player_time_after_action(player_id, next_action_index)
         self._push_timer_update_after_action()
 
         return action_id, selection_metadata
@@ -409,7 +414,7 @@ class GameController:
             'all_players_remaining': self._player_remaining_times.copy()
         })
 
-    def _update_player_time_after_action(self, player_id: int):
+    def _update_player_time_after_action(self, player_id: int, action_index: int = None):
         """行动完成后更新玩家剩余主时间。"""
         if not self._player_remaining_times or player_id < 0:
             return
@@ -434,6 +439,13 @@ class GameController:
             action_deadline=self._action_deadline,
             all_players_remaining=self._player_remaining_times.copy()
         )
+
+        # 记录行动用时
+        if action_index is not None and time_spent > 0:
+            self.state_manager.record_action_duration(
+                raw_action_index=action_index,
+                duration_ms=time_spent
+            )
 
     def _record_action_selection_metadata(self, request: ActionRequest, metadata: Dict[str, Optional[str]]):
         """在后端登记下一条行动历史对应的选择来源元数据。"""
