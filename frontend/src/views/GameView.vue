@@ -1027,10 +1027,7 @@
                 :style="getActionGroupBodyStyle(group.groupKey)"
                 :aria-hidden="isActionOverflowMode && !isActionGroupExpanded(group.groupKey) ? 'true' : 'false'"
               >
-                <div
-                  class="action-group-body-inner"
-                  :ref="(element) => setActionGroupBodyInnerRef(group.groupKey, element)"
-                >
+                <div class="action-group-body-inner">
                   <div
                     class="action-group-options"
                     :class="[
@@ -1050,25 +1047,29 @@
                       class="action-option-button"
                       :data-color="option.color"
                       :class="{
-                        'is-submitting': pendingActionId === option.id,
-                        'is-disabled': pendingActionId !== null && pendingActionId !== option.id,
                         'is-compact': !option.detail && group.layoutHint !== 'chips_wrap',
-                        'is-recommended': recommendedActionId === option.id
+                        'is-recommended': option.isRecommended
                       }"
                       :disabled="pendingActionId !== null || (isActionOverflowMode && !isActionGroupExpanded(group.groupKey))"
-                      :title="option.description"
                       @click="selectAction(option)"
                     >
                       <span class="action-option-main">
                         <span class="action-option-label">{{ option.label }}</span>
                         <span v-if="option.detail" class="action-option-detail">{{ option.detail }}</span>
                       </span>
+                      <span
+                        v-if="option.isRecommended"
+                        class="action-option-recommend-icon"
+                        aria-label="推荐"
+                      >
+                        <i class="fas fa-star" aria-hidden="true"></i>
+                      </span>
                     </button>
                   </div>
                 </div>
               </div>
             </div>
-            <div v-if="groupedActionCards.length === 0" class="panel-empty-state panel-empty-state--action">
+            <div v-if="groupedActionCards.length === 0" key="empty-state" class="panel-empty-state panel-empty-state--action">
               {{ actionEmptyStateMessage }}
             </div>
           </div>
@@ -3431,6 +3432,22 @@ function toggleActionGroup(groupKey) {
   })
 }
 
+// 预留接口：一键折叠/展开所有行动组
+// 当前未调用，如需恢复手风琴模式可启用此函数
+function toggleAllActionGroups() {
+  isActionOverflowMode.value = !isActionOverflowMode.value
+  if (!isActionOverflowMode.value) {
+    expandedActionGroupKey.value = null
+  }
+  nextTick(() => {
+    refreshActionGroupBodyHeights()
+    const actionContent = actionContentRef.value
+    if (actionContent) {
+      actionContent.scrollTop = 0
+    }
+  })
+}
+
 function cancelActionOverflowMeasurement() {
   if (actionOverflowMeasurementFrame !== 0) {
     window.cancelAnimationFrame(actionOverflowMeasurementFrame)
@@ -4998,7 +5015,9 @@ watch(actions, () => {
       actionContent.scrollTop = 0
     }
   })
-  scheduleActionOverflowMeasurement({ resetExpanded: true })
+  // 默认全部展开，不再自动检测高度溢出
+  // 卡片过多时允许在可选行动框内滚动
+  // measureActionOverflow 已停用，如需恢复手风琴模式可手动调用
 }, { deep: true })
 
 // 监听行动记录变化，保持最新记录显示在最上方
@@ -6320,12 +6339,12 @@ onMounted(async () => {
   await fetchFullState()
   await nextTick()
   setupPlayerCardResizeObserver()
-  setupActionContentResizeObserver()
+  // setupActionContentResizeObserver() // 已停用：不再自动检测高度溢出
   setupRoundInfoResizeObserver()
   updateRoundInfoLayout()
   setupScienceAbilityResizeObserver()
   updateScienceAbilityLayout()
-  scheduleActionOverflowMeasurement({ resetExpanded: true })
+  // scheduleActionOverflowMeasurement({ resetExpanded: true }) // 已停用：默认全部展开
   // 建立 SSE 连接
   connectSSE()
 })
@@ -8743,7 +8762,8 @@ onUnmounted(() => {
   flex: 1;
   min-height: 0;
   padding: 0 14px 14px;
-  overflow-y: auto;
+  /* 始终显示滚动条，在右侧预留空间，避免滚动条出现/消失时布局跳动 */
+  overflow-y: scroll;
   background: transparent;
   display: flex;
   flex-direction: column;
@@ -8779,16 +8799,20 @@ onUnmounted(() => {
 }
 
 .action-content::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
 }
 
 .action-content::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.1);
+  background: transparent;
 }
 
 .action-content::-webkit-scrollbar-thumb {
-  background: var(--accent);
-  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+}
+
+.action-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .action-group-card {
@@ -8804,6 +8828,8 @@ onUnmounted(() => {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.015);
   transition: border-color 0.22s ease, box-shadow 0.22s ease, background-color 0.22s ease;
   box-sizing: border-box;
+  /* 关键修复：防止 flex item 被压缩，确保内容超出时出现滚动条而不是压缩卡片 */
+  flex-shrink: 0;
 }
 
 .action-group-card:hover:not(.is-disabled):not(.is-submitting) {
