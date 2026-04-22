@@ -6,6 +6,94 @@
 
 ## 本次修改
 
+- 日期：
+- 分支：
+- 影响范围：
+- 更新内容：
+  - `type: 中文描述`
+- 验证方式：
+
+## 0.9.5.37
+- 日期：`2026-04-22`
+- 分支：`main`
+- 影响范围：
+  - `frontend/src/components/StrategyPickerModal.vue` (新增)
+  - `frontend/src/components/Modal.vue`
+  - `frontend/src/views/GameView.vue`
+  - `frontend/src/views/SetupView.vue`
+  - `frontend/src/constants/` (新增)
+- 更新内容：
+  - `feat: 新增StrategyPickerModal统一策略选择弹窗组件`
+  - `feat: 重新设计策略弹窗UI：卡片式布局+图标+描述，层次更清晰`
+  - `feat: 策略数据新增icon字段，每个策略都有对应的FontAwesome图标`
+  - `feat: 响应式网格布局，支持1-3列自适应，为后续扩充预留空间`
+  - `feat: 添加max-height和滚动条，支持更多策略而不改变弹窗尺寸`
+  - `feat: 分组标题显示描述信息，帮助用户理解各类策略特点`
+  - `refactor: GameView.vue中使用StrategyPickerModal替换原有策略弹窗实现`
+  - `refactor: SetupView.vue中使用StrategyPickerModal实现AI策略选择功能`
+  - `refactor: 统一策略数据结构到constants/strategies.js，添加工具函数getStrategyIcon/getStrategyLabel`
+  - `refactor: 移除GameView.vue中重复的CONTROL_CENTER_STRATEGY_GROUPS和CONTROL_CENTER_STRATEGY_OPTIONS常量`
+  - `refactor: 移除GameView.vue中的SUPPORTED_CONTROL_STRATEGY_IDS，改用统一的SUPPORTED_STRATEGY_IDS`
+  - `refactor: 移除SetupView.vue中旧的aiStrategies数组，改用统一的策略数据`
+  - `refactor: 删除GameView.vue中遗留的.control-center-strategy-* CSS样式`
+  - `ui: 顶部分类标题改为简洁标题样式，移除卡片外观避免误认`
+  - `ui: 策略卡片icon区域背景加深为rgba(0,0,0,0.25)，参考游戏模式卡片设计`
+  - `fix: 点击策略后不立即关闭弹窗，支持二次点击取消选择`
+  - `fix: 仅通过关闭按钮或点击遮罩层关闭弹窗`
+  - `fix: 移除GameView.vue和SetupView.vue中选择策略后自动关闭弹窗的代码`
+  - `ui: 策略卡片边框从1.5px改为1px，更精细`
+  - `ui: 选中状态图标区域改为蓝色背景(#6366f1)，白色图标，更像游戏模式卡片`
+  - `ui: 三栏之间添加分割线(border-right)，更清晰区分各分类`
+  - `ui: 移动端响应式样式优化，列之间显示底部分隔线`
+  - `ui: 选中后右侧内容区域背景不变色，保持原样`
+  - `ui: 移除选中状态的对勾图标，仅通过左侧图标区域高亮表示选中`
+  - `ui: 增大按钮纵向间距(gap: 8px -> 12px)`
+  - `ui: 增大三列顶部标题和icon尺寸`
+  - `feat: 随机策略组添加6个占位按钮用于测试滚动行为`
+  - `feat: 每列选项列表添加独立滚动条`
+  - `fix: 修复列内滚动不生效的问题，覆盖 Modal body 默认滚动行为`
+  - `fix: 设置弹窗固定高度(60vh/500px)，确保列内滚动正常工作`
+  - `fix: 修复grid布局下列高被内容撑开的bug，添加grid-template-rows: minmax(0, 1fr)`
+  - `fix: 策略列选项区域现在正确独立滚动，不再压缩按钮`
+  - `refactor: 三列布局从grid重构为flex，消除嵌套高度传递问题，更可靠`
+  - `refactor: 列标题栏添加flex-shrink: 0防止标题被压缩`
+  - `refactor: 移除strategy-picker-body不必要的滚动条样式和min-height: 0`
+  - `fix: 弹窗高度改为固定420px，防止内容撑开弹窗导致列高过大`
+  - `fix: strategy-picker添加overflow: hidden，确保内容不会溢出撑大父容器`
+  - `fix: 关键flex节点全部添加min-height: 0，确保正确压缩触发滚动`
+  - `refactor: strategy-columns从height: 100%改为flex: 1 + min-height: 0，更可靠`
+  - `fix: 弹窗根节点从固定高度420px改为flex: 1，使其撑满Modal body可用空间(80vh)`
+  - `fix: 修复固定高度超出Modal body导致内容被截断、列内滚动无法触发的问题`
+  - `fix: 现在弹窗会正确撑大到最大可用高度，同时列内独立滚动正常工作`
+  - `ui: 移除策略卡片悬停时的上移动画(transform: translateY)`
+  - `feat: 随机策略组添加12个占位按钮(占位策略1-12)，方便测试列内滚动效果`
+  - `fix: 单列布局从flex重构为CSS Grid(grid-template-rows: auto minmax(0, 1fr))，彻底解决列内滚动失效`
+  - `fix: Grid布局下options区域由minmax(0, 1fr)精确控制，确保内容溢出时滚动条必然出现`
+  - `fix: 移除column-header和column-options中冗余的flex-shrink/flex/min-height，Grid自动处理`
+  - `ui: 策略选择弹窗最大高度从80vh降至60vh，避免在高分屏下过大`
+  - `fix: 发现Vue scoped CSS :deep()无法穿透Modal组件，改用Modal.vue原生prop控制max-height`
+  - `feat: Modal.vue新增maxHeight prop，支持外部传入自定义最大高度`
+  - `fix: 弹窗内部采用固定高度420px + 100%高度链，彻底消除flex高度传递的不确定性`
+  - `fix: 恢复经典的flex列布局(flex-direction: column + flex: 1 + min-height: 0)，经充分验证可靠`
+  - `fix: 列内滚动现在完全独立于Modal body滚动，不受外部overflow影响`
+  - `fix: 修复flex嵌套下overflow-y: auto不触发滚动的问题，改用绝对定位方案`
+  - `refactor: 弹窗内部布局从flex链改为绝对定位，消除flex高度计算的不确定性`
+  - `refactor: strategy-picker使用固定高度380px + position: relative，确保高度严格可控`
+  - `refactor: strategy-picker-body和column-options使用绝对定位，明确计算可用空间`
+  - `fix: 列标题栏使用固定高度60px，避免flex min-height: auto导致列被内容撑开`
+  - `fix: 现在列内滚动在15个按钮下必然触发，按钮保持正常高度`
+  - `revert: 回滚弹窗高度修改：移除Modal.vue的maxHeight prop，恢复默认80vh`
+  - `revert: 回滚StrategyPickerModal.vue的固定高度380px和绝对定位方案`
+  - `revert: 恢复为原始flex布局（flex: 1 + min-height: 0），弹窗高度由Modal组件控制`
+  - `ui: 策略选择弹窗添加max-height: 520px限制，避免在高分屏下弹窗过大`
+- 验证方式：
+  - `cd frontend && npm run build`
+  - `进入游戏页面，打开控制中台策略选择弹窗，确认策略列表正常显示`
+  - `在设置页面为AI玩家选择策略，确认策略弹窗正常显示并可正常选择`
+  - `确认两处策略弹窗的UI和交互完全一致`
+
+## 本次修改
+
 ## 0.9.5.36
 - 日期：`2026-04-22`
 - 分支：`main`

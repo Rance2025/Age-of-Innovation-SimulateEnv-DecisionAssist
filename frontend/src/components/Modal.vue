@@ -80,7 +80,7 @@ function handleOverlayClick() {
 .modal-content {
   width: 90%;
   max-width: 900px;
-  max-height: 80vh;
+  max-height: 70vh;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -94,10 +94,11 @@ function handleOverlayClick() {
 }
 
 .modal-header {
+  flex-shrink: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 24px;
+  padding: 16px 20px;
   border-bottom: 1px solid var(--border);
 }
 

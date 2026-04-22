@@ -1503,46 +1503,12 @@
     </div>
     </Modal>
 
-    <Modal
+    <StrategyPickerModal
       v-model="controlCenterStrategyModalOpen"
       title="选择策略"
-      size="small"
-      :show-close="true"
-      :close-on-overlay="true"
-    >
-      <div class="control-center-strategy-modal">
-        <div class="control-center-strategy-groups">
-          <section
-            v-for="group in CONTROL_CENTER_STRATEGY_GROUPS"
-            :key="group.id"
-            class="control-center-strategy-group"
-          >
-            <div class="control-center-strategy-group-header">
-              <span class="control-center-strategy-group-title">{{ group.label }}</span>
-              <span class="control-center-strategy-group-divider" aria-hidden="true"></span>
-            </div>
-            <div class="control-center-strategy-options">
-              <button
-                v-for="strategy in group.options"
-                :key="strategy.id"
-                type="button"
-                class="control-center-strategy-option"
-                :class="{ 'is-active': selectedControlStrategyId === strategy.id }"
-                @click="selectControlCenterStrategy(strategy.id)"
-              >
-                <span class="control-center-strategy-option-content">
-                  <span class="control-center-strategy-option-label">{{ strategy.label }}</span>
-                  <span v-if="strategy.description" class="control-center-strategy-option-description">
-                    {{ strategy.description }}
-                  </span>
-                </span>
-                <i v-if="selectedControlStrategyId === strategy.id" class="fas fa-check"></i>
-              </button>
-            </div>
-          </section>
-        </div>
-      </div>
-    </Modal>
+      :selected-strategy="selectedControlStrategyId"
+      @select="selectControlCenterStrategy"
+    />
 
     <Modal
       v-model="finalScoreModalOpen"
@@ -1622,6 +1588,8 @@ import { useTimerStore } from '../stores/timer'
 import Modal from '../components/Modal.vue'
 import ActionTimer from '../components/ActionTimer.vue'
 import PlayerTimer from '../components/PlayerTimer.vue'
+import StrategyPickerModal from '../components/StrategyPickerModal.vue'
+import { STRATEGY_OPTIONS, SUPPORTED_STRATEGY_IDS } from '../constants/strategies.js'
 import {
   getFinalScoringOverlaySpriteStyleByBackendId,
   getRoundBoosterBackSpriteStyleByBackendId,
@@ -1738,60 +1706,6 @@ const ACTION_LOG_LIMIT = 200
 const ACTION_LOG_TYPE_OPTIONS = Object.freeze([
   { id: 'normal', label: 'normal' },
   { id: 'immediate', label: 'immediate' }
-])
-const CONTROL_CENTER_STRATEGY_GROUPS = Object.freeze([
-  {
-    id: 'random',
-    label: '随机',
-    options: [
-      {
-        id: 'random_pure',
-        label: '完全随机'
-      },
-      {
-        id: 'random_fast_action',
-        label: '完全随机',
-        description: '优化快速行动'
-      },
-      {
-        id: 'random_weighted',
-        label: '加权随机'
-      }
-    ]
-  },
-  {
-    id: 'metric',
-    label: '指标计算',
-    options: [
-      {
-        id: 'metric_single_step_best',
-        label: '单步最优'
-      }
-    ]
-  },
-  {
-    id: 'ai',
-    label: 'AI',
-    options: [
-      {
-        id: 'ai_llm_reasoning',
-        label: 'LLM推理'
-      }
-    ]
-  }
-])
-const CONTROL_CENTER_STRATEGY_OPTIONS = Object.freeze(
-  CONTROL_CENTER_STRATEGY_GROUPS.flatMap((group) => (
-    group.options.map((strategy) => ({
-      ...strategy,
-      groupId: group.id,
-      groupLabel: group.label
-    }))
-  ))
-)
-const SUPPORTED_CONTROL_STRATEGY_IDS = new Set([
-  'random_pure',
-  'random_fast_action'
 ])
 const ACTION_LOG_STAGE_DEFINITIONS = Object.freeze([
   { id: 'setup-choice', label: '初始板块选择阶段', dividerLabel: '初始板块选择阶段' },
@@ -2147,7 +2061,7 @@ const recommendedActionStrategyId = ref('')
 const controlCenterPendingMode = ref('')
 const actionLogFilterModalOpen = ref(false)
 const controlCenterStrategyModalOpen = ref(false)
-const selectedControlStrategyId = ref(CONTROL_CENTER_STRATEGY_OPTIONS[0]?.id ?? 'random_pure')
+const selectedControlStrategyId = ref(STRATEGY_OPTIONS[0]?.id ?? 'random_pure')
 const appliedActionLogPlayerFilters = ref([])
 const appliedActionLogTypeFilters = ref([])
 const appliedActionLogStageFilters = ref([])
@@ -2450,8 +2364,8 @@ const currentActionModeLabel = computed(() => {
   return formatActionModeLabel(gameMeta.action_type)
 })
 const selectedControlStrategyOption = computed(() => (
-  CONTROL_CENTER_STRATEGY_OPTIONS.find((strategy) => strategy.id === selectedControlStrategyId.value)
-  || CONTROL_CENTER_STRATEGY_OPTIONS[0]
+  STRATEGY_OPTIONS.find((strategy) => strategy.id === selectedControlStrategyId.value)
+  || STRATEGY_OPTIONS[0]
   || {
     id: 'random_pure',
     label: '完全随机'
@@ -2550,7 +2464,7 @@ const hasRecommendedAction = computed(() => {
   return actions.value.some((action) => normalizeAvailableActionId(action?.id) === normalizedRecommendedActionId)
 })
 const recommendedControlStrategyOption = computed(() => (
-  CONTROL_CENTER_STRATEGY_OPTIONS.find((strategy) => strategy.id === recommendedActionStrategyId.value)
+  STRATEGY_OPTIONS.find((strategy) => strategy.id === recommendedActionStrategyId.value)
   || null
 ))
 const recommendedActionOption = computed(() => {
@@ -4566,11 +4480,11 @@ function normalizeControlCenterStrategyId(strategyId) {
 }
 
 function isSupportedControlCenterStrategy(strategyId = selectedControlStrategyId.value) {
-  return SUPPORTED_CONTROL_STRATEGY_IDS.has(normalizeControlCenterStrategyId(strategyId))
+  return SUPPORTED_STRATEGY_IDS.has(normalizeControlCenterStrategyId(strategyId))
 }
 
 function getControlCenterStrategyOption(strategyId) {
-  return CONTROL_CENTER_STRATEGY_OPTIONS.find((strategy) => strategy.id === strategyId) || null
+  return STRATEGY_OPTIONS.find((strategy) => strategy.id === strategyId) || null
 }
 
 function getControlCenterStrategyIconClass(strategyId) {
@@ -4675,13 +4589,12 @@ async function requestControlCenterStrategy(endpoint, strategyId) {
 }
 
 function selectControlCenterStrategy(strategyId) {
-  if (!CONTROL_CENTER_STRATEGY_OPTIONS.some((strategy) => strategy.id === strategyId)) {
+  if (!STRATEGY_OPTIONS.some((strategy) => strategy.id === strategyId)) {
     return
   }
 
   selectedControlStrategyId.value = strategyId
   clearRecommendedAction()
-  controlCenterStrategyModalOpen.value = false
 }
 
 async function runControlCenterStrategyPlaceholder() {
@@ -8964,117 +8877,6 @@ onUnmounted(() => {
   border-color: rgba(245, 158, 11, 0.88);
   background: rgba(245, 158, 11, 0.18);
   box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.2);
-}
-
-.control-center-strategy-modal {
-  padding: 18px 20px 20px;
-}
-
-.control-center-strategy-groups {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.control-center-strategy-group {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-}
-
-.control-center-strategy-group + .control-center-strategy-group {
-  padding-top: 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.control-center-strategy-group-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.control-center-strategy-group-title {
-  flex-shrink: 0;
-  color: rgba(198, 211, 224, 0.72);
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-.control-center-strategy-group-divider {
-  flex: 1 1 auto;
-  height: 1px;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.control-center-strategy-options {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
-  gap: 8px;
-}
-
-.control-center-strategy-option {
-  appearance: none;
-  width: 100%;
-  min-height: 50px;
-  padding: 9px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.03);
-  color: var(--text-primary);
-  display: inline-flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-  cursor: pointer;
-  transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease;
-}
-
-.control-center-strategy-option-content {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.control-center-strategy-option-label {
-  min-width: 0;
-  color: inherit;
-  font-size: 0.8rem;
-  font-weight: 700;
-  line-height: 1.15;
-  text-align: left;
-}
-
-.control-center-strategy-option-description {
-  min-width: 0;
-  color: rgba(198, 211, 224, 0.68);
-  font-size: 0.68rem;
-  font-weight: 500;
-  line-height: 1.2;
-  text-align: left;
-}
-
-.control-center-strategy-option:hover {
-  border-color: rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.control-center-strategy-option.is-active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: white;
-}
-
-.control-center-strategy-option.is-active .control-center-strategy-option-description {
-  color: rgba(255, 255, 255, 0.82);
-}
-
-.control-center-strategy-option:focus-visible {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.18);
 }
 
 .action-section {

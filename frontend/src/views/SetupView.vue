@@ -378,16 +378,12 @@
     </Modal>
 
     <!-- AI策略弹窗 -->
-    <Modal
+    <StrategyPickerModal
       v-model="showStrategyModalOpen"
       :title="`AI策略 - 玩家 ${(showStrategyModal ?? 0) + 1}`"
-      size="small"
-      @close="closeStrategyModal"
-    >
-      <div class="todo-placeholder">
-        <p>TODO: AI策略选择功能待实现</p>
-      </div>
-    </Modal>
+      :selected-strategy="showStrategyModal !== null ? form.players[showStrategyModal].strategy : ''"
+      @select="selectStrategy"
+    />
 
     <!-- 初始板块弹窗 -->
     <Modal v-model="showInitModal" title="初始板块配置" class="init-modal">
@@ -1062,6 +1058,8 @@ import { reactive, ref, watch, computed, onMounted, onUnmounted, nextTick } from
 import { useRouter } from 'vue-router'
 import { useGameStore } from '../stores/game'
 import Modal from '../components/Modal.vue'
+import StrategyPickerModal from '../components/StrategyPickerModal.vue'
+import { STRATEGY_OPTIONS } from '../constants/strategies.js'
 import {
   getFinalScoringSelectionSpriteStyleByBackendId,
   getRoundBoosterFrontSpriteStyleByBackendId,
@@ -1081,12 +1079,6 @@ const gameModes = [
   { value: 'standard', name: '标准模式', desc: '45min 基础时间 + 45s 读秒\n超时采用经快速行动优化的随机策略', icon: 'fas fa-chess' },
   { value: 'quick', name: '快速模式', desc: '25min 基础时间 + 25s 读秒\n超时采用经快速行动优化的随机策略', icon: 'fas fa-bolt' },
   { value: 'custom', name: '自定义', desc: '自由配置各项参数', icon: 'fas fa-cogs' }
-]
-
-const aiStrategies = [
-  { value: 'random', name: '随机策略', desc: '随机选择行动', icon: 'fas fa-dice' },
-  { value: 'aggressive', name: '激进策略', desc: '优先扩张和进攻', icon: 'fas fa-fire' },
-  { value: 'defensive', name: '保守策略', desc: '优先防守和发展', icon: 'fas fa-shield' }
 ]
 
 const initNavItems = [
@@ -1148,11 +1140,10 @@ const showStrategyModalOpen = computed({
 })
 
 // 选择策略
-function selectStrategy(strategyValue) {
+function selectStrategy(strategyId) {
   if (showStrategyModal.value !== null) {
-    form.players[showStrategyModal.value].strategy = strategyValue
+    form.players[showStrategyModal.value].strategy = strategyId
   }
-  closeStrategyModal()
 }
 
 function clearLoadingCountdownTimer() {
@@ -1854,8 +1845,8 @@ function movePlayer(fromIndex, toIndex) {
 
 function getStrategyName(value) {
   if (!value) return '选择策略'
-  const strategy = aiStrategies.find(s => s.value === value)
-  return strategy ? strategy.name : '选择策略'
+  const strategy = STRATEGY_OPTIONS.find(s => s.id === value)
+  return strategy ? strategy.label : '选择策略'
 }
 
 function getInitNavName(id) {
