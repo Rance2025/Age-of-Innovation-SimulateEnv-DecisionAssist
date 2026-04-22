@@ -1239,17 +1239,41 @@
                   </div>
                   <div class="action-filter-section">
                     <div class="action-filter-section-title">按策略筛选</div>
-                    <div class="action-filter-options action-filter-options--wrap">
-                      <button
-                        v-for="strategyOption in ACTION_LOG_STRATEGY_OPTIONS"
-                        :key="strategyOption.id"
-                        type="button"
-                        class="action-filter-option"
-                        :class="{ 'is-active': draftActionLogStrategyFilters.includes(strategyOption.id) }"
-                        @click.stop="toggleDraftActionLogStrategy(strategyOption.id)"
-                      >
-                        <span>{{ strategyOption.label }}</span>
-                      </button>
+                    <div class="action-filter-stage-groups">
+                      <div class="action-filter-stage-group">
+                        <div class="action-filter-stage-group-header">
+                          <span class="action-filter-stage-group-title">选择方式</span>
+                        </div>
+                        <div class="action-filter-options action-filter-options--wrap">
+                          <button
+                            v-for="modeOption in ACTION_LOG_SELECTION_MODE_OPTIONS"
+                            :key="modeOption.id"
+                            type="button"
+                            class="action-filter-option action-filter-option--sm"
+                            :class="{ 'is-active': draftActionLogSelectionModeFilters.includes(modeOption.id) }"
+                            @click.stop="toggleDraftActionLogSelectionMode(modeOption.id)"
+                          >
+                            <span>{{ modeOption.label }}</span>
+                          </button>
+                        </div>
+                      </div>
+                      <div class="action-filter-stage-group">
+                        <div class="action-filter-stage-group-header">
+                          <span class="action-filter-stage-group-title">策略类型</span>
+                        </div>
+                        <div class="action-filter-options action-filter-options--wrap">
+                          <button
+                            v-for="strategyOption in ACTION_LOG_STRATEGY_TYPE_OPTIONS"
+                            :key="strategyOption.id"
+                            type="button"
+                            class="action-filter-option action-filter-option--sm"
+                            :class="{ 'is-active': draftActionLogStrategyTypeFilters.includes(strategyOption.id) }"
+                            @click.stop="toggleDraftActionLogStrategyType(strategyOption.id)"
+                          >
+                            <span>{{ strategyOption.label }}</span>
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1408,10 +1432,14 @@
                 <span class="action-log-record-id">{{ log.uid }}</span>
                 <span class="action-log-description-inline">
                   <span v-if="log.actionCategory" class="action-log-category-inline">{{ log.actionCategory }}</span>
-                  <span v-if="log.actionSubcategory" class="action-log-separator">·</span>
-                  <span v-if="log.actionSubcategory" class="action-log-subcategory-inline">{{ log.actionSubcategory }}</span>
-                  <span v-if="log.actionDetail" class="action-log-separator">·</span>
-                  <span v-if="log.actionDetail" class="action-log-detail-inline">{{ log.actionDetail }}</span>
+                  <span v-if="log.actionSubcategory" class="action-log-subcategory-wrap">
+                    <span class="action-log-separator">·</span>
+                    <span class="action-log-subcategory-inline">{{ log.actionSubcategory }}</span>
+                  </span>
+                  <span v-if="log.actionDetail" class="action-log-detail-wrap">
+                    <span class="action-log-separator">·</span>
+                    <span class="action-log-detail-inline">{{ log.actionDetail }}</span>
+                  </span>
                   <span v-if="!log.actionCategory && !log.actionSubcategory && !log.actionDetail" class="action-log-text">{{ log.description }}</span>
                 </span>
               </div>
@@ -1455,8 +1483,8 @@
           <i class="fas fa-cog"></i>
         </div>
         <div class="btn-text">
-          <span>{{ confirmState === 'reset' ? '确认重置' : '重新设置' }}</span>
-          <small>{{ confirmState === 'reset' ? '点击确认返回设置页面' : '返回设置页面，保留当前设置' }}</small>
+          <span>{{ confirmState === 'reset' ? '确认重置' : '重新初始' }}</span>
+          <small>{{ confirmState === 'reset' ? '点击确认返回设置页面' : '返回设置页面，恢复原始设置' }}</small>
         </div>
       </button>
       <button
@@ -1469,7 +1497,7 @@
         </div>
         <div class="btn-text">
           <span>{{ confirmState === 'restart' ? '确认重启' : '重新开始' }}</span>
-          <small>{{ confirmState === 'restart' ? '点击确认重新开始游戏' : '在当前界面重启游戏（开发中）' }}</small>
+          <small>{{ confirmState === 'restart' ? '点击确认重新开始游戏' : '返回设置页面，使用已随机结果' }}</small>
         </div>
       </button>
     </div>
@@ -1808,11 +1836,17 @@ const ACTION_LOG_REMAINING_OPTIONS = Object.freeze([
   { id: '30to80', label: '30 ~ 80%', min: 0.3, max: 0.8 },
   { id: '80to100', label: '80% +', min: 0.8, max: 1 }
 ])
-const ACTION_LOG_STRATEGY_OPTIONS = Object.freeze([
-  { id: 'manual', label: '玩家选择' },
-  { id: 'system', label: '系统执行' },
+const ACTION_LOG_SELECTION_MODE_OPTIONS = Object.freeze([
+  { id: 'player_choice', label: '玩家选择' },
+  { id: 'accepted', label: '采纳推荐' },
+  { id: 'rejected', label: '拒绝推荐' },
+  { id: 'system', label: '系统执行' }
+])
+const ACTION_LOG_STRATEGY_TYPE_OPTIONS = Object.freeze([
   { id: 'random_pure', label: '完全随机' },
-  { id: 'random_fast_action', label: '快速行动优化' }
+  { id: 'random_fast_action', label: '快速行动优化' },
+  { id: 'metric_single_step_best', label: '单步最优' },
+  { id: 'ai_llm_reasoning', label: 'AI推理' }
 ])
 const ACTION_LOG_STAGE_MAP = Object.freeze(Object.fromEntries(
   ACTION_LOG_STAGE_DEFINITIONS.map((stage, index) => [stage.id, { ...stage, index }])
@@ -2121,7 +2155,8 @@ const appliedActionLogCategoryFilters = ref([])
 const appliedActionLogSubcategoryFilters = ref([])
 const appliedActionLogDurationFilters = ref([])
 const appliedActionLogRemainingFilters = ref([])
-const appliedActionLogStrategyFilters = ref([])
+const appliedActionLogSelectionModeFilters = ref([])
+const appliedActionLogStrategyTypeFilters = ref([])
 const appliedActionLogActionIdFilter = ref('')
 const appliedActionLogUidFilter = ref('')
 const draftActionLogPlayerFilters = ref([])
@@ -2131,9 +2166,11 @@ const draftActionLogCategoryFilters = ref([])
 const draftActionLogSubcategoryFilters = ref([])
 const draftActionLogDurationFilters = ref([])
 const draftActionLogRemainingFilters = ref([])
-const draftActionLogStrategyFilters = ref([])
+const draftActionLogSelectionModeFilters = ref([])
+const draftActionLogStrategyTypeFilters = ref([])
 const draftActionLogActionIdFilter = ref('')
 const draftActionLogUidFilter = ref('')
+const pendingSelectionModes = ref([])
 const stateVersion = ref(0)
 const gameMeta = reactive({
   round: 0,
@@ -2231,7 +2268,8 @@ const hasActiveActionLogFilters = computed(() => (
   || appliedActionLogSubcategoryFilters.value.length > 0
   || appliedActionLogDurationFilters.value.length > 0
   || appliedActionLogRemainingFilters.value.length > 0
-  || appliedActionLogStrategyFilters.value.length > 0
+  || appliedActionLogSelectionModeFilters.value.length > 0
+  || appliedActionLogStrategyTypeFilters.value.length > 0
   || normalizedAppliedActionLogActionIdFilter.value.length > 0
   || normalizedAppliedActionLogUidFilter.value.length > 0
 ))
@@ -2243,7 +2281,8 @@ const actionLogActiveFilterCount = computed(() => (
   + appliedActionLogSubcategoryFilters.value.length
   + appliedActionLogDurationFilters.value.length
   + appliedActionLogRemainingFilters.value.length
-  + appliedActionLogStrategyFilters.value.length
+  + appliedActionLogSelectionModeFilters.value.length
+  + appliedActionLogStrategyTypeFilters.value.length
   + (normalizedAppliedActionLogActionIdFilter.value.length > 0 ? 1 : 0)
   + (normalizedAppliedActionLogUidFilter.value.length > 0 ? 1 : 0)
 ))
@@ -2317,10 +2356,18 @@ const filteredActionLogs = computed(() => {
       if (!matches) return false
     }
 
-    // 策略筛选
-    if (appliedActionLogStrategyFilters.value.length > 0) {
-      const strategy = entry.selectionSource === 'system' ? (entry.selectionStrategy || 'system') : 'manual'
-      if (!appliedActionLogStrategyFilters.value.includes(strategy)) {
+    // 选择方式筛选
+    if (appliedActionLogSelectionModeFilters.value.length > 0) {
+      const selectionMode = entry.selectionMode || (entry.selectionSource === 'system' ? 'system' : 'player_choice')
+      if (!appliedActionLogSelectionModeFilters.value.includes(selectionMode)) {
+        return false
+      }
+    }
+
+    // 策略类型筛选
+    if (appliedActionLogStrategyTypeFilters.value.length > 0) {
+      const strategyType = entry.selectionStrategy || ''
+      if (!appliedActionLogStrategyTypeFilters.value.includes(strategyType)) {
         return false
       }
     }
@@ -4375,6 +4422,16 @@ function normalizeActionHistoryEntry(entry, actionSequence) {
   const normalizedActionType = normalizeActionType(entry?.action_type)
   const normalizedActionId = Number(entry?.action_id)
 
+  // 查找待标记的选择方式
+  const pendingIndex = pendingSelectionModes.value.findIndex(
+    (item) => item.actionId === normalizedActionId
+  )
+  let selectionMode = null
+  if (pendingIndex !== -1) {
+    selectionMode = pendingSelectionModes.value[pendingIndex].selectionMode
+    pendingSelectionModes.value.splice(pendingIndex, 1)
+  }
+
   return {
     uid: `act.${String(actionSequence).padStart(3, '0')}`,
     kind: 'action',
@@ -4390,6 +4447,7 @@ function normalizeActionHistoryEntry(entry, actionSequence) {
     description: entry?.description || '未提供行动描述',
     selectionSource: entry?.selection_source === 'system' ? 'system' : 'manual',
     selectionStrategy: typeof entry?.selection_strategy === 'string' ? entry.selection_strategy : '',
+    selectionMode: selectionMode || (entry?.selection_source === 'system' ? 'system' : 'player_choice'),
     actionCategory: entry?.action_category || '',
     actionSubcategory: entry?.action_subcategory || '',
     actionDetail: entry?.action_detail || '',
@@ -4491,7 +4549,8 @@ function openActionLogFilterModal() {
   draftActionLogSubcategoryFilters.value = [...appliedActionLogSubcategoryFilters.value]
   draftActionLogDurationFilters.value = [...appliedActionLogDurationFilters.value]
   draftActionLogRemainingFilters.value = [...appliedActionLogRemainingFilters.value]
-  draftActionLogStrategyFilters.value = [...appliedActionLogStrategyFilters.value]
+  draftActionLogSelectionModeFilters.value = [...appliedActionLogSelectionModeFilters.value]
+  draftActionLogStrategyTypeFilters.value = [...appliedActionLogStrategyTypeFilters.value]
   draftActionLogActionIdFilter.value = appliedActionLogActionIdFilter.value
   draftActionLogUidFilter.value = appliedActionLogUidFilter.value
   actionLogFilterModalOpen.value = true
@@ -4795,8 +4854,12 @@ function toggleDraftActionLogRemaining(remainingId) {
   toggleFilterValue(draftActionLogRemainingFilters, remainingId)
 }
 
-function toggleDraftActionLogStrategy(strategyId) {
-  toggleFilterValue(draftActionLogStrategyFilters, strategyId)
+function toggleDraftActionLogSelectionMode(modeId) {
+  toggleFilterValue(draftActionLogSelectionModeFilters, modeId)
+}
+
+function toggleDraftActionLogStrategyType(strategyTypeId) {
+  toggleFilterValue(draftActionLogStrategyTypeFilters, strategyTypeId)
 }
 
 function clearDraftActionLogFilters() {
@@ -4807,7 +4870,8 @@ function clearDraftActionLogFilters() {
   draftActionLogSubcategoryFilters.value = []
   draftActionLogDurationFilters.value = []
   draftActionLogRemainingFilters.value = []
-  draftActionLogStrategyFilters.value = []
+  draftActionLogSelectionModeFilters.value = []
+  draftActionLogStrategyTypeFilters.value = []
   draftActionLogActionIdFilter.value = ''
   draftActionLogUidFilter.value = ''
 }
@@ -4820,7 +4884,8 @@ function applyActionLogFilters() {
   appliedActionLogSubcategoryFilters.value = [...draftActionLogSubcategoryFilters.value]
   appliedActionLogDurationFilters.value = [...draftActionLogDurationFilters.value]
   appliedActionLogRemainingFilters.value = [...draftActionLogRemainingFilters.value]
-  appliedActionLogStrategyFilters.value = [...draftActionLogStrategyFilters.value]
+  appliedActionLogSelectionModeFilters.value = [...draftActionLogSelectionModeFilters.value]
+  appliedActionLogStrategyTypeFilters.value = [...draftActionLogStrategyTypeFilters.value]
   appliedActionLogActionIdFilter.value = normalizeActionLogSearchValue(draftActionLogActionIdFilter.value)
   appliedActionLogUidFilter.value = normalizeActionLogSearchValue(draftActionLogUidFilter.value)
   actionLogFilterModalOpen.value = false
@@ -4876,14 +4941,15 @@ function buildActionLogEntryTitle(log) {
     titleLines.push(log.actionType)
   }
 
-  if (log.selectionSource === 'system') {
-    titleLines.push('系统执行')
-  } else if (log.selectionSource === 'manual') {
-    titleLines.push('玩家选择')
+  // 选择方式
+  const selectionModeLabel = ACTION_LOG_SELECTION_MODE_OPTIONS.find((opt) => opt.id === log.selectionMode)?.label
+  if (selectionModeLabel) {
+    titleLines.push(selectionModeLabel)
   }
 
   if (log.selectionStrategy) {
-    titleLines.push(`选择策略 ${log.selectionStrategy}`)
+    const strategyTypeLabel = ACTION_LOG_STRATEGY_TYPE_OPTIONS.find((opt) => opt.id === log.selectionStrategy)?.label
+    titleLines.push(`策略类型：${strategyTypeLabel || log.selectionStrategy}`)
   }
 
   // 添加行动分类信息（大类、细类、细节），分三行显示
@@ -5419,22 +5485,117 @@ async function handleEndGame() {
   }
 }
 
-function handleResetSettings() {
+async function handleResetSettings() {
   if (confirmState.value === 'reset') {
     confirmState.value = null
     gameMenuOpen.value = false
+
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5001'
+
+    // 1. 先获取原始设置（游戏还在运行，控制器存在）
+    let apiInitSettings = null
+    try {
+      const resp = await fetch(`${apiBaseUrl}/api/game/settings?mode=original`)
+      const result = await resp.json()
+      if (result.status === 'success') {
+        apiInitSettings = result.settings
+      }
+    } catch (e) {
+      console.error('获取原始设置失败:', e)
+    }
+
+    // 2. 再停止后端游戏（stop会删除控制器）
+    try {
+      await fetch(`${apiBaseUrl}/api/game/stop`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+    } catch (e) {
+      console.error('停止游戏请求失败:', e)
+    }
+
+    // 3. 合并完整设置：前端保存的完整配置 + 后端返回的 init_settings
+    const fullSettings = JSON.parse(JSON.stringify(gameStore.settings || {}))
+    const settingsToSave = {
+      ...fullSettings,
+      init_settings: apiInitSettings || fullSettings.init_settings
+    }
+
+    localStorage.setItem('pendingSetupSettings', JSON.stringify({
+      mode: 'original',
+      settings: settingsToSave
+    }))
+
+    // 4. 清理前端状态
+    gameStore.endGame()
+    timerStore.reset()
     resetActionLogHistory()
+
+    // 5. 关闭 SSE
+    if (eventSource) {
+      eventSource.close()
+      eventSource = null
+    }
+
     setTimeout(() => router.push('/setup'), 500)
   } else {
     confirmState.value = 'reset'
   }
 }
 
-function handleRestartGame() {
+async function handleRestartGame() {
   if (confirmState.value === 'restart') {
     confirmState.value = null
     gameMenuOpen.value = false
-    alert('重新开始功能开发中，敬请期待！')
+
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5001'
+
+    // 1. 先获取已解析设置（游戏还在运行，控制器存在）
+    let apiInitSettings = null
+    try {
+      const resp = await fetch(`${apiBaseUrl}/api/game/settings?mode=resolved`)
+      const result = await resp.json()
+      if (result.status === 'success') {
+        apiInitSettings = result.settings
+      }
+    } catch (e) {
+      console.error('获取已解析设置失败:', e)
+    }
+
+    // 2. 再停止后端游戏（stop会删除控制器）
+    try {
+      await fetch(`${apiBaseUrl}/api/game/stop`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+    } catch (e) {
+      console.error('停止游戏请求失败:', e)
+    }
+
+    // 3. 合并完整设置：前端保存的完整配置 + 后端返回的 init_settings
+    const fullSettings = JSON.parse(JSON.stringify(gameStore.settings || {}))
+    const settingsToSave = {
+      ...fullSettings,
+      init_settings: apiInitSettings || fullSettings.init_settings
+    }
+
+    localStorage.setItem('pendingSetupSettings', JSON.stringify({
+      mode: 'resolved',
+      settings: settingsToSave
+    }))
+
+    // 4. 清理前端状态
+    gameStore.endGame()
+    timerStore.reset()
+    resetActionLogHistory()
+
+    // 5. 关闭 SSE
+    if (eventSource) {
+      eventSource.close()
+      eventSource = null
+    }
+
+    setTimeout(() => router.push('/setup'), 500)
   } else {
     confirmState.value = 'restart'
   }
@@ -5485,6 +5646,26 @@ async function submitActionAndSync(actionId, options = {}) {
   const normalizedSelectionStrategy = typeof options.selectionStrategy === 'string' && options.selectionStrategy.trim()
     ? options.selectionStrategy.trim()
     : null
+  const normalizedActionId = Number(actionId)
+
+  // 计算选择方式
+  let selectionMode = 'player_choice'
+  if (normalizedSelectionSource === 'system') {
+    if (hasRecommendedAction.value) {
+      const normalizedRecommendedActionId = normalizeAvailableActionId(recommendedActionId.value)
+      selectionMode = (normalizedRecommendedActionId === normalizedActionId) ? 'accepted' : 'system'
+    } else {
+      selectionMode = 'system'
+    }
+  } else {
+    if (hasRecommendedAction.value) {
+      const normalizedRecommendedActionId = normalizeAvailableActionId(recommendedActionId.value)
+      selectionMode = (normalizedRecommendedActionId === normalizedActionId) ? 'accepted' : 'rejected'
+    } else {
+      selectionMode = 'player_choice'
+    }
+  }
+  pendingSelectionModes.value.push({ actionId: normalizedActionId, selectionMode })
 
   try {
     const response = await fetch(`${apiBaseUrl}/api/game/action`, {
@@ -9571,6 +9752,13 @@ onUnmounted(() => {
   border-top: 1px solid var(--border);
 }
 
+.action-filter-option--sm {
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
 .action-filter-search-grid {
   display: grid;
   gap: 9px;
@@ -9925,9 +10113,9 @@ onUnmounted(() => {
 }
 
 .action-log-description-inline {
-  display: inline-flex;
+  display: flex;
   align-items: baseline;
-  gap: 0 4px;
+  gap: 0;
   min-width: 0;
   flex-wrap: nowrap;
   overflow: hidden;
@@ -9943,6 +10131,7 @@ onUnmounted(() => {
   white-space: nowrap;
   max-width: 100%;
   min-width: 0;
+  flex: 0 0 auto;
 }
 
 .action-log-separator {
@@ -9953,6 +10142,15 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 
+.action-log-subcategory-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 0 2px;
+  flex: 0 0 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
 .action-log-subcategory-inline {
   color: var(--text-primary);
   font-size: 0.75rem;
@@ -9960,8 +10158,16 @@ onUnmounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 100%;
   min-width: 0;
+}
+
+.action-log-detail-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 0 2px;
+  flex: 0 999 auto;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .action-log-detail-inline {
@@ -9971,7 +10177,6 @@ onUnmounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 100%;
   min-width: 0;
 }
 

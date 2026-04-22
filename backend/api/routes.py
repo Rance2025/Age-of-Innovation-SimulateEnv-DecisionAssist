@@ -379,6 +379,46 @@ def stop_game():
         return jsonify({'error': str(e)}), 500
 
 
+@routes_bp.route('/api/game/settings', methods=['GET'])
+def get_game_settings():
+    """获取当前游戏的初始设置
+
+    查询参数:
+        mode: 'original' | 'resolved'
+            original - 返回前端传入的原始设置（含 'random'）
+            resolved - 返回后端随机化后的实际值
+    """
+    try:
+        from backend.game.start_game import _game_controllers
+
+        mode = request.args.get('mode', 'original')
+        if mode not in ('original', 'resolved'):
+            return jsonify({'error': "mode must be 'original' or 'resolved'"}), 400
+
+        # 查找运行中的游戏控制器
+        controller = None
+        for gc in _game_controllers.values():
+            controller = gc
+            break
+
+        if not controller:
+            return jsonify({'error': 'No active game found'}), 404
+
+        settings = controller.get_settings(mode)
+        if settings is None:
+            return jsonify({'error': f'Settings not available for mode: {mode}'}), 404
+
+        return jsonify({
+            'status': 'success',
+            'mode': mode,
+            'settings': settings
+        })
+
+    except Exception as e:
+        logger.error(f"获取游戏设置失败: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
 def _run_game(game_data):
     """在后台运行游戏 - 使用 GameController"""
     import sys

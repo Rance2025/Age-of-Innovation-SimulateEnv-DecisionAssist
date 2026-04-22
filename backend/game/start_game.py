@@ -72,6 +72,11 @@ class GameController:
         # 游戏结果
         self.final_scores: Optional[Dict] = None
 
+        # 保存原始和已解析的初始设置
+        self._original_init_settings: Optional[Dict] = None
+        self._resolved_init_settings: Optional[Dict] = None
+        self._game_engine = None
+
         # 消息推送回调函数
         self._message_callback: Optional[Callable[[Dict], None]] = None
 
@@ -486,14 +491,44 @@ class GameController:
         """游戏主循环（在独立线程中运行）"""
         try:
             # 创建游戏引擎
-            game = GameEngine(
+            engine = GameEngine(
                 num_players=self.num_players,
                 init_settings=init_settings
-            ).run_game()
+            )
+            self._game_engine = engine
+            game = engine.run_game()
 
             # 获取初始请求
             request = next(game)
             self.current_request = request
+
+            # 提取已解析的初始设置（从 game_state.setup）
+            if hasattr(engine, 'game_state') and hasattr(engine.game_state, 'setup'):
+                setup = engine.game_state.setup
+                gs = engine.game_state
+
+                # 玩家顺序：0-based 转 1-based
+                init_player_order = [i + 1 for i in gs.init_player_order]
+
+                # 规划卡：从6张反推被排除的1张
+                all_planning_cards = list(range(1, 8))
+                excluded = [c for c in all_planning_cards if c not in setup.selected_planning_cards]
+                planning_cards = excluded[0] if excluded else 1
+
+                self._resolved_init_settings = {
+                    'init_player_order': init_player_order,
+                    'setup_tiles': {
+                        'planning_cards': planning_cards,
+                        'factions': setup.selected_factions,
+                        'palace_tiles': setup.selected_palace_tiles,
+                        'round_boosters': setup.selected_round_boosters,
+                        'round_scoring': setup.round_scoring_order,
+                        'final_scoring': setup.final_scoring,
+                        'ability_tiles': setup.ability_tiles_order,
+                        'science_tiles': setup.science_tiles_order,
+                        'book_actions': setup.selected_book_actions,
+                    }
+                }
 
             if not self._player_remaining_times:
                 self._player_remaining_times = [self._main_time] * self.num_players
@@ -532,6 +567,7 @@ class GameController:
         finally:
             self.is_running = False
             self.current_request = None
+            self._game_engine = None
 
     def _handle_game_end(self, request: ActionRequest):
         """处理游戏结束"""
@@ -569,10 +605,15 @@ class GameController:
         self._player_remaining_times = []
         self._action_start_time = 0
         self._action_deadline = 0
+        self._game_engine = None
 
         # 默认初始化设置
         if init_settings is None:
             init_settings = get_default_init_settings()
+
+        # 保存原始设置（用于重新初始）
+        self._original_init_settings = init_settings.copy()
+        self._resolved_init_settings = None
 
         # 启动游戏线程
         self._game_thread = threading.Thread(
@@ -583,6 +624,22 @@ class GameController:
         self._game_thread.start()
 
         return True
+
+    def get_settings(self, mode: str = 'original') -> Optional[Dict]:
+        """获取初始设置
+
+        Args:
+            mode: 'original' 返回前端传入的原始设置（含 'random'）
+                  'resolved' 返回后端随机化后的实际值
+
+        Returns:
+            设置字典，或 None（如果尚未初始化）
+        """
+        if mode == 'original':
+            return self._original_init_settings
+        elif mode == 'resolved':
+            return self._resolved_init_settings
+        return None
 
     def stop(self):
         """停止游戏"""
@@ -601,6 +658,7 @@ class GameController:
         self._clear_input_queue()
         self.current_request = None
         self._game_thread = None
+        self._game_engine = None
 
 
 # ========== 全局游戏控制器注册表 ==========

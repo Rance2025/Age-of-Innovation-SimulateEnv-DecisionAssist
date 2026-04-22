@@ -5,12 +5,34 @@
 ## 模板
 
 ## 本次修改
-- 日期：
-- 分支：
+
+## 0.9.5.36
+- 日期：`2026-04-22`
+- 分支：`main`
 - 影响范围：
+  - `frontend/src/views/GameView.vue`
+  - `frontend/src/views/SetupView.vue`
+  - `backend/game/start_game.py`
+  - `backend/api/routes.py`
 - 更新内容：
-  - `type: 中文描述`
+  - `feat: 游戏菜单中“重新设置”按钮更名为“重新初始”`
+  - `feat: 重新初始功能：停止当前游戏并返回设置页，恢复本局原始设置（含random标记）`
+  - `feat: 重新开始功能：停止当前游戏并返回设置页，使用后端随机化后的固定值恢复设置`
+  - `feat: 后端GameController保存原始和已解析两种初始设置`
+  - `feat: 新增GET /api/game/settings?mode=original|resolved接口供前端获取设置`
+  - `feat: SetupView进入时检测localStorage.pendingSetupSettings并自动恢复表单`
+  - `feat: init_settings中新增_init_mode标记，精确区分全局随机和自定义模式`
+  - `fix: 修复form.playerOrder恢复值不匹配模板（'指定顺序'→'指定'）`
+  - `fix: 添加isRestoringSettings标志，阻止playerCount watch干扰恢复过程`
+  - `fix: 使用nextTick延迟重置isRestoringSettings，确保watch回调先执行`
+  - `fix: 重新初始和重新开始都合并完整游戏设置（num_players/players/game_mode/timer_config/init_settings）`
+  - `fix: 前端先获取settings再stop游戏，避免控制器被删除后无法获取resolved设置`
 - 验证方式：
+  - `cd frontend && npm run build`
+  - 启动游戏后点击菜单中的“重新初始”，确认返回设置页且设置与本局原始设置完全一致
+  - 启动游戏（选择随机）后点击菜单中的“重新开始”，确认返回设置页且所有随机项已固定为具体值
+  - 验证玩家数量、玩家类型/ID、游戏模式、计时器、初始板块模式（随机/自定义）、各板块随机开关均正确恢复
+  - 检查重新启动的游戏是否使用完全相同的初始设置
 
 ## 0.9.5.35
 - 日期：`2026-04-21`

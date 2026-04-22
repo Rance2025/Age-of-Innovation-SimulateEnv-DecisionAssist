@@ -1058,7 +1058,7 @@
 </style>
 
 <script setup>
-import { reactive, ref, watch, computed, onUnmounted } from 'vue'
+import { reactive, ref, watch, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameStore } from '../stores/game'
 import Modal from '../components/Modal.vue'
@@ -1189,6 +1189,9 @@ onUnmounted(() => {
 })
 
 const activeInitNav = ref('planningCards')
+
+// 恢复设置标志，用于阻止 watch 干扰
+let isRestoringSettings = false
 
 // 左侧导航栏各项目的随机开关状态（默认关闭，即非随机）
 const initNavRandom = reactive({
@@ -1924,12 +1927,14 @@ watch(() => form.playerCount, (newCount) => {
   } else {
     form.players.splice(newCount)
   }
-  // 同步更新顺序列表
-  const newList = []
-  for (let i = 0; i < newCount; i++) {
-    newList.push({ id: i + 1, name: `玩家 ${i + 1}` })
+  // 同步更新顺序列表（恢复期间不覆盖）
+  if (!isRestoringSettings) {
+    const newList = []
+    for (let i = 0; i < newCount; i++) {
+      newList.push({ id: i + 1, name: `玩家 ${i + 1}` })
+    }
+    playerOrderList.value = newList
   }
-  playerOrderList.value = newList
 
   // 调整高科板块摆放区域大小
   const newTechSize = 2 + 2 * newCount
@@ -2101,7 +2106,8 @@ function buildGameSettings() {
     timer_config: getTimerConfig(),
     init_settings: {
       init_player_order: initPlayerOrder,
-      setup_tiles: setupTiles
+      setup_tiles: setupTiles,
+      _init_mode: form.initSettings.mode === '随机' ? 'global_random' : 'custom'
     }
   }
 }
@@ -2185,6 +2191,191 @@ async function waitForGameStateReady(retries = 60, delay = 250) {
 
   return false
 }
+
+// ========== 恢复 pending 设置（从游戏菜单跳转回来）==========
+function restoreSettingsFromPending() {
+  const pending = localStorage.getItem('pendingSetupSettings')
+  if (!pending) return
+
+  isRestoringSettings = true
+  try {
+    const { mode, settings } = JSON.parse(pending)
+    if (!settings) return
+
+    // 1. 解析初始设置（先解析，后续依赖这些数据）
+    const initSettings = settings.init_settings || {}
+    const tiles = initSettings.setup_tiles || {}
+
+    // 2. 恢复玩家数量
+    const targetPlayerCount = settings.num_players || 3
+    form.playerCount = targetPlayerCount
+
+    // 3. 恢复玩家配置
+    if (settings.players) {
+      // 先填充到目标数量
+      while (form.players.length < targetPlayerCount) {
+        form.players.push({ type: 'human', playerId: '', strategy: '' })
+      }
+      if (form.players.length > targetPlayerCount) {
+        form.players.splice(targetPlayerCount)
+      }
+      // 再设置具体值
+      settings.players.forEach((p, i) => {
+        if (i < form.players.length) {
+          form.players[i].type = p.type
+          if (p.type === 'human') {
+            form.players[i].playerId = p.args || ''
+            form.players[i].strategy = ''
+          } else {
+            form.players[i].playerId = ''
+            form.players[i].strategy = p.args || 'random'
+          }
+        }
+      })
+    }
+
+    // 4. 恢复计时器配置
+    const tc = settings.timer_config || {}
+    if (tc.main_time === 45 * 60 * 1000 && tc.byo_yomi_time === 45 * 1000) {
+      form.gameMode = 'standard'
+    } else if (tc.main_time === 25 * 60 * 1000 && tc.byo_yomi_time === 25 * 1000) {
+      form.gameMode = 'quick'
+    } else {
+      form.gameMode = 'custom'
+      customSettings.mainTime = Math.round((tc.main_time || 2700000) / 60000)
+      customSettings.byoYomiTime = Math.round((tc.byo_yomi_time || 45000) / 1000)
+      customSettings.timeoutStrategy = tc.timeout_strategy || 'random_fast_action'
+    }
+
+    // 5. 恢复玩家顺序和拖动列表
+    if (initSettings.init_player_order === 'random') {
+      form.playerOrder = '随机'
+      playerOrderList.value = Array.from({ length: targetPlayerCount }, (_, i) => ({
+        id: i + 1,
+        name: `玩家 ${i + 1}`
+      }))
+    } else if (Array.isArray(initSettings.init_player_order)) {
+      form.playerOrder = '指定'
+      playerOrderList.value = initSettings.init_player_order.map((id) => ({
+        id,
+        name: `玩家 ${id}`
+      }))
+    } else {
+      // 默认回退
+      form.playerOrder = '随机'
+      playerOrderList.value = Array.from({ length: targetPlayerCount }, (_, i) => ({
+        id: i + 1,
+        name: `玩家 ${i + 1}`
+      }))
+    }
+
+    // 6. 判断初始板块模式
+    // 使用前端发送的 _init_mode 标记精确区分全局随机和自定义
+    if (initSettings._init_mode === 'global_random') {
+      form.initSettings.mode = '随机'
+    } else {
+      form.initSettings.mode = '自定义'
+    }
+
+    // 4. 恢复 setup_tiles
+    // 规划卡（后端 1-7，前端 0-6 索引）
+    if (tiles.planning_cards === 'random') {
+      initNavRandom.planningCards = true
+      selectedPlanningCard.value = null
+    } else if (typeof tiles.planning_cards === 'number') {
+      initNavRandom.planningCards = false
+      selectedPlanningCard.value = tiles.planning_cards - 1
+    }
+
+    // 派系（后端 1-12，前端 0-11 索引）
+    if (tiles.factions === 'random') {
+      initNavRandom.factions = true
+      selectedFactions.value = []
+    } else if (Array.isArray(tiles.factions)) {
+      initNavRandom.factions = false
+      selectedFactions.value = tiles.factions.map(v => v - 1)
+    }
+
+    // 宫殿
+    if (tiles.palace_tiles === 'random') {
+      initNavRandom.palace = true
+      selectedPalaces.value = []
+    } else if (Array.isArray(tiles.palace_tiles)) {
+      initNavRandom.palace = false
+      selectedPalaces.value = tiles.palace_tiles.map(v => v - 1)
+    }
+
+    // 回合助推板
+    if (tiles.round_boosters === 'random') {
+      initNavRandom.roundBoosters = true
+      selectedRoundBoosters.value = []
+    } else if (Array.isArray(tiles.round_boosters)) {
+      initNavRandom.roundBoosters = false
+      selectedRoundBoosters.value = tiles.round_boosters.map(v => v - 1)
+    }
+
+    // 轮次计分
+    if (tiles.round_scoring === 'random') {
+      initNavRandom.roundScoring = true
+      selectedRoundScoring.value = []
+    } else if (Array.isArray(tiles.round_scoring)) {
+      initNavRandom.roundScoring = false
+      selectedRoundScoring.value = tiles.round_scoring.map(v => v - 1)
+    }
+
+    // 最终计分
+    if (tiles.final_scoring === 'random') {
+      initNavRandom.finalScoring = true
+      selectedFinalScoring.value = null
+    } else if (typeof tiles.final_scoring === 'number') {
+      initNavRandom.finalScoring = false
+      selectedFinalScoring.value = tiles.final_scoring - 1
+    }
+
+    // 能力板块（顺序数组，后端 1-12 -> 前端 0-11）
+    if (tiles.ability_tiles === 'random') {
+      initNavRandom.abilities = true
+      abilityOrder.value = Array(12).fill(null)
+    } else if (Array.isArray(tiles.ability_tiles)) {
+      initNavRandom.abilities = false
+      abilityOrder.value = tiles.ability_tiles.map(v => v !== null ? v - 1 : null)
+    }
+
+    // 科学板块（动态数量：2 + 2 * 玩家数）
+    if (tiles.science_tiles === 'random') {
+      initNavRandom.techs = true
+      techOrder.value = Array(2 + 2 * form.playerCount).fill(null)
+    } else if (Array.isArray(tiles.science_tiles)) {
+      initNavRandom.techs = false
+      techOrder.value = tiles.science_tiles.map(v => v !== null ? v - 1 : null)
+    }
+
+    // 书行动
+    if (tiles.book_actions === 'random') {
+      initNavRandom.bookActions = true
+      selectedBookActions.value = []
+    } else if (Array.isArray(tiles.book_actions)) {
+      initNavRandom.bookActions = false
+      selectedBookActions.value = tiles.book_actions.map(v => v - 1)
+    }
+
+    // 清理 pending
+    localStorage.removeItem('pendingSetupSettings')
+  } catch (e) {
+    console.error('恢复设置失败:', e)
+    localStorage.removeItem('pendingSetupSettings')
+  }
+  
+  // 延迟到下一个 tick 重置标志，确保 watch 回调先执行
+  nextTick(() => {
+    isRestoringSettings = false
+  })
+}
+
+// 页面加载时尝试恢复
+onMounted(() => {
+  restoreSettingsFromPending()
+})
 </script>
 
 <style scoped>
