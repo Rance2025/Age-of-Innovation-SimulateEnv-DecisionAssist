@@ -102,6 +102,10 @@ class GameStateManager:
         # 行动用时记录
         self._pending_action_durations: Dict[int, int] = {}
 
+        # 城市板块匹配状态（跨快照）
+        self._pending_city_matches: Dict[int, List] = {}  # {player_id: [(row, col, timestamp), ...]}
+        self._city_tile_assignments: Dict[int, Dict[str, int]] = {}  # {player_id: {pos_key: city_tile_id}}
+
     def set_message_callback(self, callback: Callable[[Dict], None]):
         """设置消息推送回调函数"""
         self._message_callback = callback
@@ -169,6 +173,12 @@ class GameStateManager:
 
         # Step 2: 计算增量（关键步骤）
         diffs = self._calculate_optimized_diff(self._last_pushed_state, new_state)
+
+        # Step 2.5: 跨快照匹配城市板块
+        if self._last_pushed_state is not None:
+            self._update_city_tile_matches(self._last_pushed_state, self._state_to_dict(new_state))
+            # 重新计算增量，因为匹配结果可能影响 city_tile_assignments
+            diffs = self._calculate_optimized_diff(self._last_pushed_state, new_state)
 
         # Step 3: 更新当前状态
         self._current_state = new_state
@@ -328,7 +338,8 @@ class GameStateManager:
         self,
         raw_action_index: int,
         selection_source: str = 'manual',
-        selection_strategy: Optional[str] = None
+        selection_strategy: Optional[str] = None,
+        selection_mode: Optional[str] = None
     ):
         """登记下一条底层行动记录对应的选择来源元数据。"""
         if not isinstance(raw_action_index, int) or raw_action_index <= 0:
@@ -336,10 +347,12 @@ class GameStateManager:
 
         normalized_source = 'system' if selection_source == 'system' else 'manual'
         normalized_strategy = selection_strategy.strip() if isinstance(selection_strategy, str) else ''
+        normalized_mode = selection_mode.strip() if isinstance(selection_mode, str) else ''
 
         self._pending_action_selection_metadata[raw_action_index] = {
             'selection_source': normalized_source,
-            'selection_strategy': normalized_strategy
+            'selection_strategy': normalized_strategy,
+            'selection_mode': normalized_mode
         }
 
     def record_action_duration(
@@ -415,6 +428,7 @@ class GameStateManager:
             description=description,
             selection_source=selection_metadata.get('selection_source', 'manual'),
             selection_strategy=selection_metadata.get('selection_strategy', ''),
+            selection_mode=selection_metadata.get('selection_mode', ''),
             action_category=category,
             action_subcategory=subcategory,
             action_detail=detail,
@@ -516,6 +530,11 @@ class GameStateManager:
             adjacent_map_ids=list(p.adjacent_map_ids),
             reachable_map_ids=list(p.reachable_map_ids),
             citys_amount=p.citys_amount,
+            settlements_and_cities={
+                f"{k[0]},{k[1]}": [f"{v[0][0]},{v[0][1]}", v[1]]
+                for k, v in p.settlements_and_cities.items()
+            },
+            city_tile_assignments=self._city_tile_assignments.get(p.player_id, {}),
             booster_ids=list(p.booster_ids),
             ability_tile_ids=list(p.ability_tile_ids),
             science_tile_ids=list(p.science_tile_ids),
@@ -571,7 +590,8 @@ class GameStateManager:
         return DisplayBoardState(
             science_tracks=science_tracks,
             ability_tile_owners=self._extract_tile_owner_map(gs, 'ability_tile', gs.setup.ability_tiles_order),
-            science_tile_owners=self._extract_tile_owner_map(gs, 'science_tile', gs.setup.science_tiles_order)
+            science_tile_owners=self._extract_tile_owner_map(gs, 'science_tile', gs.setup.science_tiles_order),
+            city_tile_owners=self._extract_tile_owner_map(gs, 'city_tile', list(range(1, 8)))
         )
 
     def _extract_tile_owner_map(
@@ -984,6 +1004,82 @@ class GameStateManager:
                 ))
         
         return diffs
+
+    def _update_city_tile_matches(self, old_state: Dict, new_state: Dict):
+        """
+        跨快照匹配 settlements_and_cities 新增城市与 city_tile 新增 owner。
+        当检测到某个玩家的 settlements_and_cities 中新增了一个 is_city=True 的根节点后，
+        紧接着在该玩家的 city_tile_owners 中检测到新增的 owner 时，将两者匹配。
+        """
+        # Step 1: 检测 settlements_and_cities 新增的城市根节点
+        new_players = new_state.get('players', [])
+        old_players = old_state.get('players', [])
+
+        for player_idx, player_data in enumerate(new_players):
+            player_id = player_data.get('player_id', player_idx)
+            old_sac = old_players[player_idx].get('settlements_and_cities', {}) if player_idx < len(old_players) else {}
+            new_sac = player_data.get('settlements_and_cities', {})
+
+            for pos_key, value in new_sac.items():
+                if pos_key not in old_sac:
+                    # 新增条目，检查是否是根节点且 is_city=True
+                    root_key, is_city = value[0], value[1]
+                    if root_key == pos_key and is_city:
+                        # 新增的城市根节点，加入 pending
+                        self._pending_city_matches.setdefault(player_id, []).append(pos_key)
+                elif old_sac.get(pos_key) != value:
+                    # 已有条目变更，检查是否变为城市
+                    old_root, old_is_city = old_sac[pos_key][0], old_sac[pos_key][1]
+                    new_root, new_is_city = value[0], value[1]
+                    if not old_is_city and new_is_city and new_root == pos_key:
+                        self._pending_city_matches.setdefault(player_id, []).append(pos_key)
+
+        # Step 2: 检测 city_tile_owners 新增的 owner，进行匹配
+        old_owners = old_state.get('display_board', {}).get('city_tile_owners', {})
+        new_owners = new_state.get('display_board', {}).get('city_tile_owners', {})
+
+        for tile_id_str, new_owner_list in new_owners.items():
+            tile_id = int(tile_id_str)
+            old_owner_list = old_owners.get(tile_id_str, [])
+            added_players = [p for p in new_owner_list if p not in old_owner_list]
+
+            for player_id in added_players:
+                pending_list = self._pending_city_matches.get(player_id, [])
+                if pending_list:
+                    # FIFO 匹配最早的 pending 根节点
+                    root_key = pending_list.pop(0)
+                    self._city_tile_assignments.setdefault(player_id, {})[root_key] = tile_id
+
+        # Step 3: 处理根节点路径压缩导致的匹配迁移
+        # 遍历所有已匹配的记录，检查根节点是否发生变化
+        for player_id, assignments in list(self._city_tile_assignments.items()):
+            # 查找对应 player_id 的玩家数据
+            player_data = None
+            for p in new_players:
+                if p.get('player_id') == player_id:
+                    player_data = p
+                    break
+
+            sac = player_data.get('settlements_and_cities', {}) if player_data else {}
+            new_assignments = {}
+            for pos_key, tile_id in assignments.items():
+                if pos_key in sac:
+                    root_key = sac[pos_key][0]
+                    if sac.get(root_key, [None, False])[1]:
+                        # 根节点仍是城市，更新到当前根节点
+                        new_assignments[root_key] = tile_id
+                    else:
+                        # 根节点不再是城市（异常情况），保留原记录
+                        new_assignments[pos_key] = tile_id
+                else:
+                    # 该坐标不在 settlements_and_cities 中，保留原记录
+                    new_assignments[pos_key] = tile_id
+            self._city_tile_assignments[player_id] = new_assignments
+
+        # Step 4: 清理已完成的 pending 匹配
+        for player_id in list(self._pending_city_matches.keys()):
+            if not self._pending_city_matches[player_id]:
+                del self._pending_city_matches[player_id]
     
     # ==================== 状态访问接口 ====================
     

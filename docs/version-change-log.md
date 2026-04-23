@@ -6,12 +6,37 @@
 
 ## 本次修改
 
-- 日期：
-- 分支：
+## 0.9.5.38
+- 日期：`2026-04-24`
+- 分支：`main`
 - 影响范围：
+  - `backend/game/aoi_game/game_state.py`
+  - `backend/game/utils/frontend_state_types.py`
+  - `backend/game/utils/game_state_manager.py`
+  - `frontend/src/stores/gameState.js`
+  - `frontend/src/views/GameView.vue`
 - 更新内容：
-  - `type: 中文描述`
+  - `fix: 阻止已建城聚落合并，确保城市根节点稳定不迁移（merge_settlement_root中新增is_city_a && is_city_b时直接返回）`
+  - `feat: 后端新增settlements_and_cities和city_tile_assignments字段到PlayerState，支持城市板块匹配与显示`
+  - `feat: 后端新增city_tile_owners到DisplayBoardState，追踪城市板块拥有者变化`
+  - `feat: 后端GameStateManager实现跨快照城市板块匹配逻辑（_update_city_tile_matches），自动关联新增城市根节点与city_tile获取事件`
+  - `feat: 前端新增city_tiles.png精灵图加载与绘制（drawCityTileSprite），支持7等城市板块切片渲染`
+  - `feat: 前端渲染侧楼（annex）在地块右下角，使用structures.png第8行第8列切片`
+  - `feat: 前端渲染城市标记（city tile）在地块右上方，使用city_tiles.png对应切片，按id映射4/5/6/7/1/2/3->col 0-6`
+  - `feat: 前端getCityTileIdForCell函数根据player.settlements_and_cities和city_tile_assignments确定地块是否应显示城市标记`
+  - `feat: 前端增量更新支持has_annex、settlements_and_cities、city_tile_assignments、city_tile_owners变更时触发对应地块重渲染`
+  - `feat: 前端全量更新时遍历所有cell渲染侧楼和城市标记`
+  - `ui: 侧楼和城市标记尺寸调整为35x40px（约主建筑的87.5%），侧楼在右下角（约45%宽度+15%高度偏移），城市标记在右上方（约45%宽度+40%高度偏移）`
 - 验证方式：
+  - `cd frontend && npm run build`
+  - `python -m py_compile backend/game/aoi_game/game_state.py`
+  - `python -m py_compile backend/game/utils/frontend_state_types.py`
+  - `python -m py_compile backend/game/utils/game_state_manager.py`
+  - `启动游戏，建造带侧楼的建筑，确认侧楼显示在地块右下角`
+  - `满足建城条件后获取城市板块，确认城市标记显示在城市根节点地块右上方`
+  - `验证多城市场景下各城市标记正确显示且互不遮挡`
+  - `验证增量更新（建造、获取城市板块）时侧楼和城市标记正确渲染`
+  - `验证页面刷新后全量更新时侧楼和城市标记正确恢复`
 
 ## 0.9.5.37
 - 日期：`2026-04-22`

@@ -17,7 +17,7 @@
 
 import { computed } from 'vue'
 import Modal from './Modal.vue'
-import { STRATEGY_GROUPS, STRATEGY_OPTIONS } from '../constants/strategies.js'
+import { SELECTABLE_STRATEGY_GROUPS, STRATEGY_OPTIONS } from '../constants/strategies.js'
 
 const props = defineProps({
   modelValue: {
@@ -69,7 +69,7 @@ function selectStrategy(strategyId) {
         <div class="strategy-columns">
           <!-- 策略分组列 -->
           <div
-            v-for="group in STRATEGY_GROUPS"
+            v-for="group in SELECTABLE_STRATEGY_GROUPS"
             :key="group.id"
             class="strategy-column"
           >
@@ -93,7 +93,11 @@ function selectStrategy(strategyId) {
                 :key="strategy.id"
                 type="button"
                 class="strategy-card"
-                :class="{ 'is-selected': selectedStrategy === strategy.id }"
+                :class="{ 
+                  'is-selected': selectedStrategy === strategy.id,
+                  'is-disabled': strategy.isAvailable === false
+                }"
+                :disabled="strategy.isAvailable === false"
                 @click="selectStrategy(strategy.id)"
               >
                 <!-- 左侧图标区域 - 标签式布局 -->
@@ -308,6 +312,30 @@ function selectStrategy(strategyId) {
 
 .strategy-card.is-selected:hover {
   background: rgba(255, 255, 255, 0.08);
+}
+
+/* 禁用状态 */
+.strategy-card.is-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(0.5);
+}
+
+.strategy-card.is-disabled:hover {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.strategy-card.is-disabled .card-name {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.strategy-card.is-disabled .card-desc {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.strategy-card.is-disabled .card-icon {
+  color: rgba(255, 255, 255, 0.3);
 }
 
 /* 左侧图标区域 - 更深的背景色，参考游戏模式卡片 */

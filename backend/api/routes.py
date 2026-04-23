@@ -246,7 +246,8 @@ def submit_action():
         "action_id": 65,
         "player_id": 0,  // 可选，用于验证
         "selection_source": "manual",  // 可选，manual / system
-        "selection_strategy": "random"  // 可选
+        "selection_strategy": "random",  // 可选
+        "selection_mode": "player_choice"  // 可选，player_choice / accepted / rejected / system
     }
     """
     try:
@@ -258,6 +259,7 @@ def submit_action():
         player_id = data.get('player_id')
         selection_source = data.get('selection_source', 'manual')
         selection_strategy = data.get('selection_strategy')
+        selection_mode = data.get('selection_mode')
 
         if action_id is None:
             return jsonify({'error': 'action_id is required'}), 400
@@ -272,7 +274,8 @@ def submit_action():
             action_id,
             player_id,
             selection_source=selection_source,
-            selection_strategy=selection_strategy
+            selection_strategy=selection_strategy,
+            selection_mode=selection_mode
         )
 
         if success:
@@ -443,6 +446,19 @@ def _run_game(game_data):
         # 创建游戏控制器（传入 timer_config）
         controller = create_game_controller(game_id, num_players, timer_config)
         controller.set_message_callback(put_message)
+
+        # 为 AI 玩家注册 Agent
+        players = game_data.get('players', [])
+        from backend.game.agents import create_action_agent
+        for i, player in enumerate(players):
+            if player.get('type') == 'ai':
+                strategy_id = player.get('args', 'random_pure')
+                # 防御性映射
+                if strategy_id == 'random':
+                    strategy_id = 'random_pure'
+                agent = create_action_agent(strategy_id)
+                controller.register_agent(i, agent)
+                logger.info(f"为玩家 {i+1} 注册 AI Agent: {strategy_id}")
 
         # 启动游戏
         controller.start(init_settings)

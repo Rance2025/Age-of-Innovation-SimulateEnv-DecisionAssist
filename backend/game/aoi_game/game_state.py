@@ -590,6 +590,10 @@ class GameStateBase:
             if root_a == root_b:
                 return root_a, is_city_a  # 已经在同一聚落
 
+            # 已建城的聚落不再合并，保持独立
+            if is_city_a and is_city_b:
+                return root_b, True
+
             # 新聚落的城市状态
             new_is_city = is_city_a or is_city_b
             # 更新a的父节点信息，以b为新父节点

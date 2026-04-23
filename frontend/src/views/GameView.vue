@@ -937,7 +937,7 @@
                 type="button"
                 class="control-center-button control-center-recommend-button"
                 :class="{ 'is-recommended': hasRecommendedAction }"
-                :disabled="!controlCenterCanRun || controlCenterPendingMode !== ''"
+                :disabled="!controlCenterCanRun || controlCenterPendingMode !== '' || isAiPlayer"
                 @click="recommendControlCenterStrategy"
               >
                 <i :class="recommendedActionIconClass" aria-hidden="true"></i>
@@ -947,7 +947,7 @@
                 type="button"
                 class="control-center-button control-center-execute-button"
                 :class="{ 'has-recommendation': hasRecommendedAction }"
-                :disabled="!controlCenterCanRun || controlCenterPendingMode !== ''"
+                :disabled="!controlCenterCanRun || controlCenterPendingMode !== '' || isAiPlayer"
                 @click="executeControlCenterAction"
               >
                 <span>执行</span>
@@ -969,7 +969,7 @@
             <div v-if="!gameMeta.is_game_over" class="action-header-timer">
               <ActionTimer />
             </div>
-            <div class="action-header-meta">
+            <div class="action-header-pills">
               <div class="action-owner-chip">
                 <span class="action-owner-dot" :style="{ backgroundColor: currentActionPlayerColor }"></span>
                 <span>{{ currentActionOwnerLabel }}</span>
@@ -977,12 +977,16 @@
               <div class="action-mode-chip">{{ currentActionModeLabel }}</div>
               <div class="action-count">共<span id="action-count">{{ actionCount }}</span>项</div>
             </div>
+            <div v-if="isAiPlayer && !gameMeta.is_game_over" class="ai-thinking-badge">
+              <img src="https://img.icons8.com/3d-fluency/500/sparkles.png" alt="AI" />
+              <span>AI Thinking ...</span>
+            </div>
           </div>
           <div
             id="action-content"
             ref="actionContentRef"
             class="action-content"
-            :class="{ 'is-accordion-mode': isActionOverflowMode }"
+            :class="{ 'is-accordion-mode': isActionOverflowMode, 'ai-turn': isAiPlayer }"
           >
             <div
               v-for="group in groupedActionCards"
@@ -1047,22 +1051,18 @@
                       class="action-option-button"
                       :data-color="option.color"
                       :class="{
+                        'is-submitting': pendingActionId === option.id,
+                        'is-disabled': pendingActionId !== null && pendingActionId !== option.id,
                         'is-compact': !option.detail && group.layoutHint !== 'chips_wrap',
-                        'is-recommended': option.isRecommended
+                        'is-recommended': recommendedActionId === option.id
                       }"
-                      :disabled="pendingActionId !== null || (isActionOverflowMode && !isActionGroupExpanded(group.groupKey))"
+                      :disabled="pendingActionId !== null || isAiPlayer || (isActionOverflowMode && !isActionGroupExpanded(group.groupKey))"
+                      :title="option.description"
                       @click="selectAction(option)"
                     >
                       <span class="action-option-main">
                         <span class="action-option-label">{{ option.label }}</span>
                         <span v-if="option.detail" class="action-option-detail">{{ option.detail }}</span>
-                      </span>
-                      <span
-                        v-if="option.isRecommended"
-                        class="action-option-recommend-icon"
-                        aria-label="推荐"
-                      >
-                        <i class="fas fa-star" aria-hidden="true"></i>
                       </span>
                     </button>
                   </div>
@@ -1263,7 +1263,7 @@
                         </div>
                         <div class="action-filter-options action-filter-options--wrap">
                           <button
-                            v-for="strategyOption in ACTION_LOG_STRATEGY_TYPE_OPTIONS"
+                            v-for="strategyOption in availableActionLogStrategyTypeOptions"
                             :key="strategyOption.id"
                             type="button"
                             class="action-filter-option action-filter-option--sm"
@@ -1757,8 +1757,8 @@ const ACTION_LOG_SELECTION_MODE_OPTIONS = Object.freeze([
   { id: 'system', label: '系统执行' }
 ])
 const ACTION_LOG_STRATEGY_TYPE_OPTIONS = Object.freeze([
-  { id: 'random_pure', label: '完全随机' },
-  { id: 'random_fast_action', label: '快速行动优化' },
+  { id: 'random_pure', label: '随机 · 完全' },
+  { id: 'random_fast_action', label: '随机 · 经快速行动优化' },
   { id: 'metric_single_step_best', label: '单步最优' },
   { id: 'ai_llm_reasoning', label: 'AI推理' }
 ])
@@ -1939,6 +1939,7 @@ function initBonusColumns(count) {
 // 全局状态
 const actionCount = ref(0)
 const actions = ref([])
+const isAiPlayer = ref(false)
 const actionLogs = ref([])
 const tacticalLogs = ref([])
 const finalScores = ref(null)
@@ -2005,6 +2006,54 @@ const spriteSheet = new Image()
 spriteSheet.src = SPRITESHEET_URL
 let spriteSheetLoaded = false
 spriteSheet.onload = () => { spriteSheetLoaded = true }
+
+// 城市板块精灵图
+const CITY_TILES_URL = new URL('../../assets/images/city_tiles.png', import.meta.url).href
+const CITY_TILE_COUNT = 7
+const CITY_TILE_SCALE = 0.25
+const CITY_TILE_ID_TO_INDEX = { 4: 0, 5: 1, 6: 2, 7: 3, 1: 4, 2: 5, 3: 6 }
+
+const cityTilesSheet = new Image()
+cityTilesSheet.src = CITY_TILES_URL
+let cityTilesSheetLoaded = false
+cityTilesSheet.onload = () => { cityTilesSheetLoaded = true }
+
+function drawCityTileSprite(canvas, colIndex, width, height) {
+  if (!canvas || !cityTilesSheet.complete || cityTilesSheet.naturalWidth === 0) {
+    // 图片未加载完成，添加监听器
+    if (canvas && !cityTilesSheet.complete) {
+      const onLoad = () => {
+        drawCityTileSprite(canvas, colIndex, width, height)
+        cityTilesSheet.removeEventListener('load', onLoad)
+      }
+      cityTilesSheet.addEventListener('load', onLoad)
+    }
+    return
+  }
+
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+
+  const dpr = window.devicePixelRatio || 1
+  canvas.width = Math.round(width * dpr)
+  canvas.height = Math.round(height * dpr)
+  canvas.style.width = width + 'px'
+  canvas.style.height = height + 'px'
+
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+  const tileWidth = cityTilesSheet.naturalWidth / CITY_TILE_COUNT
+  const tileHeight = cityTilesSheet.naturalHeight
+  const sx = colIndex * tileWidth
+  const sy = 0
+
+  ctx.save()
+  ctx.scale(dpr, dpr)
+  ctx.drawImage(cityTilesSheet, sx, sy, tileWidth, tileHeight, 0, 0, width, height)
+  ctx.restore()
+}
 
 function drawSprite(canvas, sx, sy, sWidth, sHeight, cssWidth, cssHeight) {
   if (!canvas) return
@@ -2172,6 +2221,14 @@ const actionLogSubcategoryFilterOptions = computed(() => {
   }))
 })
 const renderedActionLogs = computed(() => Array.isArray(actionLogs.value) ? actionLogs.value : [])
+const availableActionLogStrategyTypeOptions = computed(() => {
+  const usedStrategyIds = new Set(
+    actionLogs.value
+      .filter((entry) => entry.kind !== 'divider' && entry.selectionStrategy)
+      .map((entry) => entry.selectionStrategy)
+  )
+  return ACTION_LOG_STRATEGY_TYPE_OPTIONS.filter((option) => usedStrategyIds.has(option.id))
+})
 const normalizedAppliedActionLogActionIdFilter = computed(() => normalizeActionLogSearchValue(appliedActionLogActionIdFilter.value))
 const normalizedAppliedActionLogUidFilter = computed(() => normalizeActionLogSearchValue(appliedActionLogUidFilter.value))
 const hasActiveActionLogFilters = computed(() => (
@@ -2368,13 +2425,11 @@ const selectedControlStrategyOption = computed(() => (
   || STRATEGY_OPTIONS[0]
   || {
     id: 'random_pure',
-    label: '完全随机'
+    label: '随机 · 完全'
   }
 ))
 const selectedControlStrategySummaryLabel = computed(() => (
-  selectedControlStrategyOption.value.description
-    ? `${selectedControlStrategyOption.value.label} · ${selectedControlStrategyOption.value.description}`
-    : selectedControlStrategyOption.value.label
+  selectedControlStrategyOption.value.label
 ))
 
 const TRACK_TYPES = ['bank', 'law', 'engineering', 'medical']
@@ -4361,7 +4416,7 @@ function normalizeActionHistoryEntry(entry, actionSequence) {
     description: entry?.description || '未提供行动描述',
     selectionSource: entry?.selection_source === 'system' ? 'system' : 'manual',
     selectionStrategy: typeof entry?.selection_strategy === 'string' ? entry.selection_strategy : '',
-    selectionMode: selectionMode || (entry?.selection_source === 'system' ? 'system' : 'player_choice'),
+    selectionMode: selectionMode || entry?.selection_mode || (entry?.selection_source === 'system' ? 'system' : 'player_choice'),
     actionCategory: entry?.action_category || '',
     actionSubcategory: entry?.action_subcategory || '',
     actionDetail: entry?.action_detail || '',
@@ -4545,7 +4600,7 @@ function setRecommendedAction(actionId, strategyId) {
 }
 
 function getUnsupportedControlCenterStrategyMessage() {
-  return `${selectedControlStrategySummaryLabel.value}策略暂未接入后端，当前仅支持完全随机和快速行动优化随机。`
+  return `${selectedControlStrategySummaryLabel.value}策略暂未接入后端，当前仅支持随机 · 完全和随机 · 经快速行动优化。`
 }
 
 function getControlCenterStrategyRequestErrorMessage(payload, fallbackMessage) {
@@ -5068,6 +5123,14 @@ function applyPlayerState(player, backendPlayer) {
   if (Object.prototype.hasOwnProperty.call(backendPlayer, 'faction_id')) {
     setPlayerFaction(player, backendPlayer.faction_id)
   }
+
+  if (Object.prototype.hasOwnProperty.call(backendPlayer, 'settlements_and_cities')) {
+    player.settlements_and_cities = backendPlayer.settlements_and_cities || {}
+  }
+
+  if (Object.prototype.hasOwnProperty.call(backendPlayer, 'city_tile_assignments')) {
+    player.city_tile_assignments = backendPlayer.city_tile_assignments || {}
+  }
 }
 
 function ensureMapCell(row, col) {
@@ -5129,18 +5192,37 @@ function renderBuildingForCell(row, col) {
   const cell = ensureMapCell(row, col)
   const renderToken = nextBuildingRenderToken(row, col)
 
-  if (!cell.building_id || cell.building_id <= 0) {
-    clearPlacedElementsAt(row, col)
+  // 1. 清除该位置所有已有元素
+  clearPlacedElementsAt(row, col)
+
+  // 2. 如果该位置无建筑、无侧楼、无城市标记，直接返回
+  const hasMainBuilding = cell.building_id && cell.building_id > 0
+  const hasAnnex = cell.has_annex
+  const cityTileId = getCityTileIdForCell(row, col)
+
+  if (!hasMainBuilding && !hasAnnex && !cityTileId) {
     return
   }
 
   const colorId = cell?.is_neutral ? 0 : getMapBuildingColorId(cell?.controller)
-  if (!Number.isInteger(colorId) || colorId < 0) {
-    clearPlacedElementsAt(row, col)
+  if ((hasMainBuilding || hasAnnex) && (!Number.isInteger(colorId) || colorId < 0)) {
     return
   }
 
-  void placeElement(row, col, colorId, cell.building_id, 'replace', renderToken)
+  // 3. 渲染主建筑（如果存在）
+  if (hasMainBuilding) {
+    placeElement(row, col, colorId, cell.building_id, 'append', renderToken)
+  }
+
+  // 4. 渲染侧楼（左上方）
+  if (hasAnnex) {
+    placeAnnex(row, col, colorId, renderToken)
+  }
+
+  // 5. 渲染城市标记（右上方）
+  if (cityTileId) {
+    placeCityTile(row, col, cityTileId, renderToken)
+  }
 }
 
 function applyPlayerFieldChange(player, remainingKeys, value, changeType = '') {
@@ -5183,6 +5265,12 @@ function applyPlayerFieldChange(player, remainingKeys, value, changeType = '') {
         return
       case 'booster_ids':
         applyPlayerBoosterIdsChange(player, value)
+        return
+      case 'settlements_and_cities':
+        player.settlements_and_cities = value || {}
+        return
+      case 'city_tile_assignments':
+        player.city_tile_assignments = value || {}
         return
       default:
         player[firstKey] = value
@@ -5588,7 +5676,8 @@ async function submitActionAndSync(actionId, options = {}) {
         action_id: actionId,
         player_id: currentActionPlayerId.value,
         selection_source: normalizedSelectionSource,
-        selection_strategy: normalizedSelectionStrategy
+        selection_strategy: normalizedSelectionStrategy,
+        selection_mode: selectionMode
       })
     })
     const data = await response.json()
@@ -5872,6 +5961,133 @@ function placeElement(hexRow, hexCol, colorId, buildingId, mode = 'replace', ren
   foreignObject.appendChild(canvas)
   elementsLayer.appendChild(foreignObject)
   console.log(`已加载建筑: ${normalizedColorId}-${normalizedBuildingId}`)
+  return true
+}
+
+function getCityTileIdForCell(row, col) {
+  const cell = ensureMapCell(row, col)
+  if (!cell.controller || cell.controller < 0) return null
+
+  const player = players.value[cell.controller]
+  if (!player) return null
+
+  const assignments = player.city_tile_assignments || {}
+  const sac = player.settlements_and_cities || {}
+  const posKey = `${row},${col}`
+
+  // 直接检查该坐标是否是已匹配的城市根节点
+  if (assignments[posKey]) {
+    return assignments[posKey]
+  }
+
+  // 检查该坐标在 settlements_and_cities 中的根节点是否已匹配
+  if (sac[posKey]) {
+    const rootKey = sac[posKey][0]
+    if (assignments[rootKey]) {
+      return assignments[rootKey]
+    }
+  }
+
+  return null
+}
+
+function placeAnnex(hexRow, hexCol, colorId, renderToken) {
+  const positionId = getHexPositionId(hexRow, hexCol)
+  const hexElement = document.getElementById(`hex-${positionId}`)
+  if (!hexElement) return false
+
+  const elementsLayer = document.getElementById('hex-elements')
+  if (!elementsLayer) return false
+
+  const bbox = hexElement.getBBox()
+  const centerX = bbox.x + bbox.width / 2
+  const bottomY = bbox.y + bbox.height * 0.85
+
+  const displayWidth = 35
+  const displayHeight = 40
+
+  // 右下角偏移（约45%宽度，15%高度）
+  const offsetX = displayWidth * 0.45
+  const offsetY = displayHeight * 0.15
+
+  const x = centerX - displayWidth / 2 + offsetX
+  const y = bottomY - displayHeight + offsetY
+
+  if (renderToken !== null && !isLatestBuildingRender(hexRow, hexCol, renderToken)) {
+    return false
+  }
+
+  const foreignObject = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject')
+  foreignObject.setAttribute('class', 'hex-element hex-annex')
+  foreignObject.setAttribute('data-position', positionId)
+  foreignObject.setAttribute('x', x)
+  foreignObject.setAttribute('y', y)
+  foreignObject.setAttribute('width', displayWidth)
+  foreignObject.setAttribute('height', displayHeight)
+
+  const canvas = document.createElement('canvas')
+  canvas.setAttribute('width', String(displayWidth))
+  canvas.setAttribute('height', String(displayHeight))
+  canvas.style.width = `${displayWidth}px`
+  canvas.style.height = `${displayHeight}px`
+  canvas.style.display = 'block'
+
+  // 侧楼固定使用 col=7（特殊建筑列），row=7（第8行，BUILDING_TO_SPRITE_ROW[8]）
+  drawSpriteCell(canvas, 7, BUILDING_TO_SPRITE_ROW[8], displayWidth, displayHeight)
+
+  foreignObject.appendChild(canvas)
+  elementsLayer.appendChild(foreignObject)
+  return true
+}
+
+function placeCityTile(hexRow, hexCol, cityTileId, renderToken) {
+  const positionId = getHexPositionId(hexRow, hexCol)
+  const hexElement = document.getElementById(`hex-${positionId}`)
+  if (!hexElement) return false
+
+  const elementsLayer = document.getElementById('hex-elements')
+  if (!elementsLayer) return false
+
+  const bbox = hexElement.getBBox()
+  const centerX = bbox.x + bbox.width / 2
+  const bottomY = bbox.y + bbox.height * 0.85
+
+  const displayWidth = 35
+  const displayHeight = 40
+
+  // 右上方偏移（与侧楼对称）
+  const offsetX = displayWidth * 0.4
+  const offsetY = -displayHeight * 0.4
+
+  const x = centerX - displayWidth / 2 + offsetX
+  const y = bottomY - displayHeight + offsetY
+
+  if (renderToken !== null && !isLatestBuildingRender(hexRow, hexCol, renderToken)) {
+    return false
+  }
+
+  const foreignObject = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject')
+  foreignObject.setAttribute('class', 'hex-element hex-city-tile')
+  foreignObject.setAttribute('data-position', positionId)
+  foreignObject.setAttribute('x', x)
+  foreignObject.setAttribute('y', y)
+  foreignObject.setAttribute('width', displayWidth)
+  foreignObject.setAttribute('height', displayHeight)
+
+  const canvas = document.createElement('canvas')
+  canvas.setAttribute('width', String(displayWidth))
+  canvas.setAttribute('height', String(displayHeight))
+  canvas.style.width = `${displayWidth}px`
+  canvas.style.height = `${displayHeight}px`
+  canvas.style.display = 'block'
+
+  const colIndex = CITY_TILE_ID_TO_INDEX[cityTileId]
+  if (colIndex !== undefined) {
+    drawCityTileSprite(canvas, colIndex, displayWidth, displayHeight)
+  }
+
+  foreignObject.appendChild(canvas)
+  elementsLayer.appendChild(foreignObject)
   return true
 }
 
@@ -6318,7 +6534,10 @@ function handleSSEMessage(message) {
 
     case 'actions':
       // 处理可选行动，统一转换为前端格式 {id, text}
+      console.log('[SSE] 收到 actions 消息:', message)
       setAvailableActions(data.actions)
+      isAiPlayer.value = message.is_ai_player || false
+      console.log('[SSE] isAiPlayer 设置为:', isAiPlayer.value)
       break
 
     case 'terrain_update':
@@ -6492,6 +6711,21 @@ function applyGameViewChange(path, value, changeType, pendingBuildingRenders = n
     const playerIdx = Number.parseInt(keys[1], 10)
     if (playerIdx >= 0 && playerIdx < players.value.length) {
       applyPlayerFieldChange(players.value[playerIdx], keys.slice(2), value, changeType)
+
+      // 如果是 settlements_and_cities 或 city_tile_assignments 变更，触发该玩家所有控制地块重渲染
+      if (keys.length >= 3) {
+        const fieldName = keys[2]
+        if (fieldName === 'settlements_and_cities' || fieldName === 'city_tile_assignments') {
+          const player = players.value[playerIdx]
+          if (player?.controlled_map_ids) {
+            for (const mapId of player.controlled_map_ids) {
+              if (Array.isArray(mapId) && mapId.length === 2) {
+                triggerBuildingRender(mapId[0], mapId[1], pendingBuildingRenders)
+              }
+            }
+          }
+        }
+      }
     }
     return
   }
@@ -6524,6 +6758,18 @@ function applyGameViewChange(path, value, changeType, pendingBuildingRenders = n
       applyTileOwnerMapChange(abilityTileOwners, keys.slice(2), value, changeType, abilityTilesOrder.value)
     } else if (displayBoardKey === 'science_tile_owners') {
       applyTileOwnerMapChange(scienceTileOwners, keys.slice(2), value, changeType, scienceTilesOrder.value)
+    } else if (displayBoardKey === 'city_tile_owners') {
+      // 城市板块拥有者变更 - 触发所有玩家控制地块的重渲染
+      for (let playerIdx = 0; playerIdx < players.value.length; playerIdx++) {
+        const player = players.value[playerIdx]
+        if (player?.controlled_map_ids) {
+          for (const mapId of player.controlled_map_ids) {
+            if (Array.isArray(mapId) && mapId.length === 2) {
+              triggerBuildingRender(mapId[0], mapId[1], pendingBuildingRenders)
+            }
+          }
+        }
+      }
     } else if (displayBoardKey === 'science_tracks' && keys.length >= 3) {
       const trackType = keys[2]
       if (scienceTracks[trackType]) {
@@ -6558,7 +6804,7 @@ function applyGameViewChange(path, value, changeType, pendingBuildingRenders = n
       return
     }
 
-    if (field === 'building_id' || field === 'controller' || field === 'is_neutral') {
+    if (field === 'building_id' || field === 'controller' || field === 'is_neutral' || field === 'has_annex') {
       triggerBuildingRender(row, col, pendingBuildingRenders)
     }
     return
@@ -8888,18 +9134,19 @@ onUnmounted(() => {
 .action-header {
   padding: 14px calc(var(--panel-padding) + 2px) 10px;
   background: transparent;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  align-items: start;
   gap: 14px 12px;
-  flex-wrap: wrap;
 }
 
 .action-title-group {
+  grid-column: 1;
+  grid-row: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  flex: 1 1 180px;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -8933,17 +9180,73 @@ onUnmounted(() => {
   word-break: keep-all;
 }
 
-.action-header-timer {
+.ai-thinking-badge {
+  grid-column: 2;
+  grid-row: 2;
   display: flex;
   align-items: center;
-  justify-content: center;
-  height: calc(1rem + 0.73rem + 8px);
+  align-self: center;
+  justify-content: flex-end;
+  height: var(--action-toolbar-pill-height);
+  gap: 6px;
+  color: var(--accent);
+  font-size: 1.1rem;
+  font-weight: 600;
+  font-family: 'Outfit', 'Poppins', 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  animation: pulse 2s infinite;
+  white-space: nowrap;
+}
+
+.ai-thinking-badge img {
+  width: 28px;
+  height: 28px;
   flex-shrink: 0;
+  display: block;
+}
+
+.ai-thinking-badge span {
+  line-height: var(--action-toolbar-pill-height);
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+.action-header-pills {
+  grid-column: 1;
+  grid-row: 2;
+  display: flex;
+  align-items: center;
+  align-self: center;
+  gap: var(--action-toolbar-pill-gap);
+}
+
+.action-header-pills .action-owner-chip,
+.action-header-pills .action-mode-chip,
+.action-header-pills .action-count {
+  width: auto;
+  min-width: var(--action-toolbar-pill-width);
+}
+
+.action-header-timer {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: calc(1rem + 0.73rem + 8px);
 }
 
 .action-header-timer .action-timer {
   font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
-  font-size: 1.6em;
+  font-size: 2.3em;
   font-weight: 700;
 }
 
@@ -9084,6 +9387,15 @@ onUnmounted(() => {
 .action-content--measure .action-group-body-inner {
   opacity: 1;
   transform: none;
+}
+
+.action-content.ai-turn {
+  opacity: 0.6;
+}
+
+.action-content.ai-turn .action-option-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .action-content::-webkit-scrollbar {

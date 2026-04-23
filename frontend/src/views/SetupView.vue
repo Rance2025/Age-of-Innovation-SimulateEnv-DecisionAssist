@@ -357,7 +357,7 @@
               :class="{ active: customSettings.timeoutStrategy === 'random_pure' }"
               @click="customSettings.timeoutStrategy = 'random_pure'"
             >
-              完全随机
+              随机 · 完全
             </button>
             <button
               type="button"
@@ -365,7 +365,7 @@
               :class="{ active: customSettings.timeoutStrategy === 'random_fast_action' }"
               @click="customSettings.timeoutStrategy = 'random_fast_action'"
             >
-              经快速行动优化的随机策略
+              随机 · 经快速行动优化
             </button>
           </div>
         </div>
@@ -1059,7 +1059,7 @@ import { useRouter } from 'vue-router'
 import { useGameStore } from '../stores/game'
 import Modal from '../components/Modal.vue'
 import StrategyPickerModal from '../components/StrategyPickerModal.vue'
-import { STRATEGY_OPTIONS } from '../constants/strategies.js'
+import { STRATEGY_OPTIONS, SUPPORTED_STRATEGY_IDS } from '../constants/strategies.js'
 import {
   getFinalScoringSelectionSpriteStyleByBackendId,
   getRoundBoosterFrontSpriteStyleByBackendId,
@@ -1076,8 +1076,8 @@ const router = useRouter()
 const gameStore = useGameStore()
 
 const gameModes = [
-  { value: 'standard', name: '标准模式', desc: '45min 基础时间 + 45s 读秒\n超时采用经快速行动优化的随机策略', icon: 'fas fa-chess' },
-  { value: 'quick', name: '快速模式', desc: '25min 基础时间 + 25s 读秒\n超时采用经快速行动优化的随机策略', icon: 'fas fa-bolt' },
+  { value: 'standard', name: '标准模式', desc: '45min 基础时间 + 45s 读秒\n超时采用随机 · 经快速行动优化', icon: 'fas fa-chess' },
+  { value: 'quick', name: '快速模式', desc: '25min 基础时间 + 25s 读秒\n超时采用随机 · 经快速行动优化', icon: 'fas fa-bolt' },
   { value: 'custom', name: '自定义', desc: '自由配置各项参数', icon: 'fas fa-cogs' }
 ]
 
@@ -1986,8 +1986,18 @@ async function handleSubmit() {
         alert(`玩家 ${i + 1} 未输入ID，请输入玩家ID`)
         return
       }
+    } else if (player.type === 'ai') {
+      // AI玩家必须选择合法策略
+      if (!player.strategy) {
+        alert(`玩家 ${i + 1} 为电脑玩家，但尚未选择策略。请选择"随机 · 完全"或"随机 · 经快速行动优化"`)
+        return
+      }
+      if (!SUPPORTED_STRATEGY_IDS.has(player.strategy)) {
+        const strategyLabel = getStrategyName(player.strategy) || player.strategy
+        alert(`玩家 ${i + 1} 当前选择的策略"${strategyLabel}"暂不可用。\n\n目前仅支持以下策略：\n• 随机 · 完全\n• 随机 · 经快速行动优化\n\n请选择其他可用策略。`)
+        return
+      }
     }
-    // AI玩家策略检查（预留，默认通过）
   }
 
   // 2. 检查游戏模式（预留，默认通过）
@@ -2708,6 +2718,10 @@ onMounted(() => {
 .strategy-btn span {
   text-align: left;
   line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
 }
 
 .strategy-btn .fa-chevron-right {

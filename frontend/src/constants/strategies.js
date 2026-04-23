@@ -14,93 +14,24 @@ export const STRATEGY_GROUPS = Object.freeze([
     options: [
       {
         id: 'random_pure',
-        label: '完全随机',
+        label: '随机 · 完全',
         description: '在所有可用行动中均匀随机选择',
-        icon: 'fas fa-shuffle'
+        icon: 'fas fa-shuffle',
+        isAvailable: true
       },
       {
         id: 'random_fast_action',
-        label: '快速随机',
+        label: '随机 · 经快速行动优化',
         description: '优先选择可快速执行的行动',
-        icon: 'fas fa-bolt'
+        icon: 'fas fa-bolt',
+        isAvailable: true
       },
       {
         id: 'random_weighted',
-        label: '加权随机',
+        label: '随机 · 加权',
         description: '根据权重偏向更优行动',
-        icon: 'fas fa-scale-balanced'
-      },
-      {
-        id: 'random_placeholder_1',
-        label: '占位策略 1',
-        description: '预留策略位置，待后续实现',
-        icon: 'fas fa-circle'
-      },
-      {
-        id: 'random_placeholder_2',
-        label: '占位策略 2',
-        description: '预留策略位置，待后续实现',
-        icon: 'fas fa-circle'
-      },
-      {
-        id: 'random_placeholder_3',
-        label: '占位策略 3',
-        description: '预留策略位置，待后续实现',
-        icon: 'fas fa-circle'
-      },
-      {
-        id: 'random_placeholder_4',
-        label: '占位策略 4',
-        description: '预留策略位置，待后续实现',
-        icon: 'fas fa-circle'
-      },
-      {
-        id: 'random_placeholder_5',
-        label: '占位策略 5',
-        description: '预留策略位置，待后续实现',
-        icon: 'fas fa-circle'
-      },
-      {
-        id: 'random_placeholder_6',
-        label: '占位策略 6',
-        description: '预留策略位置，待后续实现',
-        icon: 'fas fa-circle'
-      },
-      {
-        id: 'random_placeholder_7',
-        label: '占位策略 7',
-        description: '预留策略位置，待后续实现',
-        icon: 'fas fa-circle'
-      },
-      {
-        id: 'random_placeholder_8',
-        label: '占位策略 8',
-        description: '预留策略位置，待后续实现',
-        icon: 'fas fa-circle'
-      },
-      {
-        id: 'random_placeholder_9',
-        label: '占位策略 9',
-        description: '预留策略位置，待后续实现',
-        icon: 'fas fa-circle'
-      },
-      {
-        id: 'random_placeholder_10',
-        label: '占位策略 10',
-        description: '预留策略位置，待后续实现',
-        icon: 'fas fa-circle'
-      },
-      {
-        id: 'random_placeholder_11',
-        label: '占位策略 11',
-        description: '预留策略位置，待后续实现',
-        icon: 'fas fa-circle'
-      },
-      {
-        id: 'random_placeholder_12',
-        label: '占位策略 12',
-        description: '预留策略位置，待后续实现',
-        icon: 'fas fa-circle'
+        icon: 'fas fa-scale-balanced',
+        isAvailable: false
       }
     ]
   },
@@ -114,7 +45,8 @@ export const STRATEGY_GROUPS = Object.freeze([
         id: 'metric_single_step_best',
         label: '单步最优',
         description: '计算当前步骤的最优解',
-        icon: 'fas fa-calculator'
+        icon: 'fas fa-calculator',
+        isAvailable: false
       }
     ]
   },
@@ -128,11 +60,18 @@ export const STRATEGY_GROUPS = Object.freeze([
         id: 'ai_llm_reasoning',
         label: 'LLM 推理',
         description: '使用大语言模型进行推理决策',
-        icon: 'fas fa-brain'
+        icon: 'fas fa-brain',
+        isAvailable: false
       }
     ]
   }
 ])
+
+// 当前支持的后端策略ID
+export const SUPPORTED_STRATEGY_IDS = Object.freeze(new Set([
+  'random_pure',
+  'random_fast_action'
+]))
 
 // 所有策略选项的扁平列表（包含分组信息）
 export const STRATEGY_OPTIONS = Object.freeze(
@@ -145,11 +84,19 @@ export const STRATEGY_OPTIONS = Object.freeze(
   )
 )
 
-// 当前支持的后端策略ID
-export const SUPPORTED_STRATEGY_IDS = Object.freeze(new Set([
-  'random_pure',
-  'random_fast_action'
-]))
+// 前端可选的策略分组（显示所有策略，包括暂不可用的）
+export const SELECTABLE_STRATEGY_GROUPS = Object.freeze(STRATEGY_GROUPS)
+
+// 前端可选的策略选项的扁平列表
+export const SELECTABLE_STRATEGY_OPTIONS = Object.freeze(
+  SELECTABLE_STRATEGY_GROUPS.flatMap((group) =>
+    group.options.map((strategy) => ({
+      ...strategy,
+      groupId: group.id,
+      groupLabel: group.label
+    }))
+  )
+)
 
 // 获取策略图标
 export function getStrategyIcon(strategyId) {

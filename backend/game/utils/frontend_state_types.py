@@ -110,6 +110,8 @@ class PlayerState:
     adjacent_map_ids: List[Tuple[int, int]] = field(default_factory=list)     # 相邻地图坐标列表
     reachable_map_ids: List[Tuple[int, int]] = field(default_factory=list)    # 可达地图坐标列表
     citys_amount: int = 0               # 城市数量
+    settlements_and_cities: Dict[str, List] = field(default_factory=dict)     # 聚落与城市字典 {pos_key: [root_key, is_city]}
+    city_tile_assignments: Dict[str, int] = field(default_factory=dict)       # 城市板块分配 {root_key: city_tile_id}
     booster_ids: List[int] = field(default_factory=list)                      # 拥有的回合助推器ID列表
     ability_tile_ids: List[int] = field(default_factory=list)                 # 拥有的能力瓦片ID列表
     science_tile_ids: List[int] = field(default_factory=list)                 # 拥有的科技瓦片ID列表
@@ -197,6 +199,7 @@ class DisplayBoardState:
     science_tracks: Dict[str, ScienceTrackState] = field(default_factory=dict)  # 四条科技轨状态
     ability_tile_owners: Dict[int, List[int]] = field(default_factory=dict)     # 能力板块拥有者列表（按 owner_list 顺序）
     science_tile_owners: Dict[int, List[int]] = field(default_factory=dict)     # 高科板块拥有者列表（按 owner_list 顺序）
+    city_tile_owners: Dict[int, List[int]] = field(default_factory=dict)        # 城市板块拥有者列表（按 owner_list 顺序）
 
 
 @dataclass
@@ -236,6 +239,7 @@ class ActionHistoryEntry:
     description: str = ""               # 行动描述文本
     selection_source: str = "manual"    # 选择来源（manual / system）
     selection_strategy: str = ""        # 选择策略标识
+    selection_mode: str = ""            # 选择模式（player_choice / accepted / rejected / system）
     action_category: str = ""           # 行动大类（如：选择规划卡、建造、升级等）
     action_subcategory: str = ""        # 行动细类（如：平原、车间等）
     action_detail: str = ""             # 行动细节（额外描述）

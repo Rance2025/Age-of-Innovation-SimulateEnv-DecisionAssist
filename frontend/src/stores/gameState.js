@@ -88,6 +88,8 @@ const createDefaultPlayer = (playerId) => ({
   adjacent_map_ids: [],
   reachable_map_ids: [],
   citys_amount: 0,
+  settlements_and_cities: {},
+  city_tile_assignments: {},
   booster_ids: [],
   ability_tile_ids: [],
   science_tile_ids: [],
@@ -138,7 +140,8 @@ const createDefaultDisplayBoard = () => ({
     medical: { is_crowned: false, meeples: [-1, -1, -1, -1] }
   },
   ability_tile_owners: {},
-  science_tile_owners: {}
+  science_tile_owners: {},
+  city_tile_owners: {}
 })
 
 export const useGameStateStore = defineStore('gameState', () => {
@@ -166,6 +169,9 @@ export const useGameStateStore = defineStore('gameState', () => {
 
   // 可选行动列表
   const availableActions = ref([])
+
+  // 当前行动玩家是否为 AI
+  const isAiPlayer = ref(false)
 
   // 最终得分
   const finalScores = ref(null)
@@ -363,6 +369,7 @@ export const useGameStateStore = defineStore('gameState', () => {
           action_id: action.action_id || action.id || idx,
           description: action.description || action.text || ''
         }))
+        isAiPlayer.value = message.is_ai_player || false
         break
 
       case 'global_status':
@@ -670,6 +677,7 @@ export const useGameStateStore = defineStore('gameState', () => {
     mapState,
     displayBoard,
     availableActions,
+    isAiPlayer,
     finalScores,
     version,
     isConnected,

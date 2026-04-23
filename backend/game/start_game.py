@@ -195,7 +195,8 @@ class GameController:
         action_id: int,
         player_id: Optional[int] = None,
         selection_source: str = 'manual',
-        selection_strategy: Optional[str] = None
+        selection_strategy: Optional[str] = None,
+        selection_mode: Optional[str] = None
     ) -> bool:
         """
         提交行动ID（供前端调用）
@@ -205,6 +206,7 @@ class GameController:
             player_id: 玩家ID（可选，用于验证）
             selection_source: 选择来源（manual / system）
             selection_strategy: 选择策略标识
+            selection_mode: 选择模式（player_choice / accepted / rejected / system）
 
         Returns:
             是否成功提交
@@ -222,13 +224,17 @@ class GameController:
 
         normalized_source = 'system' if selection_source == 'system' else 'manual'
         normalized_strategy = selection_strategy.strip() if isinstance(selection_strategy, str) else None
+        normalized_mode = selection_mode.strip() if isinstance(selection_mode, str) else None
 
         # 将行动ID放入输入队列
-        self._input_queue.put({
+        payload = {
             'action_id': action_id,
             'selection_source': normalized_source,
             'selection_strategy': normalized_strategy
-        })
+        }
+        if normalized_mode:
+            payload['selection_mode'] = normalized_mode
+        self._input_queue.put(payload)
         return True
 
     def _get_action_decision(self, request: ActionRequest) -> Tuple[int, Dict[str, Optional[str]]]:
@@ -272,7 +278,15 @@ class GameController:
         """解析行动决策，不在此处处理计时扣减。"""
         if player_id in self._agents:
             agent = self._agents[player_id]
+            start_time = time.time()
             action_id = agent.get_action(request)
+            elapsed = time.time() - start_time
+            
+            # AI 玩家最小3秒延迟（非阻塞式：游戏线程独立运行）
+            min_delay = 3.0
+            if elapsed < min_delay:
+                time.sleep(min_delay - elapsed)
+            
             strategy_name = getattr(agent, 'strategy_name', None) or getattr(agent, 'name', None) or agent.__class__.__name__
             return action_id, {
                 'selection_source': 'system',
@@ -289,11 +303,16 @@ class GameController:
             action_id = int(payload.get('action_id'))
             selection_source = 'system' if payload.get('selection_source') == 'system' else 'manual'
             selection_strategy = payload.get('selection_strategy')
+            selection_mode = payload.get('selection_mode')
             normalized_strategy = selection_strategy.strip() if isinstance(selection_strategy, str) else None
-            return action_id, {
+            normalized_mode = selection_mode.strip() if isinstance(selection_mode, str) else None
+            metadata = {
                 'selection_source': selection_source,
                 'selection_strategy': normalized_strategy
             }
+            if normalized_mode:
+                metadata['selection_mode'] = normalized_mode
+            return action_id, metadata
 
         return int(payload), {
             'selection_source': 'manual',
@@ -461,7 +480,8 @@ class GameController:
         self.state_manager.record_action_selection_metadata(
             raw_action_index=next_raw_action_index,
             selection_source=metadata.get('selection_source', 'manual') or 'manual',
-            selection_strategy=metadata.get('selection_strategy')
+            selection_strategy=metadata.get('selection_strategy'),
+            selection_mode=metadata.get('selection_mode')
         )
 
     def _push_available_actions(self, request: ActionRequest):
@@ -475,15 +495,18 @@ class GameController:
                 for k, v in request.available_actions.items()
             ]
 
-            self._message_callback({
+            message = {
                 'type': 'actions',
                 'player_id': request.player_id,
+                'is_ai_player': request.player_id in self._agents,
                 'data': {
                     'actions': actions,
                     'count': len(actions),
                     'current_player': request.player_id
                 }
-            })
+            }
+            # print(f"[DEBUG] 推送 actions 消息: {message}")
+            self._message_callback(message)
         except Exception:
             pass
 
@@ -544,6 +567,10 @@ class GameController:
 
             # 游戏主循环
             while not request.is_game_over and self.is_running and not self._stop_event.is_set():
+                # AI 回合也需要推送 actions，让前端知道是 AI 在行动
+                if request.player_id in self._agents:
+                    self._push_available_actions(request)
+
                 # 获取行动ID（从Agent或前端）
                 action_id, selection_metadata = self._get_action_decision(request)
                 self._record_action_selection_metadata(request, selection_metadata)
