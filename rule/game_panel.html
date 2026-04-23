@@ -772,13 +772,13 @@
             .terrain-water { 
                 fill: transparent; 
             }
-            .terrain-plains { fill: #85491D; }
+            .terrain-plains { fill: #946035; }
             .terrain-swamp { fill: #595959; }
-            .terrain-lake { fill: #35a0d5; }
-            .terrain-forest { fill: #37af37; }
-            .terrain-mountain { fill: #a1a1a1; }
-            .terrain-wasteland { fill: #cc2828; }
-            .terrain-desert { fill: #e8e83d; }
+            .terrain-lake { fill: #4aa5d5; }
+            .terrain-forest { fill: #45b045; }
+            .terrain-mountain { fill: #a8a8a8; }
+            .terrain-wasteland { fill: #d94d4d; }
+            .terrain-desert { fill: #e5e55a; }
 
             /* 调整六边形编号样式，使其位于六边形内偏上方 */
             .hex-number {
@@ -1540,7 +1540,7 @@
                                                   L 200 20
                                                   A 180 180 0 0 1 340.73 87.77
                                                   Z
-                                                " fill="#37af37" stroke="rgb(219, 219, 219)" stroke-width="3" />
+                                                " fill="#45b045" stroke="rgb(219, 219, 219)" stroke-width="3" />
                                                 
                                                 <!-- 扇形2：山脉 (51.43° - 102.86°) -->
                                                 <path d="
@@ -1548,7 +1548,7 @@
                                                   L 340.73 87.77
                                                   A 180 180 0 0 1 375.49 240.05
                                                   Z
-                                                " fill="#a1a1a1" stroke="rgb(219, 219, 219)" stroke-width="3" />
+                                                " fill="#a8a8a8" stroke="rgb(219, 219, 219)" stroke-width="3" />
                                                 
                                                 <!-- 扇形3：荒地 (102.86° - 154.29°) -->
                                                 <path d="
@@ -1556,7 +1556,7 @@
                                                   L 375.49 240.05
                                                   A 180 180 0 0 1 278.10 362.17
                                                   Z
-                                                " fill="#cc2828" stroke="rgb(219, 219, 219)" stroke-width="3" />
+                                                " fill="#d94d4d" stroke="rgb(219, 219, 219)" stroke-width="3" />
                                                 
                                                 <!-- 扇形4：沙漠 (154.29° - 205.71°) -->
                                                 <path d="
@@ -1564,7 +1564,7 @@
                                                   L 278.10 362.17
                                                   A 180 180 0 0 1 121.90 362.17
                                                   Z
-                                                " fill="#e8e83d" stroke="rgb(219, 219, 219)" stroke-width="3" />
+                                                " fill="#e5e55a" stroke="rgb(219, 219, 219)" stroke-width="3" />
                                                 
                                                 <!-- 扇形5：平原 (205.71° - 257.14°) -->
                                                 <path d="
@@ -1572,7 +1572,7 @@
                                                   L 121.90 362.17
                                                   A 180 180 0 0 1 24.51 240.05
                                                   Z
-                                                " fill="#85491D" stroke="rgb(219, 219, 219)" stroke-width="3" />
+                                                " fill="#946035" stroke="rgb(219, 219, 219)" stroke-width="3" />
                                                 
                                                 <!-- 扇形6：沼泽 (257.14° - 308.57°) -->
                                                 <path d="
@@ -1588,7 +1588,7 @@
                                                   L 59.27 87.77
                                                   A 180 180 0 0 1 200 20
                                                   Z
-                                                " fill="#35a0d5" stroke="rgb(219, 219, 219)" stroke-width="3" />
+                                                " fill="#4aa5d5" stroke="rgb(219, 219, 219)" stroke-width="3" />
                                                 <!-- #85491D -->
                                                 
                                                 <!-- 内圆（透明填充，白色边框，形成圆环效果） -->
@@ -1600,21 +1600,21 @@
                                             <div class="legend">
                                               <!-- 第1行 -->
                                               <div class="legend-item">
-                                                <div class="color-box" style="background-color: #37af37;"></div>
+                                                <div class="color-box" style="background-color: #45b045;"></div>
                                                 <span>森林</span>
                                               </div>
                                               <div class="legend-item">
-                                                <div class="color-box" style="background-color: #a1a1a1;"></div>
+                                                <div class="color-box" style="background-color: #a8a8a8;"></div>
                                                 <span>山脉</span>
                                               </div>
                                               
                                               <!-- 第2行 -->
                                               <div class="legend-item">
-                                                <div class="color-box" style="background-color: #35a0d5;"></div>
+                                                <div class="color-box" style="background-color: #4aa5d5;"></div>
                                                 <span>湖泊</span>
                                               </div>
                                               <div class="legend-item">
-                                                <div class="color-box" style="background-color: #cc2828;"></div>
+                                                <div class="color-box" style="background-color: #d94d4d;"></div>
                                                 <span>荒地</span>
                                               </div>
                                               
@@ -1624,13 +1624,13 @@
                                                 <span>沼泽</span>
                                               </div>
                                               <div class="legend-item">
-                                                <div class="color-box" style="background-color: #e8e83d;"></div>
+                                                <div class="color-box" style="background-color: #e5e55a;"></div>
                                                 <span>沙漠</span>
                                               </div>    
                                               
                                               <!-- 第4行 -->
                                               <div class="legend-item">
-                                                <div class="color-box" style="background-color: #85491D;"></div>
+                                                <div class="color-box" style="background-color: #946035;"></div>
                                                 <span>平原</span>
                                               </div>
                                               <div class="legend-item">
@@ -2055,13 +2055,13 @@
                             if (circle) {
                                 // 根据规划卡类型设置颜色
                                 const colorMap = {
-                                    "森林": "#37af37",    // 森林 - 绿色
-                                    "湖泊": "#35a0d5",    // 湖泊 - 蓝色
-                                    "沙漠": "#e8e83d",    // 沙漠 - 黄色
-                                    "山脉": "#a1a1a1",    // 山地 - 灰色
-                                    "平原": "#85491D",    // 平原 - 棕色
+                                    "森林": "#45b045",    // 森林 - 绿色
+                                    "湖泊": "#4aa5d5",    // 湖泊 - 蓝色
+                                    "沙漠": "#e5e55a",    // 沙漠 - 黄色
+                                    "山脉": "#a8a8a8",    // 山地 - 灰色
+                                    "平原": "#946035",    // 平原 - 棕色
                                     "沼泽": "#595959",    // 沼泽 - 黑色
-                                    "荒地": "#cc2828",    // 荒地 - 红色
+                                    "荒地": "#d94d4d",    // 荒地 - 红色
                                 };
                                 circle.style.backgroundColor = colorMap[updates.planning_card] || "#ffffff";
                             }

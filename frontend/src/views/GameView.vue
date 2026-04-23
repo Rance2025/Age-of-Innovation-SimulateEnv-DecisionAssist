@@ -445,31 +445,31 @@
                           >
                             <path
                               d="M 200 200 L 200 20 A 180 180 0 0 1 340.73 87.77 Z"
-                              fill="#37af37"
+                              fill="#45b045"
                               stroke="rgb(219, 219, 219)"
                               stroke-width="3"
                             />
                             <path
                               d="M 200 200 L 340.73 87.77 A 180 180 0 0 1 375.49 240.05 Z"
-                              fill="#a1a1a1"
+                              fill="#a8a8a8"
                               stroke="rgb(219, 219, 219)"
                               stroke-width="3"
                             />
                             <path
                               d="M 200 200 L 375.49 240.05 A 180 180 0 0 1 278.10 362.17 Z"
-                              fill="#cc2828"
+                              fill="#d94d4d"
                               stroke="rgb(219, 219, 219)"
                               stroke-width="3"
                             />
                             <path
                               d="M 200 200 L 278.10 362.17 A 180 180 0 0 1 121.90 362.17 Z"
-                              fill="#e8e83d"
+                              fill="#e5e55a"
                               stroke="rgb(219, 219, 219)"
                               stroke-width="3"
                             />
                             <path
                               d="M 200 200 L 121.90 362.17 A 180 180 0 0 1 24.51 240.05 Z"
-                              fill="#85491D"
+                              fill="#946035"
                               stroke="rgb(219, 219, 219)"
                               stroke-width="3"
                             />
@@ -481,7 +481,7 @@
                             />
                             <path
                               d="M 200 200 L 59.27 87.77 A 180 180 0 0 1 200 20 Z"
-                              fill="#35a0d5"
+                              fill="#4aa5d5"
                               stroke="rgb(219, 219, 219)"
                               stroke-width="3"
                             />
@@ -497,19 +497,19 @@
                         </div>
                         <div class="legend">
                           <div class="legend-item">
-                            <div class="color-box" style="background-color: #37af37"></div>
+                            <div class="color-box" style="background-color: #45b045"></div>
                             <span>森林</span>
                           </div>
                           <div class="legend-item">
-                            <div class="color-box" style="background-color: #a1a1a1"></div>
+                            <div class="color-box" style="background-color: #a8a8a8"></div>
                             <span>山脉</span>
                           </div>
                           <div class="legend-item">
-                            <div class="color-box" style="background-color: #35a0d5"></div>
+                            <div class="color-box" style="background-color: #4aa5d5"></div>
                             <span>湖泊</span>
                           </div>
                           <div class="legend-item">
-                            <div class="color-box" style="background-color: #cc2828"></div>
+                            <div class="color-box" style="background-color: #d94d4d"></div>
                             <span>荒地</span>
                           </div>
                           <div class="legend-item">
@@ -517,11 +517,11 @@
                             <span>沼泽</span>
                           </div>
                           <div class="legend-item">
-                            <div class="color-box" style="background-color: #e8e83d"></div>
+                            <div class="color-box" style="background-color: #e5e55a"></div>
                             <span>沙漠</span>
                           </div>
                           <div class="legend-item">
-                            <div class="color-box" style="background-color: #85491d"></div>
+                            <div class="color-box" style="background-color: #946035"></div>
                             <span>平原</span>
                           </div>
                           <div class="legend-item">
@@ -1632,13 +1632,13 @@ const TERRAIN_TYPES = {
 // 地形颜色映射 - 与 game_panel.html 保持一致
 const TERRAIN_COLORS = {
   0: 'transparent',   // 水域 - 透明
-  1: '#85491D',       // 平原 - 棕色
+  1: '#946035',       // 平原 - 棕色
   2: '#595959',       // 沼泽 - 黑色
-  3: '#35a0d5',       // 湖泊 - 蓝色
-  4: '#37af37',       // 森林 - 绿色
-  5: '#a1a1a1',       // 山脉 - 灰色
-  6: '#cc2828',       // 荒地 - 红色
-  7: '#e8e83d'        // 沙漠 - 黄色
+  3: '#4aa5d5',       // 湖泊 - 蓝色
+  4: '#45b045',       // 森林 - 绿色
+  5: '#a8a8a8',       // 山脉 - 灰色
+  6: '#d94d4d',       // 荒地 - 红色
+  7: '#e5e55a'        // 沙漠 - 黄色
 }
 
 // 初始地形数据 - 与 game_panel.html 保持一致
@@ -2407,7 +2407,7 @@ const currentActionPlayerColor = computed(() => {
     return '#94a3b8'
   }
 
-  return currentActionPlayerId.value === null ? '#64748b' : getCurrentActionOwnerColor(currentActionPlayerId.value)
+  return currentActionPlayerId.value === null ? 'transparent' : getCurrentActionOwnerColor(currentActionPlayerId.value)
 })
 const currentActionModeLabel = computed(() => {
   if (gameMeta.is_game_over) {
@@ -2617,7 +2617,7 @@ const planningCardIdToName = {
 
 const planningCardIdToColor = {
   1: '#85491d',
-  2: '#6b6b6b',
+  2: '#3a3a3a',
   3: '#35a0d5',
   4: '#37af37',
   5: '#a1a1a1',
@@ -4268,7 +4268,7 @@ function getActionLogPlayerColor(playerId) {
 
 function getCurrentActionOwnerColor(playerId) {
   const resolvedPlanningColor = getPlayerResolvedPlanningColor(playerId)
-  return resolvedPlanningColor === 'transparent' ? '#64748b' : resolvedPlanningColor
+  return resolvedPlanningColor === 'transparent' ? 'transparent' : resolvedPlanningColor
 }
 
 function expandCurrentActionPlayerCard(playerId = currentActionPlayerId.value) {
@@ -5932,8 +5932,8 @@ function placeElement(hexRow, hexCol, colorId, buildingId, mode = 'replace', ren
   const spriteCol = SPECIAL_BUILDINGS.has(normalizedBuildingId) ? 7 : (COLOR_TO_SPRITE_COL[normalizedColorId] ?? 7)
   const spriteRow = BUILDING_TO_SPRITE_ROW[normalizedBuildingId] ?? 0
 
-  const displayWidth = 40
-  const displayHeight = 46
+  const displayWidth = 38
+  const displayHeight = 44
 
   if (renderToken !== null && !isLatestBuildingRender(hexRow, hexCol, renderToken)) {
     return false
@@ -9329,7 +9329,10 @@ onUnmounted(() => {
   height: 11px;
   border-radius: 50%;
   flex-shrink: 0;
+  align-self: center;
+  display: inline-block;
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .action-mode-chip {
@@ -10501,13 +10504,13 @@ onUnmounted(() => {
 
 /* 地形颜色类 */
 .terrain-water { fill: transparent; }
-.terrain-plains { fill: #85491D; }
+.terrain-plains { fill: #946035; }
 .terrain-swamp { fill: #595959; }
-.terrain-lake { fill: #35a0d5; }
-.terrain-forest { fill: #37af37; }
-.terrain-mountain { fill: #a1a1a1; }
-.terrain-wasteland { fill: #cc2828; }
-.terrain-desert { fill: #e8e83d; }
+.terrain-lake { fill: #4aa5d5; }
+.terrain-forest { fill: #45b045; }
+.terrain-mountain { fill: #a8a8a8; }
+.terrain-wasteland { fill: #d94d4d; }
+.terrain-desert { fill: #e5e55a; }
 
 /* 六边形编号样式 */
 .hex-number {
