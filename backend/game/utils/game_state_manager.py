@@ -192,10 +192,6 @@ class GameStateManager:
             new_state = self._extract_state_from_request(request)
             diffs = self._calculate_optimized_diff(self._last_pushed_state, new_state)
 
-            # 打印 diff 中是否包含 city_tile_assignments 变化
-            city_tile_diffs = [d for d in diffs if 'city_tile_assignments' in d.path]
-            self._logger.info(f"[CityTile] Diff after match: {len(city_tile_diffs)} city_tile_assignments changes, total diffs: {len(diffs)}")
-
         # Step 3: 更新当前状态
         self._current_state = new_state
         self._version += 1
@@ -1035,7 +1031,7 @@ class GameStateManager:
         old_players = old_state.get('players', [])
 
         # Step 1: 检测 settlements_and_cities 新增的城市根节点
-        new_establishments = []
+        has_new_data = False
         for player_idx, player_data in enumerate(new_players):
             player_id = player_data.get('player_id', player_idx)
             old_sac = old_players[player_idx].get('settlements_and_cities', {}) if player_idx < len(old_players) else {}
@@ -1044,12 +1040,10 @@ class GameStateManager:
             for pos_key, value in new_sac.items():
                 is_new_establishment = False
                 if pos_key not in old_sac:
-                    # 新增条目，检查是否是根节点且 is_city=True
                     root_key, is_city = value[0], value[1]
                     if root_key == pos_key and is_city:
                         is_new_establishment = True
                 elif old_sac.get(pos_key) != value:
-                    # 已有条目变更，检查是否变为城市
                     old_root, old_is_city = old_sac[pos_key][0], old_sac[pos_key][1]
                     new_root, new_is_city = value[0], value[1]
                     if not old_is_city and new_is_city and new_root == pos_key:
@@ -1059,17 +1053,12 @@ class GameStateManager:
                     self._city_establishment_log.setdefault(player_id, []).append(
                         (pos_key, current_ah_length)
                     )
-                    new_establishments.append((player_id, pos_key, current_ah_length))
-                    self._logger.info(f"[CityTile][Root] 新增城市根节点: player={player_id}, pos={pos_key}, ah_length={current_ah_length}")
-
-        if not new_establishments:
-            self._logger.info(f"[CityTile][Root] 本次无新增城市根节点 (ah_length={current_ah_length})")
+                    has_new_data = True
 
         # Step 2: 检测 city_tile_owners 新增的 owner
         old_owners = old_state.get('display_board', {}).get('city_tile_owners', {})
         new_owners = new_state.get('display_board', {}).get('city_tile_owners', {})
 
-        new_acquisitions = []
         for tile_id_str, new_owner_list in new_owners.items():
             tile_id = int(tile_id_str)
             old_owner_list = old_owners.get(tile_id_str, [])
@@ -1079,40 +1068,46 @@ class GameStateManager:
                 self._city_tile_acquisition_log.setdefault(player_id, []).append(
                     (tile_id, current_ah_length)
                 )
-                new_acquisitions.append((player_id, tile_id, current_ah_length))
-                self._logger.info(f"[CityTile][Owner] 新增板块持有者: player={player_id}, tile_id={tile_id}, ah_length={current_ah_length}")
+                has_new_data = True
 
-        if not new_acquisitions:
-            self._logger.info(f"[CityTile][Owner] 本次无新增板块持有者 (ah_length={current_ah_length})")
+        # 如果没有新增数据，跳过匹配
+        if not has_new_data and not self._city_establishment_log and not self._city_tile_acquisition_log:
+            return
 
-        # Step 3: 匹配检查（无论前面两步是否有新数据，每次都执行）
+        # Step 3: 匹配检查
         all_player_ids = set(self._city_establishment_log.keys()) | set(self._city_tile_acquisition_log.keys())
-        match_count = 0
         for player_id in all_player_ids:
             establishment_log = self._city_establishment_log.get(player_id, [])
             acquisition_log = self._city_tile_acquisition_log.get(player_id, [])
             
-            self._logger.info(f"[CityTile][Match] player={player_id}, establishment_log={establishment_log}, acquisition_log={acquisition_log}")
+            # 记录已匹配的索引
+            matched_est_indices = set()
+            matched_acq_indices = set()
             
-            for est_pos_key, est_ah_length in establishment_log:
-                matched = False
+            for est_idx, (est_pos_key, est_ah_length) in enumerate(establishment_log):
                 # 查找同一玩家中 ah_length 恰好为 est_ah_length + 1 的板块获取记录
-                for acq_tile_id, acq_ah_length in acquisition_log:
+                for acq_idx, (acq_tile_id, acq_ah_length) in enumerate(acquisition_log):
                     if acq_ah_length == est_ah_length + 1:
-                        # 匹配成功，加入 assignments
                         self._city_tile_assignments.setdefault(player_id, {})[est_pos_key] = acq_tile_id
-                        match_count += 1
-                        matched = True
-                        self._logger.info(f"[CityTile][Match] 匹配成功: player={player_id}, pos={est_pos_key}, tile_id={acq_tile_id}, est_ah={est_ah_length}, acq_ah={acq_ah_length}")
+                        matched_est_indices.add(est_idx)
+                        matched_acq_indices.add(acq_idx)
                         break
-                
-                if not matched:
-                    self._logger.info(f"[CityTile][Match] 匹配失败: player={player_id}, pos={est_pos_key}, est_ah={est_ah_length}, 无对应 ah_length+1 的板块获取记录")
-
-        if match_count == 0 and all_player_ids:
-            self._logger.info(f"[CityTile][Match] 本次未产生任何匹配 (ah_length={current_ah_length})")
-
-        self._logger.info(f"[CityTile][State] _city_tile_assignments={self._city_tile_assignments}")
+            
+            # 清理已匹配的记录（从后往前删除）
+            if matched_est_indices:
+                for idx in sorted(matched_est_indices, reverse=True):
+                    del establishment_log[idx]
+                if establishment_log:
+                    self._city_establishment_log[player_id] = establishment_log
+                else:
+                    del self._city_establishment_log[player_id]
+            if matched_acq_indices:
+                for idx in sorted(matched_acq_indices, reverse=True):
+                    del acquisition_log[idx]
+                if acquisition_log:
+                    self._city_tile_acquisition_log[player_id] = acquisition_log
+                else:
+                    del self._city_tile_acquisition_log[player_id]
 
         # Step 4: 处理根节点路径压缩导致的匹配迁移
         for player_id, assignments in list(self._city_tile_assignments.items()):
@@ -1128,13 +1123,10 @@ class GameStateManager:
                 if pos_key in sac:
                     root_key = sac[pos_key][0]
                     if sac.get(root_key, [None, False])[1]:
-                        # 根节点仍是城市，更新到当前根节点
                         new_assignments[root_key] = tile_id
                     else:
-                        # 根节点不再是城市（异常情况），保留原记录
                         new_assignments[pos_key] = tile_id
                 else:
-                    # 该坐标不在 settlements_and_cities 中，保留原记录
                     new_assignments[pos_key] = tile_id
             self._city_tile_assignments[player_id] = new_assignments
     

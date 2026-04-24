@@ -14,6 +14,25 @@
 - 验证方式：
   - 
 
+## 0.9.5.43
+- 日期：`2026-04-24`
+- 分支：`main`
+- 影响范围：
+  - `frontend/src/views/GameView.vue`
+  - `backend/game/utils/game_state_manager.py`
+- 更新内容：
+  - `ui: 将城市板块尺寸从 35×40 调整为 25×28`
+  - `ui: 调整城市板块偏移位置，使其位于主建筑右上方`
+  - `fix: 恢复 canvas imageSmoothingEnabled 为 true，统一城市板块和侧楼渲染逻辑`
+  - `ui: 将城市板块垂直偏移从 -1.45 倍高度调整为 -1.05 倍，继续下移`
+  - `refactor: 删除后端 game_state_manager.py 中城市板块排查相关日志，清理控制台输出`
+  - `perf: 优化 _update_city_tile_matches 性能，只在有新增建城或板块持有者时才执行匹配，避免空转`
+  - `perf: 匹配成功后立即从 _city_establishment_log 和 _city_tile_acquisition_log 中删除已匹配记录，避免重复匹配和内存泄漏`
+  - `refactor: 遵循第一性原理保留最小实现，仅保留3处核心修复`
+- 验证方式：
+  - `cd frontend && npm run build`
+  - `cd backend && python -c "from game.utils.game_state_manager import GameStateManager; print('OK')"`
+
 ## 0.9.5.42
 - 日期：`2026-04-24`
 - 分支：`main`
@@ -33,6 +52,15 @@
   - `fix: 修复城市板块增量匹配时机，确保每次状态更新都执行完整三步检测与匹配流程`
   - `fix: 匹配规则严格遵循 action_history 长度差值为1，同一玩家前后连续两动才能匹配`
   - `fix: 未匹配记录保留在 log 中不删除，供后续更新时继续尝试匹配`
+  - `fix: 修复 city_tile_assignments 更新延迟问题，_update_city_tile_matches 后重新提取状态，确保 diff 包含最新 city_tile_assignments`
+  - `fix: 前端增量更新渲染触发逻辑，city_tile_assignments 变更时直接从路径解析坐标触发重渲染，不再依赖 controlled_map_ids`
+  - `fix: 修复 getCityTileIdForCell 中 controller=0 被误判为无效的 bug（JavaScript 中 0 是 falsy，!0 为 true）`
+  - `feat: 后端 _update_city_tile_matches 添加详细日志（根节点检测、板块持有者检测、匹配成功/失败、当前状态）`
+  - `feat: 前端 GameView.vue 添加城市板块相关日志（getCityTileIdForCell、applyGameViewChange、renderBuildingForCell、SSE incremental）`
+  - `refactor: 删除所有城市板块排查日志，清理前后端控制台输出`
+  - `perf: 优化 _update_city_tile_matches 性能，只在有新增建城或板块持有者时才执行匹配，避免空转`
+  - `perf: 匹配成功后立即从 _city_establishment_log 和 _city_tile_acquisition_log 中删除已匹配记录，避免重复匹配和内存泄漏`
+  - `refactor: 遵循第一性原理保留最小实现，仅保留3处核心修复`
 - 验证方式：
   - `cd frontend && npm run build`
   - `cd backend && python -c "from game.utils.game_state_manager import GameStateManager; print('OK')"`

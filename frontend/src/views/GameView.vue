@@ -2107,6 +2107,53 @@ function drawSpriteCell(canvas, col, row, width, height) {
   drawSprite(canvas, col * SPRITE_CELL_WIDTH, row * SPRITE_CELL_HEIGHT, SPRITE_CELL_WIDTH, SPRITE_CELL_HEIGHT, width, height)
 }
 
+function drawRotatedBridge(canvas, spriteCol, spriteRow, displayWidth, displayHeight, rotationAngle) {
+  if (!canvas) return
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+
+  const dpr = window.devicePixelRatio || 1
+  canvas.width = Math.round(displayWidth * dpr)
+  canvas.height = Math.round(displayHeight * dpr)
+  canvas.style.width = displayWidth + 'px'
+  canvas.style.height = displayHeight + 'px'
+
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+  const doDraw = () => {
+    ctx.save()
+    // 移动到 canvas 中心并旋转
+    ctx.translate(canvas.width / 2, canvas.height / 2)
+    ctx.rotate(rotationAngle * Math.PI / 180)
+    ctx.scale(dpr, dpr)
+    // 以中心为原点绘制桥梁切片
+    ctx.drawImage(
+      spriteSheet,
+      spriteCol * SPRITE_CELL_WIDTH,
+      spriteRow * SPRITE_CELL_HEIGHT,
+      SPRITE_CELL_WIDTH,
+      SPRITE_CELL_HEIGHT,
+      -displayWidth / 2,
+      -displayHeight / 2,
+      displayWidth,
+      displayHeight
+    )
+    ctx.restore()
+  }
+
+  if (spriteSheet.complete && spriteSheet.naturalWidth !== 0) {
+    doDraw()
+  } else {
+    const onLoad = () => {
+      doDraw()
+      spriteSheet.removeEventListener('load', onLoad)
+    }
+    spriteSheet.addEventListener('load', onLoad)
+  }
+}
+
 const recommendedActionStrategyId = ref('')
 const controlCenterPendingMode = ref('')
 const actionLogFilterModalOpen = ref(false)
@@ -5201,8 +5248,6 @@ function renderBuildingForCell(row, col) {
   const hasAnnex = cell.has_annex
   const cityTileId = getCityTileIdForCell(row, col)
 
-  console.log(`[CityTile][Frontend] renderBuildingForCell(${row},${col}): hasMainBuilding=${hasMainBuilding}, hasAnnex=${hasAnnex}, cityTileId=${cityTileId}`)
-
   if (!hasMainBuilding && !hasAnnex && !cityTileId) {
     return
   }
@@ -5804,13 +5849,17 @@ function renderBridgeIndicators() {
   const bridges = mapState.bridges || {}
 
   for (const [bridgeKey, owner] of Object.entries(bridges)) {
-    if (owner !== -1) continue // 只渲染未建造的桥
-
-    // 解析 "((0, 2), (1, 0))" → [[0,2], [1,0]]
-    const match = bridgeKey.match(/\(\s*(\d+)\s*,\s*(\d+)\s*\)/g)
-    if (!match || match.length !== 2) continue
-    const [r1, c1] = match[0].slice(1, -1).split(',').map(Number)
-    const [r2, c2] = match[1].slice(1, -1).split(',').map(Number)
+    // 解析桥键坐标（兼容带或不带双引号的格式）
+    const cleanKey = bridgeKey.replace(/^"|"$/g, '')
+    const coords = []
+    const regex = /(\d+),\s*(\d+)/g
+    let m
+    while ((m = regex.exec(cleanKey)) !== null) {
+      coords.push([Number(m[1]), Number(m[2])])
+    }
+    if (coords.length !== 2) continue
+    const [r1, c1] = coords[0]
+    const [r2, c2] = coords[1]
 
     const idx = getBridgeVertexIndices(r1, c1, r2, c2)
     if (!idx) continue
@@ -5818,30 +5867,64 @@ function renderBridgeIndicators() {
     const p1 = getHexVertices(r1, c1)[idx.v1]
     const p2 = getHexVertices(r2, c2)[idx.v2]
 
-    // 计算垂直偏移绘制双横线
-    const dx = p2.x - p1.x
-    const dy = p2.y - p1.y
-    const len = Math.sqrt(dx * dx + dy * dy)
-    if (len === 0) continue
-
-    const perpX = -dy / len * 3 // 3px偏移，6px总间距
-    const perpY = dx / len * 3
+    const midX = (p1.x + p2.x) / 2
+    const midY = (p1.y + p2.y) / 2
 
     const group = document.createElementNS('http://www.w3.org/2000/svg', 'g')
     group.setAttribute('class', 'bridge-indicator')
-    group.setAttribute('data-bridge', bridgeKey)
+    group.setAttribute('data-bridge', cleanKey)
 
-    for (const sign of [1, -1]) {
-      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line')
-      line.setAttribute('x1', p1.x + perpX * sign)
-      line.setAttribute('y1', p1.y + perpY * sign)
-      line.setAttribute('x2', p2.x + perpX * sign)
-      line.setAttribute('y2', p2.y + perpY * sign)
-      line.setAttribute('stroke', '#aaaaaa')
-      line.setAttribute('stroke-width', '2')
-      line.setAttribute('opacity', '0.7')
-      line.setAttribute('stroke-linecap', 'round')
-      group.appendChild(line)
+    if (owner === -1) {
+      // ========== 未建造桥梁：灰色双横线 ==========
+      const dx = p2.x - p1.x
+      const dy = p2.y - p1.y
+      const len = Math.sqrt(dx * dx + dy * dy)
+      if (len === 0) continue
+
+      const perpX = -dy / len * 3 // 3px偏移，6px总间距
+      const perpY = dx / len * 3
+
+      for (const sign of [1, -1]) {
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line')
+        line.setAttribute('x1', p1.x + perpX * sign)
+        line.setAttribute('y1', p1.y + perpY * sign)
+        line.setAttribute('x2', p2.x + perpX * sign)
+        line.setAttribute('y2', p2.y + perpY * sign)
+        line.setAttribute('stroke', '#aaaaaa')
+        line.setAttribute('stroke-width', '2')
+        line.setAttribute('opacity', '0.7')
+        line.setAttribute('stroke-linecap', 'round')
+        group.appendChild(line)
+      }
+    } else {
+      // ========== 已建造桥梁：带玩家颜色的桥图片 ==========
+      const player = players.value[owner]
+      const planningCardId = player?.planningCardId || (owner + 1)
+      const spriteCol = COLOR_TO_SPRITE_COL[planningCardId] ?? 7
+      const spriteRow = 7 // 桥梁在第8行
+
+      // 计算旋转角度：方向角度 - 精灵图基准角度（18.8度）
+      const directionAngle = idx.v1 * 60 - 30
+      const rotationAngle = directionAngle - 18.8
+
+      // 使用足够大的 canvas 避免旋转后裁剪
+      const displaySize = 50
+
+      const foreignObject = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject')
+      foreignObject.setAttribute('x', midX - displaySize / 2)
+      foreignObject.setAttribute('y', midY - displaySize / 2)
+      foreignObject.setAttribute('width', displaySize)
+      foreignObject.setAttribute('height', displaySize)
+      foreignObject.setAttribute('class', 'bridge-built')
+
+      const canvas = document.createElement('canvas')
+      canvas.setAttribute('width', String(displaySize))
+      canvas.setAttribute('height', String(displaySize))
+
+      drawRotatedBridge(canvas, spriteCol, spriteRow, displaySize, displaySize, rotationAngle)
+
+      foreignObject.appendChild(canvas)
+      group.appendChild(foreignObject)
     }
 
     bridgesLayer.appendChild(group)
@@ -6104,7 +6187,7 @@ function placeElement(hexRow, hexCol, colorId, buildingId, mode = 'replace', ren
 
 function getCityTileIdForCell(row, col) {
   const cell = ensureMapCell(row, col)
-  if (!cell.controller || cell.controller < 0) return null
+  if (cell.controller == null || cell.controller < 0) return null
 
   const player = players.value[cell.controller]
   if (!player) return null
@@ -6118,9 +6201,7 @@ function getCityTileIdForCell(row, col) {
     const [rootKey, isCity] = sac[posKey]
     // 必须是根节点（自己是自己的根）且是城市
     if (rootKey === posKey && isCity) {
-      const tileId = assignments[posKey] || null
-      console.log(`[CityTile][Frontend] getCityTileIdForCell(${row},${col}): sac=${JSON.stringify(sac[posKey])}, assignment=${tileId}, all_assignments=${JSON.stringify(assignments)}`)
-      return tileId
+      return assignments[posKey] || null
     }
   }
 
@@ -6188,12 +6269,12 @@ function placeCityTile(hexRow, hexCol, cityTileId, renderToken) {
   const centerX = bbox.x + bbox.width / 2
   const bottomY = bbox.y + bbox.height * 0.85
 
-  const displayWidth = 35
-  const displayHeight = 40
+  const displayWidth = 25
+  const displayHeight = 28
 
   // 右上方偏移（与侧楼对称）
-  const offsetX = displayWidth * 0.4
-  const offsetY = -displayHeight * 0.4
+  const offsetX = displayWidth * 0.55
+  const offsetY = -displayHeight * 1.05
 
   const x = centerX - displayWidth / 2 + offsetX
   const y = bottomY - displayHeight + offsetY
@@ -6766,16 +6847,6 @@ function handleSSEMessage(message) {
       // 增量更新 - 应用变更到本地状态
       console.log('[SSE] 收到增量更新, changes:', message.changes?.length || 0)
       if (message.changes) {
-        // 检查是否有 available_actions 更新
-        const actionsChange = message.changes.find(c => c.path === 'available_actions')
-        if (actionsChange) {
-          console.log('[SSE] 发现 available_actions 更新:', actionsChange.new_value)
-        }
-        // 检查是否有 city_tile_assignments 更新
-        const cityTileChanges = message.changes.filter(c => c.path.includes('city_tile_assignments'))
-        if (cityTileChanges.length > 0) {
-          console.log('[CityTile][Frontend] SSE 收到 city_tile_assignments 更新:', cityTileChanges)
-        }
         applyIncrementalChanges(message.changes)
         updateStateVersion(message.version)
       }
@@ -6863,16 +6934,26 @@ function applyGameViewChange(path, value, changeType, pendingBuildingRenders = n
     if (playerIdx >= 0 && playerIdx < players.value.length) {
       applyPlayerFieldChange(players.value[playerIdx], keys.slice(2), value, changeType)
 
-      // 如果是 settlements_and_cities 或 city_tile_assignments 变更，触发该玩家所有控制地块重渲染
+      // 如果是 settlements_and_cities 或 city_tile_assignments 变更，触发对应地块重渲染
       if (keys.length >= 3) {
         const fieldName = keys[2]
         if (fieldName === 'settlements_and_cities' || fieldName === 'city_tile_assignments') {
-          console.log(`[CityTile][Frontend] applyGameViewChange: player=${playerIdx}, field=${fieldName}, path=${path}, value=${JSON.stringify(value)}, changeType=${changeType}`)
-          const player = players.value[playerIdx]
-          if (player?.controlled_map_ids) {
-            for (const mapId of player.controlled_map_ids) {
-              if (Array.isArray(mapId) && mapId.length === 2) {
-                triggerBuildingRender(mapId[0], mapId[1], pendingBuildingRenders)
+          // city_tile_assignments 的变更路径格式：players[X].city_tile_assignments.ROW,COL
+          //  settlements_and_cities 的变更路径格式：players[X].settlements_and_cities.ROW,COL
+          if (keys.length >= 4) {
+            const posKey = keys[3]
+            const [row, col] = posKey.split(',').map((v) => Number.parseInt(v, 10))
+            if (Number.isInteger(row) && Number.isInteger(col)) {
+              triggerBuildingRender(row, col, pendingBuildingRenders)
+            }
+          } else {
+            // 全量替换（路径只到字段级别），遍历该玩家所有控制地块
+            const player = players.value[playerIdx]
+            if (player?.controlled_map_ids) {
+              for (const mapId of player.controlled_map_ids) {
+                if (Array.isArray(mapId) && mapId.length === 2) {
+                  triggerBuildingRender(mapId[0], mapId[1], pendingBuildingRenders)
+                }
               }
             }
           }
@@ -6963,7 +7044,7 @@ function applyGameViewChange(path, value, changeType, pendingBuildingRenders = n
   }
 
   if (rootKey === 'map_state' && keys.length >= 3 && keys[1] === 'bridges') {
-    const bridgeKey = keys[2]
+    const bridgeKey = keys[2].replace(/^"|"$/g, '')
     if (changeType === 'removed') {
       delete mapState.bridges[bridgeKey]
     } else {
@@ -7090,7 +7171,7 @@ function applySingleChange(path, value, changeType) {
         }
       }
     } else if (keys[1] === 'bridges') {
-      const bridgeKey = keys[2]
+      const bridgeKey = keys[2].replace(/^"|"$/g, '')
       if (changeType === 'removed') {
         delete mapState.bridges[bridgeKey]
       } else {
@@ -10656,6 +10737,15 @@ onUnmounted(() => {
 /* 桥梁指示器 */
 .bridge-indicator {
   pointer-events: none;
+}
+
+.bridge-built {
+  pointer-events: none;
+  overflow: visible;
+}
+
+.bridge-built canvas {
+  display: block;
 }
 
 </style>
