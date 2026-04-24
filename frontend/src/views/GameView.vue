@@ -5739,7 +5739,7 @@ function generateHexMap() {
   const verticalSpacing = hexSize * 1.5
 
   // 计算网格总尺寸
-  const gridWidth = cols * horizontalSpacing + hexSize
+  const gridWidth = cols * horizontalSpacing + hexSize + 2
   const gridHeight = rows * verticalSpacing + hexSize
 
   // 设置SVG的viewBox

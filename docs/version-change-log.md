@@ -6,6 +6,17 @@
 
 ## 本次修改
 
+## 0.9.5.40
+- 日期：`2026-04-24`
+- 分支：`main`
+- 影响范围：
+  - `frontend/src/views/GameView.vue`
+- 更新内容：
+  - `fix: 恢复 .map-container-full 的 overflow: hidden`
+  - `fix: 修复六边形地图 viewBox 宽度计算，gridWidth 增加 2px 余量以解决右侧1-2px裁剪问题`
+- 验证方式：
+  - `cd frontend && npm run build`
+
 ## 0.9.5.39
 - 日期：`2026-04-24`
 - 分支：`main`
