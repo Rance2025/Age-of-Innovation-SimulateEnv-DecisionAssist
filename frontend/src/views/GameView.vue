@@ -1816,7 +1816,8 @@ const NAMED_LOG_COLORS = {
   white: '#ffffff'
 }
 const mapState = reactive({
-  grid: createDefaultMapGrid()
+  grid: createDefaultMapGrid(),
+  bridges: {}
 })
 const mapBuildingRenderTokens = new Map()
 
@@ -5200,6 +5201,8 @@ function renderBuildingForCell(row, col) {
   const hasAnnex = cell.has_annex
   const cityTileId = getCityTileIdForCell(row, col)
 
+  console.log(`[CityTile][Frontend] renderBuildingForCell(${row},${col}): hasMainBuilding=${hasMainBuilding}, hasAnnex=${hasAnnex}, cityTileId=${cityTileId}`)
+
   if (!hasMainBuilding && !hasAnnex && !cityTileId) {
     return
   }
@@ -5727,6 +5730,124 @@ function getHexPoints(x, y, size) {
   return points.join(' ')
 }
 
+// ========== 桥梁渲染功能 ==========
+
+function getHexCenter(row, col) {
+  const { hexSize } = MAP_CONFIG
+  const horizontalSpacing = hexSize * Math.sqrt(3)
+  const verticalSpacing = hexSize * 1.5
+  const startX = hexSize
+  const startY = hexSize + 5
+  const xOffset = (row % 2 === 0) ? 0 : horizontalSpacing / 2
+  return {
+    x: startX + col * horizontalSpacing + xOffset,
+    y: startY + row * verticalSpacing
+  }
+}
+
+function getHexVertices(row, col) {
+  const center = getHexCenter(row, col)
+  const s = MAP_CONFIG.hexSize
+  const h = s * Math.sqrt(3) / 2
+
+  return [
+    { x: center.x + h, y: center.y - s / 2 },   // 0: 右上
+    { x: center.x + h, y: center.y + s / 2 },   // 1: 右下
+    { x: center.x,     y: center.y + s },       // 2: 下
+    { x: center.x - h, y: center.y + s / 2 },   // 3: 左下
+    { x: center.x - h, y: center.y - s / 2 },   // 4: 左上
+    { x: center.x,     y: center.y - s }        // 5: 上
+  ]
+}
+
+function getBridgeVertexIndices(row1, col1, row2, col2) {
+  const c1 = getHexCenter(row1, col1)
+  const c2 = getHexCenter(row2, col2)
+
+  const dx = c2.x - c1.x
+  const dy = c2.y - c1.y
+  const dist = Math.sqrt(dx * dx + dy * dy)
+  if (dist === 0) return null
+
+  const nx = dx / dist
+  const ny = dy / dist
+
+  // 6个顶点方向向量（屏幕坐标）
+  const dirs = [
+    { i: 0, nx: Math.sqrt(3) / 2, ny: -0.5 },    // 右上
+    { i: 1, nx: Math.sqrt(3) / 2, ny:  0.5 },    // 右下
+    { i: 2, nx: 0,              ny:  1   },     // 下
+    { i: 3, nx: -Math.sqrt(3) / 2, ny:  0.5 },   // 左下
+    { i: 4, nx: -Math.sqrt(3) / 2, ny: -0.5 },   // 左上
+    { i: 5, nx: 0,              ny: -1   }      // 上
+  ]
+
+  // 找最大点积（最匹配的方向）
+  let maxDot = -Infinity, v1 = 0
+  for (const d of dirs) {
+    const dot = nx * d.nx + ny * d.ny
+    if (dot > maxDot) { maxDot = dot; v1 = d.i }
+  }
+
+  // 相反顶点：0↔3, 1↔4, 2↔5
+  const opposites = { 0: 3, 1: 4, 2: 5, 3: 0, 4: 1, 5: 2 }
+  return { v1, v2: opposites[v1] }
+}
+
+function renderBridgeIndicators() {
+  const bridgesLayer = document.getElementById('hex-bridges')
+  if (!bridgesLayer) return
+
+  // 清除旧标记
+  bridgesLayer.innerHTML = ''
+
+  const bridges = mapState.bridges || {}
+
+  for (const [bridgeKey, owner] of Object.entries(bridges)) {
+    if (owner !== -1) continue // 只渲染未建造的桥
+
+    // 解析 "((0, 2), (1, 0))" → [[0,2], [1,0]]
+    const match = bridgeKey.match(/\(\s*(\d+)\s*,\s*(\d+)\s*\)/g)
+    if (!match || match.length !== 2) continue
+    const [r1, c1] = match[0].slice(1, -1).split(',').map(Number)
+    const [r2, c2] = match[1].slice(1, -1).split(',').map(Number)
+
+    const idx = getBridgeVertexIndices(r1, c1, r2, c2)
+    if (!idx) continue
+
+    const p1 = getHexVertices(r1, c1)[idx.v1]
+    const p2 = getHexVertices(r2, c2)[idx.v2]
+
+    // 计算垂直偏移绘制双横线
+    const dx = p2.x - p1.x
+    const dy = p2.y - p1.y
+    const len = Math.sqrt(dx * dx + dy * dy)
+    if (len === 0) continue
+
+    const perpX = -dy / len * 3 // 3px偏移，6px总间距
+    const perpY = dx / len * 3
+
+    const group = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+    group.setAttribute('class', 'bridge-indicator')
+    group.setAttribute('data-bridge', bridgeKey)
+
+    for (const sign of [1, -1]) {
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line')
+      line.setAttribute('x1', p1.x + perpX * sign)
+      line.setAttribute('y1', p1.y + perpY * sign)
+      line.setAttribute('x2', p2.x + perpX * sign)
+      line.setAttribute('y2', p2.y + perpY * sign)
+      line.setAttribute('stroke', '#aaaaaa')
+      line.setAttribute('stroke-width', '2')
+      line.setAttribute('opacity', '0.7')
+      line.setAttribute('stroke-linecap', 'round')
+      group.appendChild(line)
+    }
+
+    bridgesLayer.appendChild(group)
+  }
+}
+
 function generateHexMap() {
   const svg = document.getElementById('hex-grid-svg')
   if (!svg) return
@@ -5754,6 +5875,11 @@ function generateHexMap() {
   const gridGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g')
   gridGroup.setAttribute('id', 'hex-grid-group')
   gridGroup.setAttribute('class', 'hex-grid-group')
+
+  // 创建桥梁层
+  const bridgesLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+  bridgesLayer.setAttribute('id', 'hex-bridges')
+  bridgesLayer.setAttribute('class', 'hex-bridges')
 
   // 创建编号层
   const numbersLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g')
@@ -5811,6 +5937,9 @@ function generateHexMap() {
       hoverOverlay.setAttribute('data-col', col)
       hoverOverlay.setAttribute('points', getHexPoints(centerX, centerY, hexSize))
       hoverOverlay.addEventListener('mouseenter', function() {
+        // 检查是否是水域地块，水域地块不显示悬停高亮
+        const hex = document.querySelector(`.hexagon[data-row="${row}"][data-col="${col}"]`)
+        if (hex && hex.getAttribute('data-terrain') === '0') return
         this.classList.add('hover-active')
         const highlight = document.getElementById(`highlight-${row}-${col}`)
         if (highlight) highlight.classList.add('hover')
@@ -5835,6 +5964,7 @@ function generateHexMap() {
 
   // 按照正确顺序添加所有层到SVG
   svg.appendChild(gridGroup)
+  svg.appendChild(bridgesLayer)
   svg.appendChild(elementsLayer)
   svg.appendChild(highlightLayer)
   svg.appendChild(hoverLayer)
@@ -5842,6 +5972,9 @@ function generateHexMap() {
 
   // 应用初始地形
   applyInitialTerrain()
+
+  // 渲染桥梁指示器
+  renderBridgeIndicators()
 
   console.log('六边形地图生成完成')
 }
@@ -5866,10 +5999,15 @@ function setHexTerrain(row, col, terrainType) {
     hex.setAttribute('fill', TERRAIN_COLORS[terrainType])
     hex.setAttribute('data-terrain', terrainType)
     // 特殊处理：水域使用虚线边框
+    const hoverOverlay = document.querySelector(`.hover-overlay[data-row="${row}"][data-col="${col}"]`)
     if (terrainType === 0) {
       hex.style.strokeDasharray = '4,2'
+      hex.style.strokeWidth = '1px'
+      hex.style.stroke = 'rgba(255, 255, 255, 0.15)'
+      if (hoverOverlay) hoverOverlay.classList.add('no-hover-highlight')
     } else {
       hex.style.strokeDasharray = 'none'
+      if (hoverOverlay) hoverOverlay.classList.remove('no-hover-highlight')
     }
     return true
   }
@@ -5975,16 +6113,14 @@ function getCityTileIdForCell(row, col) {
   const sac = player.settlements_and_cities || {}
   const posKey = `${row},${col}`
 
-  // 直接检查该坐标是否是已匹配的城市根节点
-  if (assignments[posKey]) {
-    return assignments[posKey]
-  }
-
-  // 检查该坐标在 settlements_and_cities 中的根节点是否已匹配
+  // 只在该坐标是根节点且是城市时才显示城片
   if (sac[posKey]) {
-    const rootKey = sac[posKey][0]
-    if (assignments[rootKey]) {
-      return assignments[rootKey]
+    const [rootKey, isCity] = sac[posKey]
+    // 必须是根节点（自己是自己的根）且是城市
+    if (rootKey === posKey && isCity) {
+      const tileId = assignments[posKey] || null
+      console.log(`[CityTile][Frontend] getCityTileIdForCell(${row},${col}): sac=${JSON.stringify(sac[posKey])}, assignment=${tileId}, all_assignments=${JSON.stringify(assignments)}`)
+      return tileId
     }
   }
 
@@ -6369,24 +6505,29 @@ function applyFullState(state) {
   setFinalScores(state.final_scores)
   
   // 应用地图状态
-  if (state.map_state && state.map_state.grid) {
-    state.map_state.grid.forEach((row, rowIdx) => {
-      row.forEach((cell, colIdx) => {
-        if (cell.terrain !== undefined) {
-          setHexTerrain(rowIdx, colIdx, cell.terrain)
-        }
-        if (cell.building_id !== undefined && cell.building_id > 0) {
-          // 获取建筑类型名称
-          const buildingType = buildingIdToType[cell.building_id]
-          if (buildingType) {
-            // 获取控制者的规划卡ID来构建图片路径
-            const controllerPlayer = state.players?.[cell.controller]
-            const planningCardId = controllerPlayer?.planning_card_id || (cell.controller + 1)
-            placeElement(rowIdx, colIdx, planningCardId, cell.building_id, 'replace')
+  if (state.map_state) {
+    if (state.map_state.bridges) {
+      mapState.bridges = state.map_state.bridges
+    }
+    if (state.map_state.grid) {
+      state.map_state.grid.forEach((row, rowIdx) => {
+        row.forEach((cell, colIdx) => {
+          if (cell.terrain !== undefined) {
+            setHexTerrain(rowIdx, colIdx, cell.terrain)
           }
-        }
+          if (cell.building_id !== undefined && cell.building_id > 0) {
+            // 获取建筑类型名称
+            const buildingType = buildingIdToType[cell.building_id]
+            if (buildingType) {
+              // 获取控制者的规划卡ID来构建图片路径
+              const controllerPlayer = state.players?.[cell.controller]
+              const planningCardId = controllerPlayer?.planning_card_id || (cell.controller + 1)
+              placeElement(rowIdx, colIdx, planningCardId, cell.building_id, 'replace')
+            }
+          }
+        })
       })
-    })
+    }
   }
 }
 
@@ -6452,18 +6593,23 @@ function applyGameViewFullState(state) {
   setActionLogsFromHistory(state.action_history)
   setFinalScores(state.final_scores)
 
-  if (state.map_state && state.map_state.grid) {
-    resetMapState(state.map_state.grid)
-    document.querySelectorAll('.hex-element').forEach((el) => el.remove())
+  if (state.map_state) {
+    if (state.map_state.bridges) {
+      mapState.bridges = state.map_state.bridges
+    }
+    if (state.map_state.grid) {
+      resetMapState(state.map_state.grid)
+      document.querySelectorAll('.hex-element').forEach((el) => el.remove())
 
-    state.map_state.grid.forEach((row, rowIdx) => {
-      row.forEach((cell, colIdx) => {
-        if (cell.terrain !== undefined) {
-          setHexTerrain(rowIdx, colIdx, cell.terrain)
-        }
-        renderBuildingForCell(rowIdx, colIdx)
+      state.map_state.grid.forEach((row, rowIdx) => {
+        row.forEach((cell, colIdx) => {
+          if (cell.terrain !== undefined) {
+            setHexTerrain(rowIdx, colIdx, cell.terrain)
+          }
+          renderBuildingForCell(rowIdx, colIdx)
+        })
       })
-    })
+    }
   }
 }
 
@@ -6625,6 +6771,11 @@ function handleSSEMessage(message) {
         if (actionsChange) {
           console.log('[SSE] 发现 available_actions 更新:', actionsChange.new_value)
         }
+        // 检查是否有 city_tile_assignments 更新
+        const cityTileChanges = message.changes.filter(c => c.path.includes('city_tile_assignments'))
+        if (cityTileChanges.length > 0) {
+          console.log('[CityTile][Frontend] SSE 收到 city_tile_assignments 更新:', cityTileChanges)
+        }
         applyIncrementalChanges(message.changes)
         updateStateVersion(message.version)
       }
@@ -6716,6 +6867,7 @@ function applyGameViewChange(path, value, changeType, pendingBuildingRenders = n
       if (keys.length >= 3) {
         const fieldName = keys[2]
         if (fieldName === 'settlements_and_cities' || fieldName === 'city_tile_assignments') {
+          console.log(`[CityTile][Frontend] applyGameViewChange: player=${playerIdx}, field=${fieldName}, path=${path}, value=${JSON.stringify(value)}, changeType=${changeType}`)
           const player = players.value[playerIdx]
           if (player?.controlled_map_ids) {
             for (const mapId of player.controlled_map_ids) {
@@ -6807,6 +6959,17 @@ function applyGameViewChange(path, value, changeType, pendingBuildingRenders = n
     if (field === 'building_id' || field === 'controller' || field === 'is_neutral' || field === 'has_annex') {
       triggerBuildingRender(row, col, pendingBuildingRenders)
     }
+    return
+  }
+
+  if (rootKey === 'map_state' && keys.length >= 3 && keys[1] === 'bridges') {
+    const bridgeKey = keys[2]
+    if (changeType === 'removed') {
+      delete mapState.bridges[bridgeKey]
+    } else {
+      mapState.bridges[bridgeKey] = value
+    }
+    renderBridgeIndicators()
     return
   }
 
@@ -6926,6 +7089,14 @@ function applySingleChange(path, value, changeType) {
           // 控制者更新 - 单独更新时可能需要重新渲染建筑
         }
       }
+    } else if (keys[1] === 'bridges') {
+      const bridgeKey = keys[2]
+      if (changeType === 'removed') {
+        delete mapState.bridges[bridgeKey]
+      } else {
+        mapState.bridges[bridgeKey] = value
+      }
+      renderBridgeIndicators()
     }
   } else if (rootKey === 'setup' && keys.length >= 2) {
     // 更新游戏设置
@@ -6980,6 +7151,8 @@ onMounted(async () => {
   generateHexMap()
   // 先获取全量状态
   await fetchFullState()
+  // 渲染桥梁指示器
+  renderBridgeIndicators()
   await nextTick()
   setupPlayerCardResizeObserver()
   // setupActionContentResizeObserver() // 已停用：不再自动检测高度溢出
@@ -9251,8 +9424,8 @@ onUnmounted(() => {
 }
 
 .action-header-timer .timer-circle {
-  width: 56px;
-  height: 56px;
+  width: 68px;
+  height: 68px;
 }
 
 .action-header-timer .timer-text.byo-yomi-time {
@@ -10480,6 +10653,11 @@ onUnmounted(() => {
   }
 }
 
+/* 桥梁指示器 */
+.bridge-indicator {
+  pointer-events: none;
+}
+
 </style>
 
 <style>
@@ -10498,8 +10676,8 @@ onUnmounted(() => {
 /* 水域地块使用虚线边框 */
 .hexagon.terrain-water {
   stroke-dasharray: 9, 9;
-  stroke-width: 1.5;
-  stroke: rgba(255, 255, 255, 0.2);
+  stroke-width: 1;
+  stroke: rgba(255, 255, 255, 0.15);
 }
 
 /* 地形颜色类 */
@@ -10566,6 +10744,12 @@ onUnmounted(() => {
 .hover-overlay:hover,
 .hover-overlay.hover-active {
   stroke: var(--accent);
+  stroke-width: 4;
+}
+
+.hover-overlay.no-hover-highlight:hover,
+.hover-overlay.no-hover-highlight.hover-active {
+  stroke: transparent;
   stroke-width: 4;
 }
 </style>

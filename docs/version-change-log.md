@@ -4,6 +4,29 @@
 
 ## 模板
 
+## 0.9.5.42
+- 日期：`2026-04-24`
+- 分支：`main`
+- 影响范围：
+  - `frontend/src/views/GameView.vue`
+  - `backend/game/utils/game_state_manager.py`
+- 更新内容：
+  - `feat: 在 SVG 六边形地图上渲染可建桥位置的双横线标记`
+  - `feat: 新增 getHexCenter、getHexVertices、getBridgeVertexIndices 函数，通过方向向量自动计算桥端点顶点`
+  - `feat: 新增 renderBridgeIndicators 函数，遍历 mapState.bridges 绘制灰色(#aaaaaa)双横线标记（只渲染 owner === -1 的未建造桥位）`
+  - `feat: 在 generateHexMap 中创建 bridgesLayer（位于 gridGroup 和 elementsLayer 之间）`
+  - `feat: 在 applyFullState 和 applyGameViewFullState 中同步 mapState.bridges`
+  - `feat: 在 applyGameViewChange 和 applySingleChange 中处理 map_state.bridges 增量更新，变更后自动调用 renderBridgeIndicators()`
+  - `feat: 在 onMounted fetchFullState 后调用 renderBridgeIndicators()`
+  - `ui: 调整桥梁双横线样式：线宽 1.5px→2px，颜色 #888→#aaaaaa，不透明度 70%，双横线间距 5px（单条偏移2.5px）`
+  - `fix: 修复城片显示位置，只在城市根节点上显示，不再在城市内每个建筑上都显示`
+  - `fix: 修复城市板块增量匹配时机，确保每次状态更新都执行完整三步检测与匹配流程`
+  - `fix: 匹配规则严格遵循 action_history 长度差值为1，同一玩家前后连续两动才能匹配`
+  - `fix: 未匹配记录保留在 log 中不删除，供后续更新时继续尝试匹配`
+- 验证方式：
+  - `cd frontend && npm run build`
+  - `cd backend && python -c "from game.utils.game_state_manager import GameStateManager; print('OK')"`
+
 ## 0.9.5.41
 - 日期：`2026-04-24`
 - 分支：`main`
@@ -21,8 +44,6 @@
   - `feat: game_state_manager.py 支持全量更新（前端刷新时后端直接推送 _city_tile_assignments 完整记录）`
 - 验证方式：
   - 运行后端游戏流程，验证建城与城市板块获取的匹配逻辑
-
-## 本次修改
 
 ## 0.9.5.40
 - 日期：`2026-04-24`
