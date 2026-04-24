@@ -1407,7 +1407,7 @@ class AllEffectObject:
         def execute_immediate_effect(self, executed_player_id):
             '''立即效果: 获得1城片'''
             self.immediate_effect.extend([
-                ('ability_tile',)
+                ('city_tile',)
             ])
             yield from super().execute_immediate_effect(executed_player_id)
 

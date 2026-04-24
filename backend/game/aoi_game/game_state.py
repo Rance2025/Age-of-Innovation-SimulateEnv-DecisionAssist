@@ -1010,11 +1010,8 @@ class GameStateBase:
             ): 
                 # 标记根节点为城市
                 settlements_and_cities[current_root] = [current_root, True]
-                # 触发立即行动，选取城片（保证一定存在可选城片）
-                for city_tile_id in range(1,8):
-                    if self.all_available_object_dict['city_tile'][city_tile_id].check_get(player_id):                 
-                        yield from self.invoke_immediate_action(player_id, ('select_city_tile',))
-                        break
+                # 选取城片
+                yield from self.adjust(player_id, [('city_tile',)])
         
     def calculate_players_total_score(self):
 
@@ -2132,6 +2129,13 @@ class GameStateBase:
                 if self.all_available_object_dict['ability_tile'][ability_tile_id].check_get(player_id):
                     yield from self.invoke_immediate_action(player_id, ('select_ability_tile',))
                     break
+        
+        @generatorize
+        def get_city_tile(player_id: int):
+            for city_tile_id in range(1,8):
+                if self.all_available_object_dict['city_tile'][city_tile_id].check_get(player_id):                 
+                    yield from self.invoke_immediate_action(player_id, ('select_city_tile',))
+                    break
 
         all_adjust_list = {
             'money': adjust_money,
@@ -2147,7 +2151,8 @@ class GameStateBase:
             'spade': shovel,
             'navigation': improve_navigation,
             'shovel': improve_shovel,
-            'ability_tile': get_ability_tile
+            'ability_tile': get_ability_tile,
+            'city_tile': get_city_tile,
         }
 
         def adjust(player_id: int, list_to_be_adjusted):

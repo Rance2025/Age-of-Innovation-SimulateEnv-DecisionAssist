@@ -4,6 +4,24 @@
 
 ## 模板
 
+## 0.9.5.41
+- 日期：`2026-04-24`
+- 分支：`main`
+- 影响范围：
+  - `backend/game/aoi_game/effect_object.py`
+  - `backend/game/aoi_game/game_state.py`
+  - `backend/game/utils/game_state_manager.py`
+- 更新内容：
+  - `fix: effect_object.py 修复城片获取类型，从 ability_tile 改为 city_tile`
+  - `fix: game_state.py 修复建城逻辑，使用 adjust 方法直接获取城片，避免无限循环`
+  - `feat: game_state.py 新增 get_city_tile 生成器用于城片获取`
+  - `refactor: game_state_manager.py 重构城市板块匹配逻辑，从 _pending_city_matches 改为三条独立记录（_city_establishment_log、_city_tile_acquisition_log、_city_tile_assignments）`
+  - `feat: game_state_manager.py 使用 action_history 长度作为时间戳，确保只有同一玩家前后连续两动（ah_length 差值为1）才能匹配城市根节点与城市板块`
+  - `fix: game_state_manager.py 解决两个特例的匹配问题：无需建城直接拿城市板块（记录2有数据但记录1无数据，自然不匹配）、建城之后不拿城市板块（记录1有数据但记录2无数据，自然不匹配）`
+  - `feat: game_state_manager.py 支持全量更新（前端刷新时后端直接推送 _city_tile_assignments 完整记录）`
+- 验证方式：
+  - 运行后端游戏流程，验证建城与城市板块获取的匹配逻辑
+
 ## 本次修改
 
 ## 0.9.5.40
