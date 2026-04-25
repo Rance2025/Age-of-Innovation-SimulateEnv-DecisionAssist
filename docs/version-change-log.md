@@ -14,6 +14,30 @@
 - 验证方式：
   - 
 
+## 0.9.6.1
+- 日期：`2026-04-25`
+- 分支：`main`
+- 影响范围：
+  - `frontend/src/views/GameView.vue`
+  - `frontend/src/components/Popover.vue`
+  - `frontend/src/composables/usePopoverPosition.js`
+- 更新内容：
+  - `feat: 新增通用 Popover 弹窗组件，支持点击触发、点击外部关闭、自动定位、视口边界检测`
+  - `feat: 新增 usePopoverPosition 组合式函数，处理弹窗定位计算`
+  - `refactor: 将 GameView.vue 中所有 entityPreview 悬停预览系统替换为新的 Popover 组件`
+  - `refactor: 规划卡、宫殿板块、派系徽章、回合计分板、回合助推板、科学板块、能力板块均使用 Popover 实现`
+  - `feat: 玩家状态栏各项指标（金币、建筑、魔法等）新增点击明细弹窗（内容暂空）`
+  - `refactor: 删除 entityPreview 相关模板、脚本逻辑`
+  - `fix: 恢复 entity-preview 图片展示样式，确保 Popover 内容图片正常显示`
+  - `fix: 清理残留的 clearEntityPreviewTimer 调用`
+  - `fix: 恢复误删的 reactive import，修复 ReferenceError`
+  - `fix: 修改 Popover 背景为纯灰调不透明（#2a2a2a）`
+  - `fix: 修改 Popover trigger 为 display: contents，避免破坏 flex/absolute 布局`
+  - `fix: 添加 background-size: contain 确保弹窗图片按比例显示`
+  - `fix: usePopoverPosition 兼容 display: contents，自动使用子元素计算位置`
+- 验证方式：
+  - `cd frontend && npm run build`
+
 ## 0.9.5.43
 - 日期：`2026-04-24`
 - 分支：`main`

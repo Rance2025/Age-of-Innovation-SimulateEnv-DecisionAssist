@@ -62,68 +62,138 @@
               <div class="player-header" @click="togglePlayer(player.id)">
                 <div class="player-header-left">
                   <div class="planning-card-indicator">
+                    <Popover
+                      v-if="player.planningCardId !== null"
+                      placement="auto"
+                      :offset="12"
+                      :width="planningPreviewCardWidthPx"
+                    >
+                      <div
+                        class="planning-card-circle is-visible"
+                        :tabindex="0"
+                        title=""
+                        :aria-label="`预览${player.planningCard}规划卡`"
+                        :style="{ backgroundColor: getPlanningCardColor(player.planningCardId) }"
+                      ></div>
+                      <template #content>
+                        <div class="entity-preview-media">
+                          <div
+                            class="entity-preview-image"
+                            :style="{ height: planningPreviewImageHeightPx + 'px' }"
+                          >
+                            <div
+                              class="entity-preview-image-layer"
+                              :style="getPlanningCardPreviewStyle(player.planningCardId)"
+                            ></div>
+                          </div>
+                        </div>
+                        <div class="entity-preview-name">{{ player.planningCard || planningCardIdToName[player.planningCardId] || '' }}</div>
+                      </template>
+                    </Popover>
                     <div
+                      v-else
                       class="planning-card-circle"
-                      :tabindex="player.planningCardId !== null ? 0 : -1"
+                      :tabindex="-1"
                       title=""
-                      :aria-label="player.planningCardId !== null ? `预览${player.planningCard}规划卡` : '未分配规划卡'"
-                      :class="{ 'is-visible': player.planningCardId !== null }"
-                      :style="{ backgroundColor: getPlanningCardColor(player.planningCardId) }"
-                      @mouseenter="handlePlanningCardMouseEnter(player.planningCardId, player.planningCard, $event)"
-                      @mouseleave="handlePlanningCardMouseLeave"
-                      @focus="handlePlanningCardMouseEnter(player.planningCardId, player.planningCard, $event)"
-                      @blur="handlePlanningCardMouseLeave"
-                      @keydown.esc.prevent="hideEntityPreview"
+                      aria-label="未分配规划卡"
                     ></div>
                   </div>
                   <div class="player-title">
                     <span class="player-name">玩家 {{ player.id + 1 }}</span>
-                    <span
-                      class="palace-tile-badge"
-                      :class="{
-                        'is-inactive': player.palaceTileId !== null && !player.isGotPalace,
-                        'is-hidden-placeholder': player.palaceTileId === null
-                      }"
-                      :tabindex="player.palaceTileId !== null ? 0 : -1"
-                      title=""
-                      :aria-label="player.palaceTileId !== null ? `预览${player.palaceTileId}号宫殿板块${player.isGotPalace ? '' : '（未激活）'}` : undefined"
-                      :aria-hidden="player.palaceTileId === null ? 'true' : 'false'"
-                      @mouseenter="handlePalaceTileMouseEnter(player.palaceTileId, player.isGotPalace, $event)"
-                      @mouseleave="handlePalaceTileMouseLeave"
-                      @focus="handlePalaceTileMouseEnter(player.palaceTileId, player.isGotPalace, $event)"
-                      @blur="handlePalaceTileMouseLeave"
-                      @keydown.esc.prevent="hideEntityPreview"
+                    <Popover
+                      v-if="player.palaceTileId !== null"
+                      placement="auto"
+                      :offset="12"
+                      :width="palacePreviewCardWidthPx"
                     >
-                      <span class="palace-tile-badge-value">{{ player.palaceTileId }}</span>
                       <span
-                        v-if="!player.isGotPalace"
-                        class="palace-tile-badge-status"
-                        aria-hidden="true"
+                        class="palace-tile-badge"
+                        :class="{
+                          'is-inactive': !player.isGotPalace,
+                          'is-hidden-placeholder': false
+                        }"
+                        :tabindex="0"
+                        title=""
+                        :aria-label="`预览${player.palaceTileId}号宫殿板块${player.isGotPalace ? '' : '（未激活）'}`"
+                        aria-hidden="false"
                       >
-                        <i class="fas fa-ban"></i>
+                        <span class="palace-tile-badge-value">{{ player.palaceTileId }}</span>
+                        <span
+                          v-if="!player.isGotPalace"
+                          class="palace-tile-badge-status"
+                          aria-hidden="true"
+                        >
+                          <i class="fas fa-ban"></i>
+                        </span>
                       </span>
-                    </span>
+                      <template #content>
+                        <div class="entity-preview-media">
+                          <div
+                            class="entity-preview-image"
+                            :class="{ 'is-inactive': !player.isGotPalace }"
+                            :style="{ height: palacePreviewImageHeightPx + 'px' }"
+                          >
+                            <div
+                              class="entity-preview-image-layer"
+                              :style="getPalacePreviewStyle(player.palaceTileId)"
+                            ></div>
+                          </div>
+                          <div
+                            v-if="!player.isGotPalace"
+                            class="entity-preview-image-overlay"
+                            aria-hidden="true"
+                          >
+                            <span class="entity-preview-status-icon">
+                              <i class="fas fa-ban"></i>
+                            </span>
+                          </div>
+                        </div>
+                        <div class="entity-preview-name">{{ player.isGotPalace ? `${player.palaceTileId}号宫殿板块` : `${player.palaceTileId}号宫殿板块 · 未激活` }}</div>
+                      </template>
+                    </Popover>
+                    <span
+                      v-else
+                      class="palace-tile-badge is-hidden-placeholder"
+                      :tabindex="-1"
+                      title=""
+                      aria-hidden="true"
+                    ></span>
                     <span
                       v-if="player.factionId !== null"
                       class="faction-badge"
                     >
-                      <span
-                        class="faction-badge-avatar"
-                        tabindex="0"
-                        title=""
-                        :aria-label="`预览${player.faction}派系板块`"
-                        @mouseenter="handleFactionBadgeMouseEnter(player.factionId, player.faction, $event)"
-                        @mouseleave="handleFactionBadgeMouseLeave"
-                        @focus="handleFactionBadgeMouseEnter(player.factionId, player.faction, $event)"
-                        @blur="handleFactionBadgeMouseLeave"
-                        @keydown.esc.prevent="hideEntityPreview"
+                      <Popover
+                        placement="auto"
+                        :offset="12"
+                        :width="factionPreviewCardWidthPx"
                       >
                         <span
-                          class="faction-badge-avatar-image"
-                          aria-hidden="true"
-                          :style="getFactionBadgeStyle(player.factionId)"
-                        ></span>
-                      </span>
+                          class="faction-badge-avatar"
+                          tabindex="0"
+                          title=""
+                          :aria-label="`预览${player.faction}派系板块`"
+                        >
+                          <span
+                            class="faction-badge-avatar-image"
+                            aria-hidden="true"
+                            :style="getFactionBadgeStyle(player.factionId)"
+                          ></span>
+                        </span>
+                        <template #content>
+                          <div class="entity-preview-media">
+                            <div
+                              class="entity-preview-image"
+                              :style="{ height: factionPreviewImageHeightPx + 'px' }"
+                            >
+                              <div
+                                class="entity-preview-image-layer"
+                                :style="getFactionPreviewStyle(player.factionId)"
+                              ></div>
+                            </div>
+                          </div>
+                          <div class="entity-preview-name">{{ player.faction || factionIdToName[player.factionId] || '' }}</div>
+                        </template>
+                      </Popover>
                       <span class="faction-badge-name">{{ player.faction }}</span>
                     </span>
                   </div>
@@ -151,44 +221,56 @@
                       'is-ultra-wide-row': row.length >= 6
                     }"
                   >
-                    <div
+                    <Popover
                       v-for="item in row"
                       :key="item.key"
-                      class="stat-item"
-                      :title="item.label"
+                      placement="auto"
+                      :offset="8"
+                      width="260"
                     >
-                      <div class="stat-content">
-                        <div class="stat-icon-wrapper">
-                          <canvas
-                            v-if="item.type === 'building'"
-                            :key="`bld-${player.planningCardId}-${item.buildingId}`"
-                            class="stat-image"
-                            :ref="el => drawPlayerBuildingIcon(el, player, item.buildingId)"
-                            :aria-label="item.label"
-                          ></canvas>
-                          <div
-                            v-else-if="item.type === 'magic'"
-                            class="icon-stack"
-                            aria-hidden="true"
-                          >
-                            <span class="magic-disc"></span>
-                            <span class="magic-disc-label">{{ item.magicValue }}</span>
+                      <div
+                        class="stat-item"
+                        :title="item.label"
+                      >
+                        <div class="stat-content">
+                          <div class="stat-icon-wrapper">
+                            <canvas
+                              v-if="item.type === 'building'"
+                              :key="`bld-${player.planningCardId}-${item.buildingId}`"
+                              class="stat-image"
+                              :ref="el => drawPlayerBuildingIcon(el, player, item.buildingId)"
+                              :aria-label="item.label"
+                            ></canvas>
+                            <div
+                              v-else-if="item.type === 'magic'"
+                              class="icon-stack"
+                              aria-hidden="true"
+                            >
+                              <span class="magic-disc"></span>
+                              <span class="magic-disc-label">{{ item.magicValue }}</span>
+                            </div>
+                            <i
+                              v-else
+                              :class="[item.iconClass, 'stat-icon']"
+                              aria-hidden="true"
+                            ></i>
+                            <span
+                              v-if="item.badgeValue !== null && item.badgeValue !== undefined"
+                              class="stat-badge"
+                            >
+                              {{ item.badgeValue }}
+                            </span>
                           </div>
-                          <i
-                            v-else
-                            :class="[item.iconClass, 'stat-icon']"
-                            aria-hidden="true"
-                          ></i>
-                          <span
-                            v-if="item.badgeValue !== null && item.badgeValue !== undefined"
-                            class="stat-badge"
-                          >
-                            {{ item.badgeValue }}
-                          </span>
+                          <span class="stat-value">{{ item.value }}</span>
                         </div>
-                        <span class="stat-value">{{ item.value }}</span>
                       </div>
-                    </div>
+                      <template #content>
+                        <div class="detail-header">{{ item.label }}明细</div>
+                        <div class="detail-body">
+                          <div class="detail-placeholder">{{ item.label }}详细数据（待实现）</div>
+                        </div>
+                      </template>
+                    </Popover>
                   </div>
                 </div>
               </div>
@@ -267,68 +349,138 @@
               <div class="player-header" @click="togglePlayer(player.id)">
                 <div class="player-header-left">
                   <div class="planning-card-indicator">
+                    <Popover
+                      v-if="player.planningCardId !== null"
+                      placement="auto"
+                      :offset="12"
+                      :width="planningPreviewCardWidthPx"
+                    >
+                      <div
+                        class="planning-card-circle is-visible"
+                        :tabindex="0"
+                        title=""
+                        :aria-label="`预览${player.planningCard}规划卡`"
+                        :style="{ backgroundColor: getPlanningCardColor(player.planningCardId) }"
+                      ></div>
+                      <template #content>
+                        <div class="entity-preview-media">
+                          <div
+                            class="entity-preview-image"
+                            :style="{ height: planningPreviewImageHeightPx + 'px' }"
+                          >
+                            <div
+                              class="entity-preview-image-layer"
+                              :style="getPlanningCardPreviewStyle(player.planningCardId)"
+                            ></div>
+                          </div>
+                        </div>
+                        <div class="entity-preview-name">{{ player.planningCard || planningCardIdToName[player.planningCardId] || '' }}</div>
+                      </template>
+                    </Popover>
                     <div
+                      v-else
                       class="planning-card-circle"
-                      :tabindex="player.planningCardId !== null ? 0 : -1"
+                      :tabindex="-1"
                       title=""
-                      :aria-label="player.planningCardId !== null ? `预览${player.planningCard}规划卡` : '未分配规划卡'"
-                      :class="{ 'is-visible': player.planningCardId !== null }"
-                      :style="{ backgroundColor: getPlanningCardColor(player.planningCardId) }"
-                      @mouseenter="handlePlanningCardMouseEnter(player.planningCardId, player.planningCard, $event)"
-                      @mouseleave="handlePlanningCardMouseLeave"
-                      @focus="handlePlanningCardMouseEnter(player.planningCardId, player.planningCard, $event)"
-                      @blur="handlePlanningCardMouseLeave"
-                      @keydown.esc.prevent="hideEntityPreview"
+                      aria-label="未分配规划卡"
                     ></div>
                   </div>
                   <div class="player-title">
                     <span class="player-name">玩家 {{ player.id + 1 }}</span>
-                    <span
-                      class="palace-tile-badge"
-                      :class="{
-                        'is-inactive': player.palaceTileId !== null && !player.isGotPalace,
-                        'is-hidden-placeholder': player.palaceTileId === null
-                      }"
-                      :tabindex="player.palaceTileId !== null ? 0 : -1"
-                      title=""
-                      :aria-label="player.palaceTileId !== null ? `预览${player.palaceTileId}号宫殿板块${player.isGotPalace ? '' : '（未激活）'}` : undefined"
-                      :aria-hidden="player.palaceTileId === null ? 'true' : 'false'"
-                      @mouseenter="handlePalaceTileMouseEnter(player.palaceTileId, player.isGotPalace, $event)"
-                      @mouseleave="handlePalaceTileMouseLeave"
-                      @focus="handlePalaceTileMouseEnter(player.palaceTileId, player.isGotPalace, $event)"
-                      @blur="handlePalaceTileMouseLeave"
-                      @keydown.esc.prevent="hideEntityPreview"
+                    <Popover
+                      v-if="player.palaceTileId !== null"
+                      placement="auto"
+                      :offset="12"
+                      :width="palacePreviewCardWidthPx"
                     >
-                      <span class="palace-tile-badge-value">{{ player.palaceTileId }}</span>
                       <span
-                        v-if="!player.isGotPalace"
-                        class="palace-tile-badge-status"
-                        aria-hidden="true"
+                        class="palace-tile-badge"
+                        :class="{
+                          'is-inactive': !player.isGotPalace,
+                          'is-hidden-placeholder': false
+                        }"
+                        :tabindex="0"
+                        title=""
+                        :aria-label="`预览${player.palaceTileId}号宫殿板块${player.isGotPalace ? '' : '（未激活）'}`"
+                        aria-hidden="false"
                       >
-                        <i class="fas fa-ban"></i>
+                        <span class="palace-tile-badge-value">{{ player.palaceTileId }}</span>
+                        <span
+                          v-if="!player.isGotPalace"
+                          class="palace-tile-badge-status"
+                          aria-hidden="true"
+                        >
+                          <i class="fas fa-ban"></i>
+                        </span>
                       </span>
-                    </span>
+                      <template #content>
+                        <div class="entity-preview-media">
+                          <div
+                            class="entity-preview-image"
+                            :class="{ 'is-inactive': !player.isGotPalace }"
+                            :style="{ height: palacePreviewImageHeightPx + 'px' }"
+                          >
+                            <div
+                              class="entity-preview-image-layer"
+                              :style="getPalacePreviewStyle(player.palaceTileId)"
+                            ></div>
+                          </div>
+                          <div
+                            v-if="!player.isGotPalace"
+                            class="entity-preview-image-overlay"
+                            aria-hidden="true"
+                          >
+                            <span class="entity-preview-status-icon">
+                              <i class="fas fa-ban"></i>
+                            </span>
+                          </div>
+                        </div>
+                        <div class="entity-preview-name">{{ player.isGotPalace ? `${player.palaceTileId}号宫殿板块` : `${player.palaceTileId}号宫殿板块 · 未激活` }}</div>
+                      </template>
+                    </Popover>
+                    <span
+                      v-else
+                      class="palace-tile-badge is-hidden-placeholder"
+                      :tabindex="-1"
+                      title=""
+                      aria-hidden="true"
+                    ></span>
                     <span
                       v-if="player.factionId !== null"
                       class="faction-badge"
                     >
-                      <span
-                        class="faction-badge-avatar"
-                        tabindex="0"
-                        title=""
-                        :aria-label="`预览${player.faction}派系板块`"
-                        @mouseenter="handleFactionBadgeMouseEnter(player.factionId, player.faction, $event)"
-                        @mouseleave="handleFactionBadgeMouseLeave"
-                        @focus="handleFactionBadgeMouseEnter(player.factionId, player.faction, $event)"
-                        @blur="handleFactionBadgeMouseLeave"
-                        @keydown.esc.prevent="hideEntityPreview"
+                      <Popover
+                        placement="auto"
+                        :offset="12"
+                        :width="factionPreviewCardWidthPx"
                       >
                         <span
-                          class="faction-badge-avatar-image"
-                          aria-hidden="true"
-                          :style="getFactionBadgeStyle(player.factionId)"
-                        ></span>
-                      </span>
+                          class="faction-badge-avatar"
+                          tabindex="0"
+                          title=""
+                          :aria-label="`预览${player.faction}派系板块`"
+                        >
+                          <span
+                            class="faction-badge-avatar-image"
+                            aria-hidden="true"
+                            :style="getFactionBadgeStyle(player.factionId)"
+                          ></span>
+                        </span>
+                        <template #content>
+                          <div class="entity-preview-media">
+                            <div
+                              class="entity-preview-image"
+                              :style="{ height: factionPreviewImageHeightPx + 'px' }"
+                            >
+                              <div
+                                class="entity-preview-image-layer"
+                                :style="getFactionPreviewStyle(player.factionId)"
+                              ></div>
+                            </div>
+                          </div>
+                          <div class="entity-preview-name">{{ player.faction || factionIdToName[player.factionId] || '' }}</div>
+                        </template>
+                      </Popover>
                       <span class="faction-badge-name">{{ player.faction }}</span>
                     </span>
                   </div>
@@ -356,44 +508,56 @@
                       'is-ultra-wide-row': row.length >= 6
                     }"
                   >
-                    <div
+                    <Popover
                       v-for="item in row"
                       :key="item.key"
-                      class="stat-item"
-                      :title="item.label"
+                      placement="auto"
+                      :offset="8"
+                      width="260"
                     >
-                      <div class="stat-content">
-                        <div class="stat-icon-wrapper">
-                          <canvas
-                            v-if="item.type === 'building'"
-                            :key="`bld-${player.planningCardId}-${item.buildingId}`"
-                            class="stat-image"
-                            :ref="el => drawPlayerBuildingIcon(el, player, item.buildingId)"
-                            :aria-label="item.label"
-                          ></canvas>
-                          <div
-                            v-else-if="item.type === 'magic'"
-                            class="icon-stack"
-                            aria-hidden="true"
-                          >
-                            <span class="magic-disc"></span>
-                            <span class="magic-disc-label">{{ item.magicValue }}</span>
+                      <div
+                        class="stat-item"
+                        :title="item.label"
+                      >
+                        <div class="stat-content">
+                          <div class="stat-icon-wrapper">
+                            <canvas
+                              v-if="item.type === 'building'"
+                              :key="`bld-${player.planningCardId}-${item.buildingId}`"
+                              class="stat-image"
+                              :ref="el => drawPlayerBuildingIcon(el, player, item.buildingId)"
+                              :aria-label="item.label"
+                            ></canvas>
+                            <div
+                              v-else-if="item.type === 'magic'"
+                              class="icon-stack"
+                              aria-hidden="true"
+                            >
+                              <span class="magic-disc"></span>
+                              <span class="magic-disc-label">{{ item.magicValue }}</span>
+                            </div>
+                            <i
+                              v-else
+                              :class="[item.iconClass, 'stat-icon']"
+                              aria-hidden="true"
+                            ></i>
+                            <span
+                              v-if="item.badgeValue !== null && item.badgeValue !== undefined"
+                              class="stat-badge"
+                            >
+                              {{ item.badgeValue }}
+                            </span>
                           </div>
-                          <i
-                            v-else
-                            :class="[item.iconClass, 'stat-icon']"
-                            aria-hidden="true"
-                          ></i>
-                          <span
-                            v-if="item.badgeValue !== null && item.badgeValue !== undefined"
-                            class="stat-badge"
-                          >
-                            {{ item.badgeValue }}
-                          </span>
+                          <span class="stat-value">{{ item.value }}</span>
                         </div>
-                        <span class="stat-value">{{ item.value }}</span>
                       </div>
-                    </div>
+                      <template #content>
+                        <div class="detail-header">{{ item.label }}明细</div>
+                        <div class="detail-body">
+                          <div class="detail-placeholder">{{ item.label }}详细数据（待实现）</div>
+                        </div>
+                      </template>
+                    </Popover>
                   </div>
                 </div>
               </div>
@@ -581,18 +745,52 @@
                   <!-- 左侧计分区 -->
                   <div class="left-column" id="left-scoring-grid" :style="roundInfoLeftColumnStyle">
                     <!-- 第1回合 -->
+                    <Popover
+                      v-if="roundStates[1]?.currentX > 0"
+                      placement="top"
+                      :offset="12"
+                      :width="roundScoringPreviewCardWidthPx"
+                    >
+                      <div
+                        class="grid-cell round-1"
+                        data-round="1"
+                        :class="{ 'current-round': currentRound === 1, 'flipped': roundStates[1]?.isFlipped }"
+                        :tabindex="0"
+                        title=""
+                        :aria-label="`预览第 1 回合计分板`"
+                      >
+                        <span class="round-label">第 1 回合</span>
+                        <div class="card-container">
+                          <div class="card-face front">
+                            <div aria-hidden="true" class="scoring-image" :style="getRoundScoringSpriteStyleByBackendId(roundStates[1]?.currentX)"></div>
+                          </div>
+                          <div class="card-face back">
+                            <div aria-hidden="true" class="scoring-image" :style="roundScoringBackSpriteStyle"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <template #content>
+                        <div class="entity-preview-media">
+                          <div
+                            class="entity-preview-image"
+                            :style="{ height: roundScoringPreviewImageHeightPx + 'px' }"
+                          >
+                            <div
+                              class="entity-preview-image-layer"
+                              :style="getRoundScoringSpriteStyleByBackendId(roundStates[1]?.currentX)"
+                            ></div>
+                          </div>
+                        </div>
+                        <div class="entity-preview-name">第 1 回合</div>
+                      </template>
+                    </Popover>
                     <div
+                      v-else
                       class="grid-cell round-1"
                       data-round="1"
                       :class="{ 'current-round': currentRound === 1, 'flipped': roundStates[1]?.isFlipped }"
-                      :tabindex="roundStates[1]?.currentX > 0 ? 0 : -1"
+                      :tabindex="-1"
                       title=""
-                      :aria-label="getRoundScoringAriaLabel(1)"
-                      @mouseenter="handleRoundScoringMouseEnter(1, $event)"
-                      @mouseleave="handleRoundScoringMouseLeave"
-                      @focus="handleRoundScoringMouseEnter(1, $event)"
-                      @blur="handleRoundScoringMouseLeave"
-                      @keydown.esc.prevent="hideEntityPreview"
                     >
                       <span class="round-label">第 1 回合</span>
                       <div class="card-container">
@@ -605,18 +803,52 @@
                       </div>
                     </div>
                     <!-- 第4回合 -->
+                    <Popover
+                      v-if="roundStates[4]?.currentX > 0"
+                      placement="top"
+                      :offset="12"
+                      :width="roundScoringPreviewCardWidthPx"
+                    >
+                      <div
+                        class="grid-cell round-4"
+                        data-round="4"
+                        :class="{ 'current-round': currentRound === 4, 'flipped': roundStates[4]?.isFlipped }"
+                        :tabindex="0"
+                        title=""
+                        :aria-label="`预览第 4 回合计分板`"
+                      >
+                        <span class="round-label">第 4 回合</span>
+                        <div class="card-container">
+                          <div class="card-face front">
+                            <div aria-hidden="true" class="scoring-image" :style="getRoundScoringSpriteStyleByBackendId(roundStates[4]?.currentX)"></div>
+                          </div>
+                          <div class="card-face back">
+                            <div aria-hidden="true" class="scoring-image" :style="roundScoringBackSpriteStyle"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <template #content>
+                        <div class="entity-preview-media">
+                          <div
+                            class="entity-preview-image"
+                            :style="{ height: roundScoringPreviewImageHeightPx + 'px' }"
+                          >
+                            <div
+                              class="entity-preview-image-layer"
+                              :style="getRoundScoringSpriteStyleByBackendId(roundStates[4]?.currentX)"
+                            ></div>
+                          </div>
+                        </div>
+                        <div class="entity-preview-name">第 4 回合</div>
+                      </template>
+                    </Popover>
                     <div
+                      v-else
                       class="grid-cell round-4"
                       data-round="4"
                       :class="{ 'current-round': currentRound === 4, 'flipped': roundStates[4]?.isFlipped }"
-                      :tabindex="roundStates[4]?.currentX > 0 ? 0 : -1"
+                      :tabindex="-1"
                       title=""
-                      :aria-label="getRoundScoringAriaLabel(4)"
-                      @mouseenter="handleRoundScoringMouseEnter(4, $event)"
-                      @mouseleave="handleRoundScoringMouseLeave"
-                      @focus="handleRoundScoringMouseEnter(4, $event)"
-                      @blur="handleRoundScoringMouseLeave"
-                      @keydown.esc.prevent="hideEntityPreview"
                     >
                       <span class="round-label">第 4 回合</span>
                       <div class="card-container">
@@ -629,18 +861,52 @@
                       </div>
                     </div>
                     <!-- 第2回合 -->
+                    <Popover
+                      v-if="roundStates[2]?.currentX > 0"
+                      placement="top"
+                      :offset="12"
+                      :width="roundScoringPreviewCardWidthPx"
+                    >
+                      <div
+                        class="grid-cell round-2"
+                        data-round="2"
+                        :class="{ 'current-round': currentRound === 2, 'flipped': roundStates[2]?.isFlipped }"
+                        :tabindex="0"
+                        title=""
+                        :aria-label="`预览第 2 回合计分板`"
+                      >
+                        <span class="round-label">第 2 回合</span>
+                        <div class="card-container">
+                          <div class="card-face front">
+                            <div aria-hidden="true" class="scoring-image" :style="getRoundScoringSpriteStyleByBackendId(roundStates[2]?.currentX)"></div>
+                          </div>
+                          <div class="card-face back">
+                            <div aria-hidden="true" class="scoring-image" :style="roundScoringBackSpriteStyle"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <template #content>
+                        <div class="entity-preview-media">
+                          <div
+                            class="entity-preview-image"
+                            :style="{ height: roundScoringPreviewImageHeightPx + 'px' }"
+                          >
+                            <div
+                              class="entity-preview-image-layer"
+                              :style="getRoundScoringSpriteStyleByBackendId(roundStates[2]?.currentX)"
+                            ></div>
+                          </div>
+                        </div>
+                        <div class="entity-preview-name">第 2 回合</div>
+                      </template>
+                    </Popover>
                     <div
+                      v-else
                       class="grid-cell round-2"
                       data-round="2"
                       :class="{ 'current-round': currentRound === 2, 'flipped': roundStates[2]?.isFlipped }"
-                      :tabindex="roundStates[2]?.currentX > 0 ? 0 : -1"
+                      :tabindex="-1"
                       title=""
-                      :aria-label="getRoundScoringAriaLabel(2)"
-                      @mouseenter="handleRoundScoringMouseEnter(2, $event)"
-                      @mouseleave="handleRoundScoringMouseLeave"
-                      @focus="handleRoundScoringMouseEnter(2, $event)"
-                      @blur="handleRoundScoringMouseLeave"
-                      @keydown.esc.prevent="hideEntityPreview"
                     >
                       <span class="round-label">第 2 回合</span>
                       <div class="card-container">
@@ -653,18 +919,52 @@
                       </div>
                     </div>
                     <!-- 第5回合 -->
+                    <Popover
+                      v-if="roundStates[5]?.currentX > 0"
+                      placement="top"
+                      :offset="12"
+                      :width="roundScoringPreviewCardWidthPx"
+                    >
+                      <div
+                        class="grid-cell round-5"
+                        data-round="5"
+                        :class="{ 'current-round': currentRound === 5, 'flipped': roundStates[5]?.isFlipped }"
+                        :tabindex="0"
+                        title=""
+                        :aria-label="`预览第 5 回合计分板`"
+                      >
+                        <span class="round-label">第 5 回合</span>
+                        <div class="card-container">
+                          <div class="card-face front">
+                            <div aria-hidden="true" class="scoring-image" :style="getRoundScoringSpriteStyleByBackendId(roundStates[5]?.currentX)"></div>
+                          </div>
+                          <div class="card-face back">
+                            <div aria-hidden="true" class="scoring-image" :style="roundScoringBackSpriteStyle"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <template #content>
+                        <div class="entity-preview-media">
+                          <div
+                            class="entity-preview-image"
+                            :style="{ height: roundScoringPreviewImageHeightPx + 'px' }"
+                          >
+                            <div
+                              class="entity-preview-image-layer"
+                              :style="getRoundScoringSpriteStyleByBackendId(roundStates[5]?.currentX)"
+                            ></div>
+                          </div>
+                        </div>
+                        <div class="entity-preview-name">第 5 回合</div>
+                      </template>
+                    </Popover>
                     <div
+                      v-else
                       class="grid-cell round-5"
                       data-round="5"
                       :class="{ 'current-round': currentRound === 5, 'flipped': roundStates[5]?.isFlipped }"
-                      :tabindex="roundStates[5]?.currentX > 0 ? 0 : -1"
+                      :tabindex="-1"
                       title=""
-                      :aria-label="getRoundScoringAriaLabel(5)"
-                      @mouseenter="handleRoundScoringMouseEnter(5, $event)"
-                      @mouseleave="handleRoundScoringMouseLeave"
-                      @focus="handleRoundScoringMouseEnter(5, $event)"
-                      @blur="handleRoundScoringMouseLeave"
-                      @keydown.esc.prevent="hideEntityPreview"
                     >
                       <span class="round-label">第 5 回合</span>
                       <div class="card-container">
@@ -677,18 +977,52 @@
                       </div>
                     </div>
                     <!-- 第3回合 -->
+                    <Popover
+                      v-if="roundStates[3]?.currentX > 0"
+                      placement="top"
+                      :offset="12"
+                      :width="roundScoringPreviewCardWidthPx"
+                    >
+                      <div
+                        class="grid-cell round-3"
+                        data-round="3"
+                        :class="{ 'current-round': currentRound === 3, 'flipped': roundStates[3]?.isFlipped }"
+                        :tabindex="0"
+                        title=""
+                        :aria-label="`预览第 3 回合计分板`"
+                      >
+                        <span class="round-label">第 3 回合</span>
+                        <div class="card-container">
+                          <div class="card-face front">
+                            <div aria-hidden="true" class="scoring-image" :style="getRoundScoringSpriteStyleByBackendId(roundStates[3]?.currentX)"></div>
+                          </div>
+                          <div class="card-face back">
+                            <div aria-hidden="true" class="scoring-image" :style="roundScoringBackSpriteStyle"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <template #content>
+                        <div class="entity-preview-media">
+                          <div
+                            class="entity-preview-image"
+                            :style="{ height: roundScoringPreviewImageHeightPx + 'px' }"
+                          >
+                            <div
+                              class="entity-preview-image-layer"
+                              :style="getRoundScoringSpriteStyleByBackendId(roundStates[3]?.currentX)"
+                            ></div>
+                          </div>
+                        </div>
+                        <div class="entity-preview-name">第 3 回合</div>
+                      </template>
+                    </Popover>
                     <div
+                      v-else
                       class="grid-cell round-3"
                       data-round="3"
                       :class="{ 'current-round': currentRound === 3, 'flipped': roundStates[3]?.isFlipped }"
-                      :tabindex="roundStates[3]?.currentX > 0 ? 0 : -1"
+                      :tabindex="-1"
                       title=""
-                      :aria-label="getRoundScoringAriaLabel(3)"
-                      @mouseenter="handleRoundScoringMouseEnter(3, $event)"
-                      @mouseleave="handleRoundScoringMouseLeave"
-                      @focus="handleRoundScoringMouseEnter(3, $event)"
-                      @blur="handleRoundScoringMouseLeave"
-                      @keydown.esc.prevent="hideEntityPreview"
                     >
                       <span class="round-label">第 3 回合</span>
                       <div class="card-container">
@@ -701,18 +1035,63 @@
                       </div>
                     </div>
                     <!-- 第6回合（支持叠加） -->
+                    <Popover
+                      v-if="roundStates[6]?.currentX > 0"
+                      placement="top"
+                      :offset="12"
+                      :width="roundScoringPreviewCardWidthPx"
+                    >
+                      <div
+                        class="grid-cell round-6"
+                        data-round="6"
+                        :class="{ 'current-round': currentRound === 6, 'flipped': roundStates[6]?.isFlipped }"
+                        :tabindex="0"
+                        title=""
+                        :aria-label="`预览第 6 回合计分板`"
+                      >
+                        <span class="round-label">第 6 回合</span>
+                        <div class="card-container">
+                          <div class="card-face front">
+                            <div aria-hidden="true" class="base-image" :style="getRoundScoringSpriteStyleByBackendId(roundStates[6]?.currentX)"></div>
+                            <div
+                              v-if="roundStates[6]?.finalScoringId !== null"
+                              aria-hidden="true"
+                              class="overlay-image"
+                              :style="getFinalScoringOverlaySpriteStyleByBackendId(roundStates[6]?.finalScoringId)"
+                            ></div>
+                          </div>
+                          <div class="card-face back">
+                            <div aria-hidden="true" class="scoring-image" :style="roundScoringBackSpriteStyle"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <template #content>
+                        <div class="entity-preview-media">
+                          <div
+                            class="entity-preview-image"
+                            :style="{ height: roundScoringPreviewImageHeightPx + 'px' }"
+                          >
+                            <div
+                              class="entity-preview-image-layer"
+                              :style="getRoundScoringSpriteStyleByBackendId(roundStates[6]?.currentX)"
+                            ></div>
+                            <div
+                              v-if="roundStates[6]?.finalScoringId !== null"
+                              class="entity-preview-image-layer"
+                              :style="getFinalScoringOverlaySpriteStyleByBackendId(roundStates[6]?.finalScoringId)"
+                            ></div>
+                          </div>
+                        </div>
+                        <div class="entity-preview-name">第 6 回合</div>
+                      </template>
+                    </Popover>
                     <div
+                      v-else
                       class="grid-cell round-6"
                       data-round="6"
                       :class="{ 'current-round': currentRound === 6, 'flipped': roundStates[6]?.isFlipped }"
-                      :tabindex="roundStates[6]?.currentX > 0 ? 0 : -1"
+                      :tabindex="-1"
                       title=""
-                      :aria-label="getRoundScoringAriaLabel(6)"
-                      @mouseenter="handleRoundScoringMouseEnter(6, $event)"
-                      @mouseleave="handleRoundScoringMouseLeave"
-                      @focus="handleRoundScoringMouseEnter(6, $event)"
-                      @blur="handleRoundScoringMouseLeave"
-                      @keydown.esc.prevent="hideEntityPreview"
                     >
                       <span class="round-label">第 6 回合</span>
                       <div class="card-container">
@@ -732,24 +1111,24 @@
                     </div>
                   </div>
 
-                  <!-- 右侧奖励区 -->
+                    <!-- 右侧奖励区 -->
                   <div class="right-column" id="right-bonus-grid">
-                    <div
-                      v-for="(bonus, index) in bonusColumns"
+                    <Popover
+                      v-for="(bonus, index) in bonusColumns.filter(b => b.x > 0)"
                       :key="index"
-                      class="bonus-cell"
-                      :class="{ flipped: bonus.isFlipped }"
-                      :data-index="index"
-                      :data-x="bonus.x"
-                      :tabindex="bonus.x > 0 ? 0 : -1"
-                      title=""
-                      :aria-label="bonus.x > 0 ? `预览回合助推板 ${bonus.x}` : undefined"
-                      @mouseenter="handleRoundBoosterMouseEnter(bonus, $event)"
-                      @mouseleave="handleRoundBoosterMouseLeave"
-                      @focus="handleRoundBoosterMouseEnter(bonus, $event)"
-                      @blur="handleRoundBoosterMouseLeave"
-                      @keydown.esc.prevent="hideEntityPreview"
+                      placement="top"
+                      :offset="12"
+                      :width="roundBoosterPreviewCardWidthPx"
                     >
+                      <div
+                        class="bonus-cell"
+                        :class="{ flipped: bonus.isFlipped }"
+                        :data-index="index"
+                        :data-x="bonus.x"
+                        :tabindex="0"
+                        title=""
+                        :aria-label="`预览回合助推板 ${bonus.x}`"
+                      >
                       <div class="card-container">
                         <div class="card-face front">
                           <div aria-hidden="true" class="bonus-sprite-image" :style="getRoundBoosterFrontSpriteStyleByBackendId(bonus.x)"></div>
@@ -772,6 +1151,41 @@
                         <i class="fas fa-coins"></i>
                         <span class="bonus-coin-badge-text">x{{ bonus.coinCount }}</span>
                       </span>
+                      <span class="bonus-label" :aria-label="`回合助推板 ${bonus.x}`">{{ bonus.x }}</span>
+                      </div>
+                      <template #content>
+                        <div class="entity-preview-media">
+                          <div
+                            class="entity-preview-image"
+                            :style="{ height: roundBoosterPreviewImageHeightPx + 'px' }"
+                          >
+                            <div
+                              class="entity-preview-image-layer"
+                              :style="getRoundBoosterFrontSpriteStyleByBackendId(bonus.x)"
+                            ></div>
+                          </div>
+                        </div>
+                        <div class="entity-preview-name">回合助推板 {{ bonus.x }}</div>
+                      </template>
+                    </Popover>
+                    <div
+                      v-for="(bonus, index) in bonusColumns.filter(b => b.x <= 0)"
+                      :key="`empty-${index}`"
+                      class="bonus-cell"
+                      :class="{ flipped: bonus.isFlipped }"
+                      :data-index="index"
+                      :data-x="bonus.x"
+                      :tabindex="-1"
+                      title=""
+                    >
+                      <div class="card-container">
+                        <div class="card-face front">
+                          <div aria-hidden="true" class="bonus-sprite-image" :style="getRoundBoosterFrontSpriteStyleByBackendId(bonus.x)"></div>
+                        </div>
+                        <div class="card-face back">
+                          <div aria-hidden="true" class="bonus-sprite-image" :style="getRoundBoosterBackSpriteStyleByBackendId(bonus.x)"></div>
+                        </div>
+                      </div>
                       <span class="bonus-label" :aria-label="`回合助推板 ${bonus.x}`">{{ bonus.x }}</span>
                     </div>
                   </div>
@@ -801,19 +1215,19 @@
                         <div class="science-board" :class="['science-board-' + numPlayers, (numPlayers === 3 || numPlayers === 5) ? 'crop-top' : '']" :style="(numPlayers === 3 || numPlayers === 5) ? {} : { backgroundImage: 'url(/assets/images/science_board_' + numPlayers + '.png)' }">
                           <div v-if="numPlayers === 3 || numPlayers === 5" class="science-board-inner">
                             <img class="science-board-img" :src="'/assets/images/science_board_' + numPlayers + '.png'" alt="science board" />
+                          <Popover
+                            v-for="(tileId, idx) in scienceTilesOrder"
+                            :key="'sci-' + idx"
+                            placement="top"
+                            :offset="12"
+                            :width="scienceTilePreviewCardWidthPx"
+                          >
                             <div
-                              v-for="(tileId, idx) in scienceTilesOrder"
-                              :key="'sci-' + idx"
                               class="science-board-tile"
                               :style="getScienceBoardTileStyle(tileId, idx)"
                               :tabindex="tileId ? 0 : -1"
                               :title="''"
                               :aria-label="tileId ? `预览科学板块 ${tileId}` : undefined"
-                              @mouseenter="handleScienceTileMouseEnter(tileId, $event)"
-                              @mouseleave="handleScienceTileMouseLeave"
-                              @focus="handleScienceTileMouseEnter(tileId, $event)"
-                              @blur="handleScienceTileMouseLeave"
-@keydown.esc.prevent="hideEntityPreview"
                             >
                               <canvas
                                 v-if="tileId && getScienceTileOwnerMarkId(tileId) !== null"
@@ -823,21 +1237,36 @@
                               ></canvas>
                               <span v-if="tileId" class="tile-index-badge">{{ tileId }}</span>
                             </div>
-                          </div>
-                          <template v-else>
+                            <template #content>
+                              <div class="entity-preview-media">
+                                <div
+                                  class="entity-preview-image"
+                                  :style="{ height: scienceTilePreviewImageHeightPx + 'px' }"
+                                >
+                                  <div
+                                    class="entity-preview-image-layer"
+                                    :style="getScienceTileStyleByBackendId(tileId)"
+                                  ></div>
+                                </div>
+                              </div>
+                              <div class="entity-preview-name">科学板块 {{ tileId }}</div>
+                            </template>
+                          </Popover>
+                        </div>
+                        <template v-else>
+                          <Popover
+                            v-for="(tileId, idx) in scienceTilesOrder"
+                            :key="'sci-' + idx"
+                            placement="top"
+                            :offset="12"
+                            :width="scienceTilePreviewCardWidthPx"
+                          >
                             <div
-                              v-for="(tileId, idx) in scienceTilesOrder"
-                              :key="'sci-' + idx"
                               class="science-board-tile"
                               :style="getScienceBoardTileStyle(tileId, idx)"
                               :tabindex="tileId ? 0 : -1"
                               :title="''"
                               :aria-label="tileId ? `预览科学板块 ${tileId}` : undefined"
-                              @mouseenter="handleScienceTileMouseEnter(tileId, $event)"
-                              @mouseleave="handleScienceTileMouseLeave"
-                              @focus="handleScienceTileMouseEnter(tileId, $event)"
-                              @blur="handleScienceTileMouseLeave"
-@keydown.esc.prevent="hideEntityPreview"
                             >
                               <canvas
                                 v-if="tileId && getScienceTileOwnerMarkId(tileId) !== null"
@@ -847,26 +1276,41 @@
                               ></canvas>
                               <span v-if="tileId" class="tile-index-badge">{{ tileId }}</span>
                             </div>
+                            <template #content>
+                              <div class="entity-preview-media">
+                                <div
+                                  class="entity-preview-image"
+                                  :style="{ height: scienceTilePreviewImageHeightPx + 'px' }"
+                                >
+                                  <div
+                                    class="entity-preview-image-layer"
+                                    :style="getScienceTileStyleByBackendId(tileId)"
+                                  ></div>
+                                </div>
+                              </div>
+                              <div class="entity-preview-name">科学板块 {{ tileId }}</div>
+                            </template>
+                          </Popover>
                           </template>
                         </div>
                       </div>
                       <!-- 能力板块 -->
                       <div class="ability-board-wrapper">
                         <div class="ability-board" :style="{ backgroundImage: 'url(/assets/images/ability_tiles_board.jpg)' }">
-                          <div
+                          <Popover
                             v-for="(tileId, idx) in abilityTilesOrder"
                             :key="'abi-' + idx"
-                            class="ability-board-tile"
-                            :style="getAbilityBoardTileStyle(tileId, idx)"
-                            :tabindex="tileId ? 0 : -1"
-                            :title="''"
-                            :aria-label="tileId ? `预览能力板块 ${tileId}` : undefined"
-                            @mouseenter="handleAbilityTileMouseEnter(tileId, $event)"
-                            @mouseleave="handleAbilityTileMouseLeave"
-                            @focus="handleAbilityTileMouseEnter(tileId, $event)"
-                            @blur="handleAbilityTileMouseLeave"
-                            @keydown.esc.prevent="hideEntityPreview"
+                            placement="top"
+                            :offset="12"
+                            :width="abilityTilePreviewCardWidthPx"
                           >
+                            <div
+                              class="ability-board-tile"
+                              :style="getAbilityBoardTileStyle(tileId, idx)"
+                              :tabindex="tileId ? 0 : -1"
+                              :title="''"
+                              :aria-label="tileId ? `预览能力板块 ${tileId}` : undefined"
+                            >
                             <div v-if="tileId" class="ability-tile-owner-strip" aria-hidden="true">
                               <canvas
                                 v-for="(markId, ownerIndex) in getAbilityTileOwnerMarkIds(tileId)"
@@ -877,7 +1321,22 @@
                             </div>
                             <span v-if="tileId" class="tile-index-badge">{{ tileId }}</span>
                             <span v-if="tileId" class="ability-tile-remaining-badge">×{{ getAbilityTileRemainingCount(tileId) }}</span>
-                          </div>
+                            </div>
+                            <template #content>
+                              <div class="entity-preview-media">
+                                <div
+                                  class="entity-preview-image"
+                                  :style="{ height: abilityTilePreviewImageHeightPx + 'px' }"
+                                >
+                                  <div
+                                    class="entity-preview-image-layer"
+                                    :style="getAbilityTileStyleByBackendId(tileId)"
+                                  ></div>
+                                </div>
+                              </div>
+                              <div class="entity-preview-name">能力板块 {{ tileId }}</div>
+                            </template>
+                          </Popover>
                         </div>
                       </div>
                     </div>
@@ -1546,37 +2005,7 @@
         <div v-else class="final-score-empty">最终比分尚未同步。</div>
       </div>
     </Modal>
-    <div
-      v-if="entityPreview.visible"
-      class="entity-preview"
-      :style="getEntityPreviewPositionStyle()"
-      @mouseenter="cancelEntityPreviewHide"
-      @mouseleave="scheduleEntityPreviewHide"
-    >
-      <div class="entity-preview-media">
-        <div
-          class="entity-preview-image"
-          :class="{ 'is-inactive': entityPreview.isInactive }"
-        >
-          <div
-            v-for="(layerStyle, index) in entityPreview.imageLayers"
-            :key="`entity-preview-layer-${index}`"
-            class="entity-preview-image-layer"
-            :style="layerStyle"
-          ></div>
-        </div>
-        <div
-          v-if="entityPreview.isInactive"
-          class="entity-preview-image-overlay"
-          aria-hidden="true"
-        >
-          <span class="entity-preview-status-icon">
-            <i class="fas fa-ban"></i>
-          </span>
-        </div>
-      </div>
-      <div class="entity-preview-name">{{ entityPreview.name }}</div>
-    </div>
+
   </div>
 </template>
 
@@ -1589,6 +2018,7 @@ import Modal from '../components/Modal.vue'
 import ActionTimer from '../components/ActionTimer.vue'
 import PlayerTimer from '../components/PlayerTimer.vue'
 import StrategyPickerModal from '../components/StrategyPickerModal.vue'
+import Popover from '../components/Popover.vue'
 import { STRATEGY_OPTIONS, SUPPORTED_STRATEGY_IDS } from '../constants/strategies.js'
 import {
   getFinalScoringOverlaySpriteStyleByBackendId,
@@ -2703,12 +3133,7 @@ const palaceTileBackgroundSize = '1800% 100%'
 const palaceTileAspectRatio = 142 / 74
 const factionTileAspectRatio = factionTilePixelWidth / factionTilePixelHeight
 const planningCardPreviewAspectRatio = 118 / 187
-const entityPreviewDelayMs = 300
-const roundEntityPreviewDelayMs = 500
-const entityPreviewOffsetPx = 12
-const entityPreviewViewportPaddingPx = 12
-const entityPreviewPaddingPx = 8
-const entityPreviewNameHeightPx = 30
+
 const factionPreviewCardWidthPx = 320
 const factionPreviewImageHeightPx = Math.round(factionPreviewCardWidthPx / factionTileAspectRatio)
 const palacePreviewCardWidthPx = 280
@@ -2723,18 +3148,7 @@ const abilityTilePreviewCardWidthPx = 116
 const abilityTilePreviewImageHeightPx = 112
 const scienceTilePreviewCardWidthPx = 140
 const scienceTilePreviewImageHeightPx = 90
-const entityPreview = reactive({
-  visible: false,
-  name: '',
-  imageLayers: [],
-  isInactive: false,
-  imageHeight: 0,
-  panelWidth: 0,
-  top: 0,
-  left: 0
-})
-let entityPreviewTimer = null
-let entityPreviewHideTimer = null
+
 
 // 建筑ID到建筑类型名称的映射
 const buildingIdToType = {
@@ -3063,326 +3477,7 @@ function getPlanningCardPreviewStyle(planningCardId) {
   }
 }
 
-function getEntityPreviewPositionStyle() {
-  return {
-    top: `${entityPreview.top}px`,
-    left: `${entityPreview.left}px`,
-    width: `${entityPreview.panelWidth}px`,
-    '--entity-preview-image-height': `${entityPreview.imageHeight}px`
-  }
-}
 
-function clearEntityPreviewTimer() {
-  if (entityPreviewTimer !== null) {
-    clearTimeout(entityPreviewTimer)
-    entityPreviewTimer = null
-  }
-}
-
-function clearEntityPreviewHideTimer() {
-  if (entityPreviewHideTimer !== null) {
-    clearTimeout(entityPreviewHideTimer)
-    entityPreviewHideTimer = null
-  }
-}
-
-function hideEntityPreview() {
-  clearEntityPreviewTimer()
-  clearEntityPreviewHideTimer()
-  entityPreview.visible = false
-  entityPreview.name = ''
-  entityPreview.imageLayers = []
-  entityPreview.isInactive = false
-  entityPreview.imageHeight = 0
-  entityPreview.panelWidth = 0
-}
-
-function hasRenderablePreviewLayer(style) {
-  return Boolean(style && typeof style === 'object' && Object.keys(style).length > 0)
-}
-
-function resolveEntityPreviewPosition(rect, panelWidth, panelHeight, placement = 'side') {
-  const maxLeft = Math.max(entityPreviewViewportPaddingPx, window.innerWidth - panelWidth - entityPreviewViewportPaddingPx)
-  const maxTop = Math.max(entityPreviewViewportPaddingPx, window.innerHeight - panelHeight - entityPreviewViewportPaddingPx)
-
-  if (placement === 'top') {
-    const preferredLeft = rect.left + (rect.width - panelWidth) / 2
-    const left = Math.min(Math.max(entityPreviewViewportPaddingPx, preferredLeft), maxLeft)
-    const preferredTop = rect.top - entityPreviewOffsetPx - panelHeight
-    const fallbackTop = rect.bottom + entityPreviewOffsetPx
-    const top = preferredTop >= entityPreviewViewportPaddingPx
-      ? preferredTop
-      : Math.min(Math.max(entityPreviewViewportPaddingPx, fallbackTop), maxTop)
-    return { left, top }
-  }
-
-  let left = rect.right + entityPreviewOffsetPx
-  if (left + panelWidth > window.innerWidth - entityPreviewViewportPaddingPx) {
-    left = rect.left - entityPreviewOffsetPx - panelWidth
-  }
-
-  const top = Math.min(
-    Math.max(entityPreviewViewportPaddingPx, rect.top + (rect.height - panelHeight) / 2),
-    maxTop
-  )
-
-  return {
-    left: Math.max(entityPreviewViewportPaddingPx, left),
-    top
-  }
-}
-
-function showEntityPreview({
-  name,
-  imageStyle,
-  imageLayers = [],
-  isInactive = false,
-  cardWidth,
-  imageHeight,
-  anchorElement,
-  placement = 'side'
-}) {
-  if (!anchorElement?.isConnected) {
-    return
-  }
-
-  const normalizedLayers = (Array.isArray(imageLayers) ? imageLayers : [])
-    .filter(hasRenderablePreviewLayer)
-  if (normalizedLayers.length === 0 && hasRenderablePreviewLayer(imageStyle)) {
-    normalizedLayers.push(imageStyle)
-  }
-  if (normalizedLayers.length === 0) {
-    return
-  }
-
-  const panelWidth = cardWidth + entityPreviewPaddingPx * 2
-  const panelHeight = imageHeight + entityPreviewNameHeightPx + entityPreviewPaddingPx * 2
-  const rect = anchorElement.getBoundingClientRect()
-  const { left, top } = resolveEntityPreviewPosition(rect, panelWidth, panelHeight, placement)
-
-  entityPreview.name = name
-  entityPreview.imageLayers = normalizedLayers
-  entityPreview.isInactive = Boolean(isInactive)
-  entityPreview.imageHeight = imageHeight
-  entityPreview.panelWidth = panelWidth
-  entityPreview.left = left
-  entityPreview.top = top
-  entityPreview.visible = true
-}
-
-function queueEntityPreview(config) {
-  clearEntityPreviewHideTimer()
-  clearEntityPreviewTimer()
-  const delayMs = Number.isFinite(config?.delayMs) ? Math.max(0, config.delayMs) : entityPreviewDelayMs
-  entityPreviewTimer = setTimeout(() => {
-    entityPreviewTimer = null
-    showEntityPreview(config)
-  }, delayMs)
-}
-
-function handlePlanningCardMouseEnter(planningCardId, planningCardName, event) {
-  if (!planningCardId) {
-    return
-  }
-
-  queueEntityPreview({
-    name: planningCardName || planningCardIdToName[planningCardId] || '',
-    imageStyle: getPlanningCardPreviewStyle(planningCardId),
-    cardWidth: planningPreviewCardWidthPx,
-    imageHeight: planningPreviewImageHeightPx,
-    anchorElement: event?.currentTarget
-  })
-}
-
-function handlePlanningCardMouseLeave() {
-  clearEntityPreviewTimer()
-  scheduleEntityPreviewHide()
-}
-
-function handlePalaceTileMouseEnter(palaceTileId, isGotPalace, event) {
-  if (!palaceTileId) {
-    return
-  }
-
-  const isInactive = !isGotPalace
-  queueEntityPreview({
-    name: isInactive ? `${palaceTileId}号宫殿板块 · 未激活` : `${palaceTileId}号宫殿板块`,
-    imageStyle: getPalacePreviewStyle(palaceTileId),
-    isInactive,
-    cardWidth: palacePreviewCardWidthPx,
-    imageHeight: palacePreviewImageHeightPx,
-    anchorElement: event?.currentTarget
-  })
-}
-
-function handlePalaceTileMouseLeave() {
-  clearEntityPreviewTimer()
-  scheduleEntityPreviewHide()
-}
-
-function handleFactionBadgeMouseEnter(factionId, factionName, event) {
-  if (!factionId) {
-    return
-  }
-
-  queueEntityPreview({
-    name: factionName || factionIdToName[factionId] || '',
-    imageStyle: getFactionPreviewStyle(factionId),
-    cardWidth: factionPreviewCardWidthPx,
-    imageHeight: factionPreviewImageHeightPx,
-    anchorElement: event?.currentTarget
-  })
-}
-
-function handleFactionBadgeMouseLeave() {
-  clearEntityPreviewTimer()
-  scheduleEntityPreviewHide()
-}
-
-function getRoundScoringPreviewLayers(round) {
-  const normalizedRound = Number(round)
-  const roundState = roundStates[normalizedRound]
-  if (!Number.isInteger(normalizedRound) || normalizedRound < 1 || normalizedRound > 6 || !roundState) {
-    return []
-  }
-
-  const layers = []
-  const baseLayer = getRoundScoringSpriteStyleByBackendId(roundState.currentX)
-  if (!hasRenderablePreviewLayer(baseLayer)) {
-    return []
-  }
-
-  layers.push(baseLayer)
-
-  if (normalizedRound === 6) {
-    const overlayLayer = getFinalScoringOverlaySpriteStyleByBackendId(roundState.finalScoringId)
-    if (hasRenderablePreviewLayer(overlayLayer)) {
-      layers.push(overlayLayer)
-    }
-  }
-
-  return layers
-}
-
-function getRoundScoringAriaLabel(round) {
-  return getRoundScoringPreviewLayers(round).length > 0 ? `预览第 ${round} 回合计分板` : undefined
-}
-
-function handleRoundScoringMouseEnter(round, event) {
-  const imageLayers = getRoundScoringPreviewLayers(round)
-  if (imageLayers.length === 0) {
-    return
-  }
-
-  queueEntityPreview({
-    name: `第 ${round} 回合`,
-    imageLayers,
-    cardWidth: roundScoringPreviewCardWidthPx,
-    imageHeight: roundScoringPreviewImageHeightPx,
-    anchorElement: event?.currentTarget,
-    placement: 'top',
-    delayMs: roundEntityPreviewDelayMs
-  })
-}
-
-function handleRoundScoringMouseLeave() {
-  clearEntityPreviewTimer()
-  scheduleEntityPreviewHide()
-}
-
-function handleRoundBoosterMouseEnter(bonus, event) {
-  if (!bonus?.x) {
-    return
-  }
-
-  const imageLayer = getRoundBoosterFrontSpriteStyleByBackendId(bonus.x)
-  if (!hasRenderablePreviewLayer(imageLayer)) {
-    return
-  }
-
-  queueEntityPreview({
-    name: `回合助推板 ${bonus.x}`,
-    imageLayers: [imageLayer],
-    cardWidth: roundBoosterPreviewCardWidthPx,
-    imageHeight: roundBoosterPreviewImageHeightPx,
-    anchorElement: event?.currentTarget,
-    placement: 'top',
-    delayMs: roundEntityPreviewDelayMs
-  })
-}
-
-function handleRoundBoosterMouseLeave() {
-  clearEntityPreviewTimer()
-  scheduleEntityPreviewHide()
-}
-
-function handleAbilityTileMouseEnter(tileId, event) {
-  if (!tileId) {
-    return
-  }
-
-  const imageLayer = getAbilityTileStyleByBackendId(tileId)
-  if (!hasRenderablePreviewLayer(imageLayer)) {
-    return
-  }
-
-  queueEntityPreview({
-    name: `能力板块 ${tileId}`,
-    imageLayers: [imageLayer],
-    cardWidth: abilityTilePreviewCardWidthPx,
-    imageHeight: abilityTilePreviewImageHeightPx,
-    anchorElement: event?.currentTarget,
-    placement: 'top',
-    delayMs: roundEntityPreviewDelayMs
-  })
-}
-
-function handleAbilityTileMouseLeave() {
-  clearEntityPreviewTimer()
-  scheduleEntityPreviewHide()
-}
-
-function handleScienceTileMouseEnter(tileId, event) {
-  if (!tileId) {
-    return
-  }
-
-  const imageLayer = getScienceTileStyleByBackendId(tileId)
-  if (!hasRenderablePreviewLayer(imageLayer)) {
-    return
-  }
-
-  queueEntityPreview({
-    name: `科学板块 ${tileId}`,
-    imageLayers: [imageLayer],
-    cardWidth: scienceTilePreviewCardWidthPx,
-    imageHeight: scienceTilePreviewImageHeightPx,
-    anchorElement: event?.currentTarget,
-    placement: 'top',
-    delayMs: roundEntityPreviewDelayMs
-  })
-}
-
-function handleScienceTileMouseLeave() {
-  clearEntityPreviewTimer()
-  scheduleEntityPreviewHide()
-}
-
-function cancelEntityPreviewHide() {
-  clearEntityPreviewHideTimer()
-}
-
-function scheduleEntityPreviewHide() {
-  clearEntityPreviewHideTimer()
-  if (!entityPreview.visible) {
-    return
-  }
-
-  entityPreviewHideTimer = setTimeout(() => {
-    entityPreviewHideTimer = null
-    hideEntityPreview()
-  }, 120)
-}
 
 function buildGlobalStatusFromMeta() {
   if (gameMeta.is_game_over) {
@@ -7251,8 +7346,6 @@ onUnmounted(() => {
   document.removeEventListener('click', handleDocumentClick)
   clearTimeout(terrainTooltipTimeout)
   clearTimeout(reconnectTimeout)
-  clearEntityPreviewTimer()
-  clearEntityPreviewHideTimer()
   cancelActionOverflowMeasurement()
   if (actionContentResizeObserver) {
     actionContentResizeObserver.disconnect()
@@ -7757,74 +7850,6 @@ onUnmounted(() => {
   font-variant-numeric: tabular-nums;
 }
 
-.entity-preview {
-  position: fixed;
-  z-index: 1200;
-  padding: 8px;
-  border-radius: 16px;
-  background: rgba(28, 28, 28, 0.96);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.32);
-  backdrop-filter: blur(10px);
-  box-sizing: border-box;
-}
-
-.entity-preview-media {
-  position: relative;
-}
-
-.entity-preview-image {
-  position: relative;
-  width: 100%;
-  height: var(--entity-preview-image-height);
-  border-radius: 12px;
-  background-color: transparent;
-  overflow: hidden;
-}
-
-.entity-preview-image.is-inactive {
-  filter: saturate(0.82);
-}
-
-.entity-preview-image-layer {
-  position: absolute;
-  inset: 0;
-  background-repeat: no-repeat;
-  background-color: transparent;
-}
-
-.entity-preview-image-overlay {
-  position: absolute;
-  inset: 0;
-  border-radius: 12px;
-  background: rgba(113, 120, 132, 0.42);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.entity-preview-status-icon {
-  color: #ef4444;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  text-shadow: 0 6px 18px rgba(0, 0, 0, 0.36);
-}
-
-.entity-preview-status-icon i {
-  font-size: 4rem;
-  line-height: 1;
-}
-
-.entity-preview-name {
-  margin-top: 8px;
-  color: var(--text-primary);
-  text-align: center;
-  font-size: 0.85rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  line-height: 1.3;
-}
 
 .player-score {
   background-color: transparent;
@@ -10732,6 +10757,66 @@ onUnmounted(() => {
   .control-center-toolbar {
     grid-template-columns: minmax(0, 1fr) 60px 60px;
   }
+}
+
+/* ===== Popover 内容样式（原 entityPreview） ===== */
+.entity-preview-media {
+  position: relative;
+}
+
+.entity-preview-image {
+  position: relative;
+  width: 100%;
+  height: var(--entity-preview-image-height);
+  border-radius: 12px;
+  background-color: transparent;
+  overflow: hidden;
+}
+
+.entity-preview-image.is-inactive {
+  filter: saturate(0.82);
+}
+
+.entity-preview-image-layer {
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  background-color: transparent;
+}
+
+.entity-preview-image-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  background: rgba(113, 120, 132, 0.42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.entity-preview-status-icon {
+  color: #ef4444;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-shadow: 0 6px 18px rgba(0, 0, 0, 0.36);
+}
+
+.entity-preview-status-icon i {
+  font-size: 4rem;
+  line-height: 1;
+}
+
+.entity-preview-name {
+  margin-top: 8px;
+  color: var(--text-primary);
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.3;
 }
 
 /* 桥梁指示器 */
