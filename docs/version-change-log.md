@@ -13,6 +13,20 @@
 - 验证方式：
   - `待补充`
 
+## 0.9.6.4
+
+- 日期：`2026-04-25`
+- 分支：`main`
+- 影响范围：
+  - `frontend/src/views/GameView.vue`
+  - `docs/version-change-log.md`
+- 更新内容：
+  - `fix: 修复地块明细 popover 不会随页面滚动而重定位的问题，将 trigger 从 fixed 改为 absolute，坐标计算改为相对于 map-container-full`
+  - `fix: 修复地块明细 popover 再次点击同一地块会重复打开的问题，改为与其他 popover 一致的点击切换逻辑（打开→关闭）`
+  - `fix: 修正地块明细 popover 的 trigger 定位逻辑，从鼠标位置改为六边形中心点，offset 设为 32px`
+- 验证方式：
+  - `cd frontend && npm run build`
+
 ## 模板
 
 ## 0.9.6.3

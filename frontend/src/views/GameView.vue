@@ -682,10 +682,13 @@
                     ref="tileDetailPopoverRef"
                     placement="auto"
                     width="260"
+                    :offset="32"
+                    @show="isTileDetailPopoverOpen = true"
+                    @hide="isTileDetailPopoverOpen = false; lastClickedTileKey = null"
                   >
                     <div
                       ref="tileDetailTriggerRef"
-                      style="position: fixed; width: 1px; height: 1px; pointer-events: none;"
+                      style="position: absolute; width: 1px; height: 1px; pointer-events: none;"
                     ></div>
                     <template #content>
                       <PopoverContent
@@ -2513,6 +2516,8 @@ const stateVersion = ref(0)
 const selectedTileDetail = ref(null)
 const tileDetailPopoverRef = ref(null)
 const tileDetailTriggerRef = ref(null)
+const isTileDetailPopoverOpen = ref(false)
+const lastClickedTileKey = ref(null)
 const gameMeta = reactive({
   round: 0,
   num_players: 3,
@@ -6027,15 +6032,30 @@ function generateHexMap() {
         const hex = document.querySelector(`.hexagon[data-row="${row}"][data-col="${col}"]`)
         const terrain = hex ? hex.getAttribute('data-terrain') : '0'
         if (terrain === '0') return
+        const tileKey = `${row}-${col}`
+        // 如果点击的是同一个地块且 popover 已打开，则关闭
+        if (lastClickedTileKey.value === tileKey && isTileDetailPopoverOpen.value) {
+          tileDetailPopoverRef.value?.hide()
+          return
+        }
+        lastClickedTileKey.value = tileKey
         const position = `${MAP_CONFIG.rowLetters[row]}${col + 1}`
         const terrainName = TERRAIN_TYPES[terrain]
         selectedTileDetail.value = {
           title: `${position} 地块 · ${terrainName}`
         }
         nextTick(() => {
-          if (tileDetailTriggerRef.value) {
-            tileDetailTriggerRef.value.style.left = event.clientX + 'px'
-            tileDetailTriggerRef.value.style.top = event.clientY + 'px'
+          if (tileDetailTriggerRef.value && hex) {
+            const container = tileDetailTriggerRef.value.closest('.map-container-full')
+            if (container) {
+              const containerRect = container.getBoundingClientRect()
+              const hexRect = hex.getBoundingClientRect()
+              const hexCenterX = hexRect.left + hexRect.width / 2
+              const hexCenterY = hexRect.top + hexRect.height / 2
+              // trigger 放在六边形中心点，Popover 的 16px offset 从中心点开始计算
+              tileDetailTriggerRef.value.style.left = (hexCenterX - containerRect.left) + 'px'
+              tileDetailTriggerRef.value.style.top = (hexCenterY - containerRect.top) + 'px'
+            }
           }
           tileDetailPopoverRef.value?.show()
         })
@@ -8290,6 +8310,7 @@ onUnmounted(() => {
   background-color: transparent;
   overflow: hidden;
   box-sizing: border-box;
+  position: relative;
 }
 
 #hex-grid-svg {
