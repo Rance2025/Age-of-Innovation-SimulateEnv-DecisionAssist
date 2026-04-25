@@ -1243,6 +1243,19 @@
                   </div>
                   <div ref="cultBoardSectionRef" class="cult-board-section">
                     <img src="/assets/images/tracks_board.png" alt="tracks board" class="cult-board-image" />
+                    <div class="track-click-areas">
+                      <Popover
+                        v-for="(type, idx) in TRACK_TYPES"
+                        :key="`track-${type}`"
+                        placement="auto"
+                        width="280"
+                      >
+                        <div class="track-click-area"></div>
+                        <template #content>
+                          <PopoverContent :detail-title="`${TRACK_LABELS[type]}轨道明细`" />
+                        </template>
+                      </Popover>
+                    </div>
                     <div class="tracks-board-overlay">
                       <TransitionGroup name="track-marker-fade">
                         <canvas
@@ -2815,6 +2828,12 @@ const selectedControlStrategySummaryLabel = computed(() => (
 ))
 
 const TRACK_TYPES = ['bank', 'law', 'engineering', 'medical']
+const TRACK_LABELS = {
+  bank: '银行',
+  law: '法律',
+  engineering: '工程',
+  medical: '医学'
+}
 const TRACK_CENTERS = { bank: 15.25, law: 37.75, engineering: 60.75, medical: 83.5 }
 const TRACK_LEVEL_TOPS = [
   78.5, // 0
@@ -8922,6 +8941,18 @@ onUnmounted(() => {
   object-fit: contain;
   border-radius: 8px;
   display: block;
+}
+
+.track-click-areas {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  z-index: 20;
+}
+
+.track-click-area {
+  flex: 1;
+  cursor: pointer;
 }
 
 .tracks-board-overlay {
