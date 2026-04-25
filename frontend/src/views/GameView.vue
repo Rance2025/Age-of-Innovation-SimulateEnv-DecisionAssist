@@ -1,7 +1,7 @@
 <template>
   <div class="game-page">
     <div class="main-container">
-      <!-- 左侧：玩家面�?-->
+      <!-- 左侧：玩家面板-->
       <div class="players-monitor">
         <div class="monitor-header">
           <i class="fas fa-users"></i>
@@ -106,7 +106,7 @@
                         }"
                         :tabindex="0"
                         title=""
-                        :aria-label="`预览${player.palaceTileId}号宫殿板�?{player.isGotPalace ? '' : '（未激活）'}`"
+                        :aria-label="`预览${player.palaceTileId}号宫殿板块${player.isGotPalace ? '' : '（未激活）'}`"
                         aria-hidden="false"
                       >
                         <span class="palace-tile-badge-value">{{ player.palaceTileId }}</span>
@@ -122,7 +122,7 @@
                         <PopoverContent
                           :image-container-style="{ '--preview-width': '280px', '--preview-aspect-ratio': '142/74' }"
                           :image-layer-style="getPalacePreviewStyle(player.palaceTileId)"
-                          :name="player.isGotPalace ? `${player.palaceTileId}号宫殿板块` : `${player.palaceTileId}号宫殿板�?· 未激活`"
+                          :name="player.isGotPalace ? `${player.palaceTileId}号宫殿板块` : `${player.palaceTileId}号宫殿板块· 未激活`"
                           :inactive="!player.isGotPalace"
                           aspect-ratio="142/74"
                         />
@@ -252,7 +252,7 @@
                 </div>
               </div>
             </div>
-            <!-- 活跃玩家空状�?-->
+            <!-- 活跃玩家空状态-->
             <div
               v-if="stateVersion > 0 && activePlayerItems.length === 0"
               key="__active-empty__"
@@ -260,7 +260,7 @@
             >
               <span class="player-empty-state-text">无活跃玩家</span>
             </div>
-            <!-- 分割�?-->
+            <!-- 分割线-->
             <div
               :key="'__divider__'"
               class="player-pass-divider"
@@ -269,7 +269,7 @@
               <span class="player-pass-divider-text">已略过</span>
               <span class="player-pass-divider-line"></span>
             </div>
-            <!-- 已pass玩家空状�?-->
+            <!-- 已pass玩家空状态-->
             <div
               v-if="stateVersion > 0 && passedPlayerItems.length === 0"
               key="__passed-empty__"
@@ -370,7 +370,7 @@
                         }"
                         :tabindex="0"
                         title=""
-                        :aria-label="`预览${player.palaceTileId}号宫殿板�?{player.isGotPalace ? '' : '（未激活）'}`"
+                        :aria-label="`预览${player.palaceTileId}号宫殿板块${player.isGotPalace ? '' : '（未激活）'}`"
                         aria-hidden="false"
                       >
                         <span class="palace-tile-badge-value">{{ player.palaceTileId }}</span>
@@ -386,7 +386,7 @@
                         <PopoverContent
                           :image-container-style="{ '--preview-width': '280px', '--preview-aspect-ratio': '142/74' }"
                           :image-layer-style="getPalacePreviewStyle(player.palaceTileId)"
-                          :name="player.isGotPalace ? `${player.palaceTileId}号宫殿板块` : `${player.palaceTileId}号宫殿板�?· 未激活`"
+                          :name="player.isGotPalace ? `${player.palaceTileId}号宫殿板块` : `${player.palaceTileId}号宫殿板块· 未激活`"
                           :inactive="!player.isGotPalace"
                           aspect-ratio="142/74"
                         />
@@ -553,7 +553,7 @@
                       @mouseleave="hideTerrainTooltip"
                     >
                       <div class="tooltip-content">
-                        <h3>地形色环与图�?/h3>
+                        <h3>地形色环与图例</h3>
                         <div class="color-ring-wrapper">
                           <svg
                             width="140"
@@ -670,11 +670,11 @@
                     </g>
                     <!-- 元素层，用于放置图标 -->
                     <g id="hex-elements"></g>
-                    <!-- 高亮�?-->
+                    <!-- 高亮层-->
                     <g id="hex-highlight-layer"></g>
-                    <!-- 悬停�?-->
+                    <!-- 悬停层-->
                     <g id="hex-hover-layer"></g>
-                    <!-- 编号�?-->
+                    <!-- 编号层-->
                     <g id="hex-numbers"></g>
                   </svg>
                   <!-- 地块明细弹窗 -->
@@ -713,9 +713,9 @@
               </div>
               <div class="round-info-status">
                 <div ref="roundInfoContainerRef" class="round-info-container">
-                  <!-- 左侧计分�?-->
+                  <!-- 左侧计分板-->
                   <div class="left-column" id="left-scoring-grid" :style="roundInfoLeftColumnStyle">
-                    <!-- �?回合 -->
+                    <!-- 第回合 -->
                     <Popover
                       v-if="roundStates[1]?.currentX > 0"
                       placement="top"
@@ -727,9 +727,9 @@
                         :class="{ 'current-round': currentRound === 1, 'flipped': roundStates[1]?.isFlipped }"
                         :tabindex="0"
                         title=""
-                        :aria-label="`预览�?1 回合计分板`"
+                        :aria-label="`预览第1 回合计分板`"
                       >
-                        <span class="round-label">�?1 回合</span>
+                        <span class="round-label">第1 回合</span>
                         <div class="card-container">
                           <div class="card-face front">
                             <div aria-hidden="true" class="scoring-image" :style="getRoundScoringSpriteStyleByBackendId(roundStates[1]?.currentX)"></div>
@@ -743,7 +743,7 @@
                         <PopoverContent
                           :image-container-style="{ '--preview-width': '174px', '--preview-aspect-ratio': '232/134' }"
                           :image-layer-style="getRoundScoringSpriteStyleByBackendId(roundStates[1]?.currentX)"
-                          name="�?1 回合"
+                          name="第1 回合"
                           aspect-ratio="232/134"
                         />
                       </template>
@@ -756,7 +756,7 @@
                       :tabindex="-1"
                       title=""
                     >
-                      <span class="round-label">�?1 回合</span>
+                      <span class="round-label">第1 回合</span>
                       <div class="card-container">
                         <div class="card-face front">
                           <div aria-hidden="true" class="scoring-image" :style="getRoundScoringSpriteStyleByBackendId(roundStates[1]?.currentX)"></div>
@@ -766,7 +766,7 @@
                         </div>
                       </div>
                     </div>
-                    <!-- �?回合 -->
+                    <!-- 第回合 -->
                     <Popover
                       v-if="roundStates[4]?.currentX > 0"
                       placement="top"
@@ -778,9 +778,9 @@
                         :class="{ 'current-round': currentRound === 4, 'flipped': roundStates[4]?.isFlipped }"
                         :tabindex="0"
                         title=""
-                        :aria-label="`预览�?4 回合计分板`"
+                        :aria-label="`预览第4 回合计分板`"
                       >
-                        <span class="round-label">�?4 回合</span>
+                        <span class="round-label">第4 回合</span>
                         <div class="card-container">
                           <div class="card-face front">
                             <div aria-hidden="true" class="scoring-image" :style="getRoundScoringSpriteStyleByBackendId(roundStates[4]?.currentX)"></div>
@@ -794,7 +794,7 @@
                         <PopoverContent
                           :image-container-style="{ '--preview-width': '174px', '--preview-aspect-ratio': '232/134' }"
                           :image-layer-style="getRoundScoringSpriteStyleByBackendId(roundStates[4]?.currentX)"
-                          name="�?4 回合"
+                          name="第4 回合"
                           aspect-ratio="232/134"
                         />
                       </template>
@@ -807,7 +807,7 @@
                       :tabindex="-1"
                       title=""
                     >
-                      <span class="round-label">�?4 回合</span>
+                      <span class="round-label">第4 回合</span>
                       <div class="card-container">
                         <div class="card-face front">
                           <div aria-hidden="true" class="scoring-image" :style="getRoundScoringSpriteStyleByBackendId(roundStates[4]?.currentX)"></div>
@@ -817,7 +817,7 @@
                         </div>
                       </div>
                     </div>
-                    <!-- �?回合 -->
+                    <!-- 第回合 -->
                     <Popover
                       v-if="roundStates[2]?.currentX > 0"
                       placement="top"
@@ -829,9 +829,9 @@
                         :class="{ 'current-round': currentRound === 2, 'flipped': roundStates[2]?.isFlipped }"
                         :tabindex="0"
                         title=""
-                        :aria-label="`预览�?2 回合计分板`"
+                        :aria-label="`预览第2 回合计分板`"
                       >
-                        <span class="round-label">�?2 回合</span>
+                        <span class="round-label">第2 回合</span>
                         <div class="card-container">
                           <div class="card-face front">
                             <div aria-hidden="true" class="scoring-image" :style="getRoundScoringSpriteStyleByBackendId(roundStates[2]?.currentX)"></div>
@@ -845,7 +845,7 @@
                         <PopoverContent
                           :image-container-style="{ '--preview-width': '174px', '--preview-aspect-ratio': '232/134' }"
                           :image-layer-style="getRoundScoringSpriteStyleByBackendId(roundStates[2]?.currentX)"
-                          name="�?2 回合"
+                          name="第2 回合"
                           aspect-ratio="232/134"
                         />
                       </template>
@@ -858,7 +858,7 @@
                       :tabindex="-1"
                       title=""
                     >
-                      <span class="round-label">�?2 回合</span>
+                      <span class="round-label">第2 回合</span>
                       <div class="card-container">
                         <div class="card-face front">
                           <div aria-hidden="true" class="scoring-image" :style="getRoundScoringSpriteStyleByBackendId(roundStates[2]?.currentX)"></div>
@@ -868,7 +868,7 @@
                         </div>
                       </div>
                     </div>
-                    <!-- �?回合 -->
+                    <!-- 第回合 -->
                     <Popover
                       v-if="roundStates[5]?.currentX > 0"
                       placement="top"
@@ -880,9 +880,9 @@
                         :class="{ 'current-round': currentRound === 5, 'flipped': roundStates[5]?.isFlipped }"
                         :tabindex="0"
                         title=""
-                        :aria-label="`预览�?5 回合计分板`"
+                        :aria-label="`预览第5 回合计分板`"
                       >
-                        <span class="round-label">�?5 回合</span>
+                        <span class="round-label">第5 回合</span>
                         <div class="card-container">
                           <div class="card-face front">
                             <div aria-hidden="true" class="scoring-image" :style="getRoundScoringSpriteStyleByBackendId(roundStates[5]?.currentX)"></div>
@@ -896,7 +896,7 @@
                         <PopoverContent
                           :image-container-style="{ '--preview-width': '174px', '--preview-aspect-ratio': '232/134' }"
                           :image-layer-style="getRoundScoringSpriteStyleByBackendId(roundStates[5]?.currentX)"
-                          name="�?5 回合"
+                          name="第5 回合"
                           aspect-ratio="232/134"
                         />
                       </template>
@@ -909,7 +909,7 @@
                       :tabindex="-1"
                       title=""
                     >
-                      <span class="round-label">�?5 回合</span>
+                      <span class="round-label">第5 回合</span>
                       <div class="card-container">
                         <div class="card-face front">
                           <div aria-hidden="true" class="scoring-image" :style="getRoundScoringSpriteStyleByBackendId(roundStates[5]?.currentX)"></div>
@@ -919,7 +919,7 @@
                         </div>
                       </div>
                     </div>
-                    <!-- �?回合 -->
+                    <!-- 第回合 -->
                     <Popover
                       v-if="roundStates[3]?.currentX > 0"
                       placement="top"
@@ -931,9 +931,9 @@
                         :class="{ 'current-round': currentRound === 3, 'flipped': roundStates[3]?.isFlipped }"
                         :tabindex="0"
                         title=""
-                        :aria-label="`预览�?3 回合计分板`"
+                        :aria-label="`预览第3 回合计分板`"
                       >
-                        <span class="round-label">�?3 回合</span>
+                        <span class="round-label">第3 回合</span>
                         <div class="card-container">
                           <div class="card-face front">
                             <div aria-hidden="true" class="scoring-image" :style="getRoundScoringSpriteStyleByBackendId(roundStates[3]?.currentX)"></div>
@@ -947,7 +947,7 @@
                         <PopoverContent
                           :image-container-style="{ '--preview-width': '174px', '--preview-aspect-ratio': '232/134' }"
                           :image-layer-style="getRoundScoringSpriteStyleByBackendId(roundStates[3]?.currentX)"
-                          name="�?3 回合"
+                          name="第3 回合"
                           aspect-ratio="232/134"
                         />
                       </template>
@@ -960,7 +960,7 @@
                       :tabindex="-1"
                       title=""
                     >
-                      <span class="round-label">�?3 回合</span>
+                      <span class="round-label">第3 回合</span>
                       <div class="card-container">
                         <div class="card-face front">
                           <div aria-hidden="true" class="scoring-image" :style="getRoundScoringSpriteStyleByBackendId(roundStates[3]?.currentX)"></div>
@@ -970,7 +970,7 @@
                         </div>
                       </div>
                     </div>
-                    <!-- �?回合（支持叠加） -->
+                    <!-- 第回合（支持叠加） -->
                     <Popover
                       v-if="roundStates[6]?.currentX > 0"
                       placement="top"
@@ -982,9 +982,9 @@
                         :class="{ 'current-round': currentRound === 6, 'flipped': roundStates[6]?.isFlipped }"
                         :tabindex="0"
                         title=""
-                        :aria-label="`预览�?6 回合计分板`"
+                        :aria-label="`预览第6 回合计分板`"
                       >
-                        <span class="round-label">�?6 回合</span>
+                        <span class="round-label">第6 回合</span>
                         <div class="card-container">
                           <div class="card-face front">
                             <div aria-hidden="true" class="base-image" :style="getRoundScoringSpriteStyleByBackendId(roundStates[6]?.currentX)"></div>
@@ -1004,7 +1004,7 @@
                         <PopoverContent
                           :image-container-style="{ '--preview-width': '174px', '--preview-aspect-ratio': '232/134' }"
                           :image-layer-style="getRoundScoringSpriteStyleByBackendId(roundStates[6]?.currentX)"
-                          name="�?6 回合"
+                          name="第6 回合"
                           aspect-ratio="232/134"
                         />
                       </template>
@@ -1017,7 +1017,7 @@
                       :tabindex="-1"
                       title=""
                     >
-                      <span class="round-label">�?6 回合</span>
+                      <span class="round-label">第6 回合</span>
                       <div class="card-container">
                         <div class="card-face front">
                           <div aria-hidden="true" class="base-image" :style="getRoundScoringSpriteStyleByBackendId(roundStates[6]?.currentX)"></div>
@@ -1035,7 +1035,7 @@
                     </div>
                   </div>
 
-                    <!-- 右侧奖励�?-->
+                    <!-- 右侧奖励板-->
                   <div class="right-column" id="right-bonus-grid">
                     <Popover
                       v-for="(bonus, index) in bonusColumns.filter(b => b.x > 0)"
@@ -1050,7 +1050,7 @@
                         :data-x="bonus.x"
                         :tabindex="0"
                         title=""
-                        :aria-label="`预览回合助推�?${bonus.x}`"
+                        :aria-label="`预览回合助推板${bonus.x}`"
                       >
                       <div class="card-container">
                         <div class="card-face front">
@@ -1074,13 +1074,13 @@
                         <i class="fas fa-coins"></i>
                         <span class="bonus-coin-badge-text">x{{ bonus.coinCount }}</span>
                       </span>
-                      <span class="bonus-label" :aria-label="`回合助推�?${bonus.x}`">{{ bonus.x }}</span>
+                      <span class="bonus-label" :aria-label="`回合助推板${bonus.x}`">{{ bonus.x }}</span>
                       </div>
                       <template #content>
                         <PopoverContent
                           :image-container-style="{ '--preview-width': '111px', '--preview-aspect-ratio': '3/8' }"
                           :image-layer-style="getRoundBoosterFrontSpriteStyleByBackendId(bonus.x)"
-                          :name="`回合助推�?${bonus.x}`"
+                          :name="`回合助推板${bonus.x}`"
                           aspect-ratio="3/8"
                         />
                       </template>
@@ -1103,7 +1103,7 @@
                           <div aria-hidden="true" class="bonus-sprite-image" :style="getRoundBoosterBackSpriteStyleByBackendId(bonus.x)"></div>
                         </div>
                       </div>
-                      <span class="bonus-label" :aria-label="`回合助推�?${bonus.x}`">{{ bonus.x }}</span>
+                      <span class="bonus-label" :aria-label="`回合助推板${bonus.x}`">{{ bonus.x }}</span>
                     </div>
                   </div>
                 </div>
@@ -1266,7 +1266,7 @@
         </div>
       </div>
 
-      <!-- 右侧：全局信息�?-->
+      <!-- 右侧：全局信息区-->
       <div class="global-section">
         <div class="control-center-section">
           <div class="control-center-header">
@@ -1318,7 +1318,7 @@
             <div class="action-title-group">
               <div class="action-title">
                 <i class="fas fa-play-circle"></i>
-                <div>可选行�?/div>
+                <div>可选行动</div>
               </div>
               <div class="action-subtitle">{{ actionSubtitle }}</div>
             </div>
@@ -1331,7 +1331,7 @@
                 <span>{{ currentActionOwnerLabel }}</span>
               </div>
               <div class="action-mode-chip">{{ currentActionModeLabel }}</div>
-              <div class="action-count">�?span id="action-count">{{ actionCount }}</span>�?/div>
+              <div class="action-count"><span id="action-count">{{ actionCount }}</span></div>
             </div>
             <div v-if="isAiPlayer && !gameMeta.is_game_over" class="ai-thinking-badge">
               <img src="https://img.icons8.com/3d-fluency/500/sparkles.png" alt="AI" />
@@ -1490,7 +1490,7 @@
           <div class="status-header">
             <div class="status-title">
               <i class="fas fa-info-circle"></i>
-              <div>对局状�?/div>
+              <div>对局状态</div>
             </div>
             <button class="more-menu-btn" @click="openGameMenu">
               <i class="fas fa-bars"></i>
@@ -1507,7 +1507,7 @@
                 class="status-detail-btn"
                 @click="openFinalScoreModal"
               >
-                查看最终比�?              </button>
+                查看最终比分              </button>
             </div>
           </div>
         </div>
@@ -1522,7 +1522,7 @@
             </div>
             <div class="action-log-toolbar">
               <div class="action-count action-log-count-chip">
-                <span id="action-log-count">{{ filteredActionLogs.length }}</span> / {{ renderedActionLogs.length }} �?              </div>
+                <span id="action-log-count">{{ filteredActionLogs.length }}</span> / {{ renderedActionLogs.length }} 条              </div>
               <div class="action-log-filter">
                 <button
                   type="button"
@@ -1531,7 +1531,7 @@
                   @click.stop="openActionLogFilterModal"
                 >
                   <i class="fas fa-filter"></i>
-                  <span>筛�?/span>
+                  <span>筛选</span>
                   <span v-if="actionLogActiveFilterCount > 0" class="action-filter-badge">
                     {{ actionLogActiveFilterCount }}
                   </span>
@@ -1539,10 +1539,10 @@
               </div>
             </div>
           </div>
-          <!-- 行动记录筛选全屏弹�?-->
+          <!-- 行动记录筛选全屏弹窗-->
           <Modal
             v-model="actionLogFilterModalOpen"
-            title="筛选行动记�?
+            title="筛选行动记录"
             size="default"
             :show-close="true"
             :close-on-overlay="true"
@@ -1550,10 +1550,10 @@
           >
             <div class="action-filter-modal-body">
               <div class="action-filter-row">
-                <!-- 第一列：检索、剩余时间、策�?-->
+                <!-- 第一列：检索、剩余时间、策略-->
                 <div class="action-filter-column">
                   <div class="action-filter-section">
-                    <div class="action-filter-section-title">按记录检�?/div>
+                    <div class="action-filter-section-title">按记录检索</div>
                     <div class="action-filter-search-grid">
                       <label class="action-filter-search-field">
                         <span class="action-filter-search-label">行动编号</span>
@@ -1577,7 +1577,7 @@
                     </div>
                   </div>
                   <div class="action-filter-section">
-                    <div class="action-filter-section-title">按剩余时间筛�?/div>
+                    <div class="action-filter-section-title">按剩余时间筛选</div>
                     <div class="action-filter-options action-filter-options--wrap">
                       <button
                         v-for="remainingOption in ACTION_LOG_REMAINING_OPTIONS"
@@ -1592,7 +1592,7 @@
                     </div>
                   </div>
                   <div class="action-filter-section">
-                    <div class="action-filter-section-title">按策略筛�?/div>
+                    <div class="action-filter-section-title">按策略筛选</div>
                     <div class="action-filter-stage-groups">
                       <div class="action-filter-stage-group">
                         <div class="action-filter-stage-group-header">
@@ -1634,7 +1634,7 @@
                 <!-- 第二列：阶段、玩家、行动类型、耗时 -->
                 <div class="action-filter-column">
                   <div class="action-filter-section">
-                    <div class="action-filter-section-title">按阶段筛�?/div>
+                    <div class="action-filter-section-title">按阶段筛选</div>
                     <div class="action-filter-stage-groups">
                       <div
                         v-for="stageGroup in ACTION_LOG_STAGE_FILTER_GROUPS"
@@ -1666,7 +1666,7 @@
                     </div>
                   </div>
                   <div class="action-filter-section">
-                    <div class="action-filter-section-title">按玩家筛�?/div>
+                    <div class="action-filter-section-title">按玩家筛选</div>
                     <div class="action-filter-options action-filter-options--wrap">
                       <button
                         v-for="playerOption in actionLogPlayerFilterOptions"
@@ -1685,7 +1685,7 @@
                     </div>
                   </div>
                   <div class="action-filter-section">
-                    <div class="action-filter-section-title">按行动类型筛�?/div>
+                    <div class="action-filter-section-title">按行动类型筛选</div>
                     <div class="action-filter-options action-filter-options--wrap">
                       <button
                         v-for="typeOption in ACTION_LOG_TYPE_OPTIONS"
@@ -1700,7 +1700,7 @@
                     </div>
                   </div>
                   <div class="action-filter-section">
-                    <div class="action-filter-section-title">按单行动耗时筛�?/div>
+                    <div class="action-filter-section-title">按单行动耗时筛选</div>
                     <div class="action-filter-options action-filter-options--wrap">
                       <button
                         v-for="durationOption in ACTION_LOG_DURATION_OPTIONS"
@@ -1715,10 +1715,10 @@
                     </div>
                   </div>
                 </div>
-                <!-- 第三列：大类、细�?-->
+                <!-- 第三列：大类、细类-->
                 <div class="action-filter-column">
                   <div class="action-filter-section">
-                    <div class="action-filter-section-title">按行动大类筛�?/div>
+                    <div class="action-filter-section-title">按行动大类筛选</div>
                     <div class="action-filter-options action-filter-options--wrap">
                       <button
                         v-for="categoryOption in actionLogCategoryFilterOptions"
@@ -1733,7 +1733,7 @@
                     </div>
                   </div>
                   <div v-if="draftActionLogCategoryFilters.length > 0" class="action-filter-section">
-                    <div class="action-filter-section-title">按行动细类筛�?/div>
+                    <div class="action-filter-section-title">按行动细类筛选</div>
                     <div class="action-filter-options action-filter-options--wrap">
                       <button
                         v-for="subcategoryOption in actionLogSubcategoryFilterOptions"
@@ -1799,7 +1799,8 @@
               </div>
             </template>
             <div v-if="filteredActionLogs.length === 0" class="panel-empty-state panel-empty-state--log">
-              当前筛选条件下还没有记�?            </div>
+              当前筛选条件下还没有记录
+            </div>
           </div>
         </div>
       </div>
@@ -1824,7 +1825,7 @@
         </div>
         <div class="btn-text">
           <span>{{ confirmState === 'end' ? '确认结束' : '结束游戏' }}</span>
-          <small>{{ confirmState === 'end' ? '点击确认返回主界�? : '返回主界�? }}</small>
+          <small>{{ confirmState === 'end' ? '点击确认返回主界面' : '返回主界面' }}</small>
         </div>
       </button>
       <button
@@ -1837,7 +1838,7 @@
         </div>
         <div class="btn-text">
           <span>{{ confirmState === 'reset' ? '确认重置' : '重新初始' }}</span>
-          <small>{{ confirmState === 'reset' ? '点击确认返回设置页面' : '返回设置页面，恢复原始设�? }}</small>
+          <small>{{ confirmState === 'reset' ? '点击确认返回设置页面' : '返回设置页面，恢复原始设置' }}</small>
         </div>
       </button>
       <button
@@ -1849,8 +1850,8 @@
           <i class="fas fa-redo"></i>
         </div>
         <div class="btn-text">
-          <span>{{ confirmState === 'restart' ? '确认重启' : '重新开�? }}</span>
-          <small>{{ confirmState === 'restart' ? '点击确认重新开始游�? : '返回设置页面，使用已随机结果' }}</small>
+          <span>{{ confirmState === 'restart' ? '确认重启' : '重新开始' }}</span>
+          <small>{{ confirmState === 'restart' ? '点击确认重新开始游戏' : '返回设置页面，使用已随机结果' }}</small>
         </div>
       </button>
     </div>
@@ -1865,7 +1866,7 @@
 
     <Modal
       v-model="finalScoreModalOpen"
-      title="最终比�?
+      title="最终比分"
       :show-close="true"
       :close-on-overlay="true"
     >
@@ -1896,7 +1897,7 @@
             <span>{{ entry.resource }}</span>
           </div>
         </div>
-        <div v-else class="final-score-empty">最终比分尚未同步�?/div>
+        <div v-else class="final-score-empty">最终比分尚未同步</div>
       </div>
     </Modal>
 
@@ -1942,7 +1943,8 @@ const MAP_CONFIG = {
   rowLetters: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I']
 }
 
-// 地形类型映射 - �?game_panel.html 保持一�?const TERRAIN_TYPES = {
+// 地形类型映射 - 与 game_panel.html 保持一致
+const TERRAIN_TYPES = {
   0: 'water',     // 水域
   1: 'plains',    // 平原
   2: 'swamp',     // 沼泽
@@ -1953,7 +1955,8 @@ const MAP_CONFIG = {
   7: 'desert'     // 沙漠
 }
 
-// 地形颜色映射 - �?game_panel.html 保持一�?const TERRAIN_COLORS = {
+// 地形颜色映射 - 与 game_panel.html 保持一致
+const TERRAIN_COLORS = {
   0: 'transparent',   // 水域 - 透明
   1: '#946035',       // 平原 - 棕色
   2: '#595959',       // 沼泽 - 黑色
@@ -1964,7 +1967,8 @@ const MAP_CONFIG = {
   7: '#e5e55a'        // 沙漠 - 黄色
 }
 
-// 初始地形数据 - �?game_panel.html 保持一�?const INITIAL_TERRAIN = [
+// 初始地形数据 - 与 game_panel.html 保持一致
+const INITIAL_TERRAIN = [
   [4,0,3,2,1,6,5,0,3,2,1,7,0],
   [5,0,0,4,3,4,7,0,4,5,3,0,2],
   [6,3,2,0,5,1,2,0,0,6,0,0,6],
@@ -1993,7 +1997,7 @@ function createDefaultMapGrid() {
 }
 
 // ========== 玩家数据 ==========
-// 动态根�?num_players 初始化，支持 3-5 人局
+// 动态根据 num_players 初始化，支持 3-5 人局
 const players = ref([])
 const PLAYER_STATUS_ROWS = [
   [
@@ -2033,12 +2037,12 @@ const ACTION_LOG_STAGE_DEFINITIONS = Object.freeze([
   { id: 'setup-choice', label: '初始板块选择阶段', dividerLabel: '初始板块选择阶段' },
   { id: 'setup-build', label: '初始建筑摆放阶段', dividerLabel: '初始建筑摆放阶段' },
   { id: 'setup-effect', label: '初始效果结算阶段', dividerLabel: '初始效果结算阶段' },
-  { id: 'round-1', label: '�?1 回合开�?, dividerLabel: '�?1 回合开�? },
-  { id: 'round-2', label: '�?2 回合开�?, dividerLabel: '�?2 回合开�? },
-  { id: 'round-3', label: '�?3 回合开�?, dividerLabel: '�?3 回合开�? },
-  { id: 'round-4', label: '�?4 回合开�?, dividerLabel: '�?4 回合开�? },
-  { id: 'round-5', label: '�?5 回合开�?, dividerLabel: '�?5 回合开�? },
-  { id: 'round-6', label: '�?6 回合开�?, dividerLabel: '�?6 回合开�? }
+  { id: 'round-1', label: '第1 回合开始', dividerLabel: '第1 回合开始' },
+  { id: 'round-2', label: '第2 回合开始', dividerLabel: '第2 回合开始' },
+  { id: 'round-3', label: '第3 回合开始', dividerLabel: '第3 回合开始' },
+  { id: 'round-4', label: '第4 回合开始', dividerLabel: '第4 回合开始' },
+  { id: 'round-5', label: '第5 回合开始', dividerLabel: '第5 回合开始' },
+  { id: 'round-6', label: '第6 回合开始', dividerLabel: '第6 回合开始' }
 ])
 const ACTION_LOG_STAGE_FILTER_GROUPS = Object.freeze([
   {
@@ -2080,8 +2084,8 @@ const ACTION_LOG_SELECTION_MODE_OPTIONS = Object.freeze([
 ])
 const ACTION_LOG_STRATEGY_TYPE_OPTIONS = Object.freeze([
   { id: 'random_pure', label: '随机 · 完全' },
-  { id: 'random_fast_action', label: '随机 · 经快速行动优�? },
-  { id: 'metric_single_step_best', label: '单步最�? },
+  { id: 'random_fast_action', label: '随机 · 经快速行动优化' },
+  { id: 'metric_single_step_best', label: '单步最优' },
   { id: 'ai_llm_reasoning', label: 'AI推理' }
 ])
 const ACTION_LOG_STAGE_MAP = Object.freeze(Object.fromEntries(
@@ -2113,7 +2117,7 @@ const ACTION_DISPLAY_GROUPS = Object.freeze(
 
     return {
       groupKey: group?.group_key || '',
-      groupLabel: group?.group_label || '未命名分�?,
+      groupLabel: group?.group_label || '未命名分组',
       presentation: group?.presentation || 'grouped_options',
       layoutHint: group?.layout_hint || 'chips_wrap',
       actionIdRange,
@@ -2185,7 +2189,8 @@ function createDefaultPlayer(id) {
   }
 }
 
-// 初始化玩家列�?function initPlayers(count) {
+// 初始化玩家列表
+function initPlayers(count) {
   const newPlayers = []
   for (let i = 0; i < count; i++) {
     newPlayers.push(createDefaultPlayer(i))
@@ -2194,7 +2199,8 @@ function createDefaultPlayer(id) {
   players.value = newPlayers
 }
 
-// 折叠状�?const collapsedPlayers = reactive({})
+// 折叠状态
+const collapsedPlayers = reactive({})
 const collapsedCards = reactive({ map: false, round: false, tactical: false })
 
 function syncCollapsedPlayers(count) {
@@ -2217,13 +2223,14 @@ let terrainTooltipTimeout = null
 const gameMenuOpen = ref(false)
 const confirmState = ref(null) // 'end' | 'reset' | 'restart' | null
 
-// 监听弹窗关闭，重置确认状�?watch(gameMenuOpen, (isOpen) => {
+// 监听弹窗关闭，重置确认状态
+watch(gameMenuOpen, (isOpen) => {
   if (!isOpen) {
     confirmState.value = null
   }
 })
 
-// 回合信息 - 默认currentRound�?表示没有高亮任何回合
+// 回合信息 - 默认currentRound为0表示没有高亮任何回合
 const currentRound = ref(0)
 const roundStates = reactive({
   1: { currentX: -1, actualX: -1, isFlipped: false, finalScoringId: null },
@@ -2235,7 +2242,7 @@ const roundStates = reactive({
 })
 const roundScoringBackSpriteStyle = getRoundScoringBackSpriteStyle()
 
-// 助推板块 - 动态初始化，根据实际人数调�?(num_players + 3)
+// 助推板块 - 动态初始化，根据实际人数调整(num_players + 3)
 const bonusColumns = ref([])
 
 function createBonusColumnState(x = 0, previousBonus = null) {
@@ -2256,7 +2263,8 @@ function initBonusColumns(count) {
   bonusColumns.value = columns
 }
 
-// 全局状�?const actionCount = ref(0)
+// 全局状态
+const actionCount = ref(0)
 const actions = ref([])
 const isAiPlayer = ref(false)
 const actionLogs = ref([])
@@ -2266,7 +2274,8 @@ const finalScoreModalOpen = ref(false)
 const pendingActionId = ref(null)
 const recommendedActionId = ref(null)
 
-// 科学能力板块状�?const abilityTilesOrder = ref([])
+// 科学能力板块状态
+const abilityTilesOrder = ref([])
 const scienceTilesOrder = ref([])
 const abilityTileOwners = reactive({})
 const scienceTileOwners = reactive({})
@@ -2325,7 +2334,8 @@ spriteSheet.src = SPRITESHEET_URL
 let spriteSheetLoaded = false
 spriteSheet.onload = () => { spriteSheetLoaded = true }
 
-// 城市板块精灵�?const CITY_TILES_URL = new URL('../../assets/images/city_tiles.png', import.meta.url).href
+// 城市板块精灵图
+const CITY_TILES_URL = new URL('../../assets/images/city_tiles.png', import.meta.url).href
 const CITY_TILE_COUNT = 7
 const CITY_TILE_SCALE = 0.25
 const CITY_TILE_ID_TO_INDEX = { 4: 0, 5: 1, 6: 2, 7: 3, 1: 4, 2: 5, 3: 6 }
@@ -2337,7 +2347,8 @@ cityTilesSheet.onload = () => { cityTilesSheetLoaded = true }
 
 function drawCityTileSprite(canvas, colIndex, width, height) {
   if (!canvas || !cityTilesSheet.complete || cityTilesSheet.naturalWidth === 0) {
-    // 图片未加载完成，添加监听�?    if (canvas && !cityTilesSheet.complete) {
+    // 图片未加载完成，添加监听器
+    if (canvas && !cityTilesSheet.complete) {
       const onLoad = () => {
         drawCityTileSprite(canvas, colIndex, width, height)
         cityTilesSheet.removeEventListener('load', onLoad)
@@ -2439,7 +2450,8 @@ function drawRotatedBridge(canvas, spriteCol, spriteRow, displayWidth, displayHe
 
   const doDraw = () => {
     ctx.save()
-    // 移动�?canvas 中心并旋�?    ctx.translate(canvas.width / 2, canvas.height / 2)
+    // 移动到 canvas 中心并旋转
+    ctx.translate(canvas.width / 2, canvas.height / 2)
     ctx.rotate(rotationAngle * Math.PI / 180)
     ctx.scale(dpr, dpr)
     // 以中心为原点绘制桥梁切片
@@ -2497,7 +2509,7 @@ const draftActionLogActionIdFilter = ref('')
 const draftActionLogUidFilter = ref('')
 const pendingSelectionModes = ref([])
 const stateVersion = ref(0)
-// �ؿ���ϸ�������
+// 地块明细弹窗数据
 const selectedTileDetail = ref(null)
 const tileDetailPopoverRef = ref(null)
 const tileDetailTriggerRef = ref(null)
@@ -2661,13 +2673,15 @@ const filteredActionLogs = computed(() => {
       return false
     }
 
-    // 单行动耗时筛�?    if (appliedActionLogDurationFilters.value.length > 0) {
+    // 单行动耗时筛选
+    if (appliedActionLogDurationFilters.value.length > 0) {
       const durationMs = entry.durationMs || 0
       const matches = appliedActionLogDurationFilters.value.some((filterId) => {
         const option = ACTION_LOG_DURATION_OPTIONS.find((opt) => opt.id === filterId)
         if (!option) return false
         if (filterId === 'lt10') {
-          // <10s包含0秒（四舍五入后小�?秒的情况�?          return durationMs <= option.max
+          // <10s包含0秒（四舍五入后小于1秒的情况）
+          return durationMs <= option.max
         }
         if (filterId === 'gt180') {
           return durationMs >= option.min
@@ -2691,14 +2705,16 @@ const filteredActionLogs = computed(() => {
       if (!matches) return false
     }
 
-    // 选择方式筛�?    if (appliedActionLogSelectionModeFilters.value.length > 0) {
+    // 选择方式筛选
+    if (appliedActionLogSelectionModeFilters.value.length > 0) {
       const selectionMode = entry.selectionMode || (entry.selectionSource === 'system' ? 'system' : 'player_choice')
       if (!appliedActionLogSelectionModeFilters.value.includes(selectionMode)) {
         return false
       }
     }
 
-    // 策略类型筛�?    if (appliedActionLogStrategyTypeFilters.value.length > 0) {
+    // 策略类型筛选
+    if (appliedActionLogStrategyTypeFilters.value.length > 0) {
       const strategyType = entry.selectionStrategy || ''
       if (!appliedActionLogStrategyTypeFilters.value.includes(strategyType)) {
         return false
@@ -2733,7 +2749,7 @@ const currentActionPlayerId = computed(() => {
   return normalizeActionLogPlayerId(gameMeta.current_player_id)
 })
 watch(currentActionPlayerId, (playerId) => {
-  // 当前玩家变化时不再自动展开卡片，保持用户手动控制折叠状�?  // expandCurrentActionPlayerCard(playerId)
+  // 当前玩家变化时不再自动展开卡片，保持用户手动控制折叠状态  // expandCurrentActionPlayerCard(playerId)
 }, { immediate: false })
 watch(
   [currentActionPlayerId, () => gameMeta.action_type, () => gameMeta.is_game_over],
@@ -2742,7 +2758,8 @@ watch(
   }
 )
 
-// 监听 pass_order 变化，自动折叠已pass玩家的卡�?watch(() => gameMeta.pass_order, (newPassOrder, oldPassOrder) => {
+// 监听 pass_order 变化，自动折叠已pass玩家的卡片
+watch(() => gameMeta.pass_order, (newPassOrder, oldPassOrder) => {
   const oldSet = new Set(oldPassOrder || [])
 
   // 新pass的玩家，自动折叠
@@ -2752,7 +2769,9 @@ watch(
     }
   })
 
-  // 回合刷新时，pass_order 清空，所有玩家回到活跃列�?  // 不需要特别处理展开，保持用户当前折叠状态即�?}, { deep: true })
+  // 回合刷新时，pass_order 清空，所有玩家回到活跃列表
+  // 不需要特别处理展开，保持用户当前折叠状态即可
+}, { deep: true })
 const currentActionOwnerLabel = computed(() => {
   if (gameMeta.is_game_over) {
     return '游戏结束'
@@ -2899,7 +2918,7 @@ const recommendedActionOption = computed(() => {
   return null
 })
 const recommendedActionChipLabel = computed(() => (
-  recommendedActionOption.value?.label || '已推�?
+    recommendedActionOption.value?.label || '已推荐'
 ))
 const recommendedActionChipTitle = computed(() => {
   if (!hasRecommendedAction.value) {
@@ -2913,7 +2932,7 @@ const recommendedActionChipTitle = computed(() => {
     || recommendedActionOption.value?.label
     || `行动 ${recommendedActionId.value}`
 
-  return `${strategyLabel} 推荐�?{actionDescription}`
+  return `${strategyLabel} 推荐：${actionDescription}`
 })
 const recommendedActionIconClass = computed(() => (
   getControlCenterStrategyIconClass(recommendedActionStrategyId.value || selectedControlStrategyId.value)
@@ -2925,10 +2944,10 @@ const controlCenterCanRun = computed(() => (
 ))
 const actionSubtitle = computed(() => {
   if (gameMeta.is_game_over) {
-    return '本局已结�?
+    return '本局已结束'
   }
 
-  return `当前�?${currentActionOwnerLabel.value} �?${currentActionModeLabel.value} 行动阶段`
+  return `当前为 ${currentActionOwnerLabel.value} 的 ${currentActionModeLabel.value} 行动阶段`
 })
 const finalScoreEntries = computed(() => {
   if (!finalScores.value || typeof finalScores.value !== 'object') {
@@ -2962,10 +2981,10 @@ const finalScoreEntries = computed(() => {
 const hasFinalScores = computed(() => finalScoreEntries.value.length > 0)
 const actionEmptyStateMessage = computed(() => {
   if (gameMeta.is_game_over) {
-    return '本局已结�?
+    return '本局已结束'
   }
 
-  return '等待后端推送新的可选行动�?
+  return '等待后端推送新的可选行动'
 })
 
 // 规划卡与派系映射
@@ -2987,9 +3006,9 @@ const planningCardBackendToImageMap = [6, 2, 4, 1, 5, 3, 0]
 const planningCardBackgroundPositions = [0, 16.6667, 33.3333, 50, 66.6667, 83.3333, 100]
 
 const factionIdToName = {
-  1: '神佑�?, 2: '猫人', 3: '哥布�?, 4: '幻术�?, 5: '发明�?,
-  6: '蜥蜴�?, 7: '鼹鼠', 8: '僧侣', 9: '航海�?, 10: '奥马�?,
-  11: '哲学�?, 12: '通灵�?
+  1: '神佑者', 2: '猫人', 3: '哥布林', 4: '幻术师', 5: '发明家',
+  6: '蜥蜴人', 7: '鼹鼠', 8: '僧侣', 9: '航海家', 10: '奥马尔',
+  11: '哲学家', 12: '通灵者'
 }
 
 const factionBackendToImageMap = [11, 4, 7, 0, 8, 9, 5, 10, 1, 6, 2, 3]
@@ -3032,13 +3051,15 @@ const scienceTilePreviewImageHeightPx = 90
 
 // 建筑ID到建筑类型名称的映射
 const buildingIdToType = {
-  0: null,      // 无建�?  1: 'workshop', // 车间
+  0: null,      // 无建筑
+  1: 'workshop', // 车间
   2: 'guild',    // 工会
   3: 'palace',   // 宫殿
   4: 'school',   // 学校
   5: 'university', // 大学
   6: 'tower',    // 塔楼
-  7: 'monument', // 纪念�?  8: 'annex'     // 侧楼
+  7: 'monument', // 纪念碑
+  8: 'annex'     // 侧楼
 }
 
 function setPlayerPlanningCard(player, planningCardId) {
@@ -3375,7 +3396,7 @@ function buildGlobalStatusFromMeta() {
     return '初始板块选择阶段'
   }
 
-  return `�?${normalizedRound} 回合`
+  return `第${normalizedRound} 回合`
 }
 
 function getActionLogStageDefinition(stageKey) {
@@ -3522,13 +3543,13 @@ function normalizeAction(action, idx) {
 
 function createFallbackActionGroup(action, index) {
   const actionId = normalizeAvailableActionId(action?.id)
-  const resolvedLabel = actionId === null ? '未分组行�? : `动作 ${actionId}`
+  const resolvedLabel = actionId === null ? '未分组行动' : `动作 ${actionId}`
   const resolvedDescription = action?.description || resolvedLabel
 
   return {
     key: `ungrouped-${actionId ?? index}`,
     groupKey: `ungrouped-${actionId ?? index}`,
-    groupLabel: '其他可选行�?,
+    groupLabel: '其他可选行动',
     layoutHint: 'single_button',
     firstIndex: index,
     hasDetail: false,
@@ -3683,8 +3704,9 @@ function toggleActionGroup(groupKey) {
   })
 }
 
-// 预留接口：一键折�?展开所有行动组
-// 当前未调用，如需恢复手风琴模式可启用此函�?function toggleAllActionGroups() {
+// 预留接口：一键折叠/展开所有行动组
+// 当前未调用，如需恢复手风琴模式可启用此函数
+function toggleAllActionGroups() {
   isActionOverflowMode.value = !isActionOverflowMode.value
   if (!isActionOverflowMode.value) {
     expandedActionGroupKey.value = null
@@ -3873,7 +3895,8 @@ function updateScienceAbilityLayout() {
 
   resetScienceAbilityLayoutStyles()
 
-  // 基于父容�?.science-ability-status 的可用高度计算，避免 layout 自身被内容撑�?  const statusEl = layout.parentElement
+  // 基于父容器.science-ability-status 的可用高度计算，避免 layout 自身被内容撑开
+  const statusEl = layout.parentElement
   const statusStyles = statusEl ? window.getComputedStyle(statusEl) : null
   const paddingTop = statusStyles ? (Number.parseFloat(statusStyles.paddingTop) || 0) : 0
   const paddingBottom = statusStyles ? (Number.parseFloat(statusStyles.paddingBottom) || 0) : 0
@@ -3898,7 +3921,7 @@ function updateScienceAbilityLayout() {
 
   const leftWidth = commonHeight * leftRatio
   const cultWidth = commonHeight * cultRatio
-  // 锁定 layout 自身�?max-height，确保内容不会溢出父容器
+  // 锁定 layout 自身max-height，确保内容不会溢出父容器
   layout.style.maxHeight = `${availableHeight}px`
   stack.style.height = `${commonHeight}px`
   stack.style.width = `${leftWidth}px`
@@ -4400,7 +4423,7 @@ function normalizeActionHistoryDividerEntry(entry, dividerSequence) {
     actionType: 'divider',
     stageKey: stageDefinition.id,
     stageLabel: stageDefinition.label,
-    description: entry?.description || stageDefinition.dividerLabel
+    description: entry?.description || stageDefinition.dividerLabel,
   }
 }
 
@@ -4432,7 +4455,7 @@ function normalizeActionHistoryEntry(entry, actionSequence) {
     actionType: normalizedActionType,
     stageKey: stageDefinition.id,
     stageLabel: stageDefinition.label,
-    description: entry?.description || '未提供行动描�?,
+    description: entry?.description || '未提供行动描述',
     selectionSource: entry?.selection_source === 'system' ? 'system' : 'manual',
     selectionStrategy: typeof entry?.selection_strategy === 'string' ? entry.selection_strategy : '',
     selectionMode: selectionMode || entry?.selection_mode || (entry?.selection_source === 'system' ? 'system' : 'player_choice'),
@@ -4498,7 +4521,7 @@ function openActionLogFilterModal() {
     const { ok, payload } = await requestControlCenterStrategy('/api/game/strategy/recommend', strategyId)
     if (!ok) {
       clearRecommendedAction()
-      alert(getControlCenterStrategyRequestErrorMessage(payload, '策略推荐失败�?))
+      alert(getControlCenterStrategyRequestErrorMessage(payload, '策略推荐失败'))
       return
     }
 
@@ -4519,7 +4542,7 @@ function openActionLogFilterModal() {
   try {
     const { ok, payload } = await requestControlCenterStrategy('/api/game/strategy/execute', strategyId)
     if (!ok) {
-      alert(getControlCenterStrategyRequestErrorMessage(payload, '策略执行失败�?))
+      alert(getControlCenterStrategyRequestErrorMessage(payload, '策略执行失败'))
       return
     }
 
@@ -4619,7 +4642,7 @@ function setRecommendedAction(actionId, strategyId) {
 }
 
 function getUnsupportedControlCenterStrategyMessage() {
-  return `${selectedControlStrategySummaryLabel.value}策略暂未接入后端，当前仅支持随机 · 完全和随�?· 经快速行动优化。`
+  return `${selectedControlStrategySummaryLabel.value}策略暂未接入后端，当前仅支持随机 · 完全和随机 · 经快速行动优化。`
 }
 
 function getControlCenterStrategyRequestErrorMessage(payload, fallbackMessage) {
@@ -4708,7 +4731,7 @@ async function runControlCenterStrategy() {
   try {
     const { ok, payload } = await requestControlCenterStrategy('/api/game/strategy/execute', strategyId)
     if (!ok) {
-      alert(getControlCenterStrategyRequestErrorMessage(payload, '策略执行失败�?))
+      alert(getControlCenterStrategyRequestErrorMessage(payload, '策略执行失败'))
       return
     }
 
@@ -4738,7 +4761,7 @@ async function recommendControlCenterStrategy() {
     const { ok, payload } = await requestControlCenterStrategy('/api/game/strategy/recommend', strategyId)
     if (!ok) {
       clearRecommendedAction()
-      alert(getControlCenterStrategyRequestErrorMessage(payload, '策略推荐失败�?))
+      alert(getControlCenterStrategyRequestErrorMessage(payload, '策略推荐失败'))
       return
     }
 
@@ -4778,7 +4801,8 @@ async function executeControlCenterAction() {
     return
   }
 
-  // 非推荐态：调用策略并执�?  if (!isSupportedControlCenterStrategy()) {
+  // 非推荐态：调用策略并执行
+  if (!isSupportedControlCenterStrategy()) {
     alert(getUnsupportedControlCenterStrategyMessage())
     return
   }
@@ -4790,7 +4814,7 @@ async function executeControlCenterAction() {
   try {
     const { ok, payload } = await requestControlCenterStrategy('/api/game/strategy/execute', strategyId)
     if (!ok) {
-      alert(getControlCenterStrategyRequestErrorMessage(payload, '策略执行失败�?))
+      alert(getControlCenterStrategyRequestErrorMessage(payload, '策略执行失败'))
       return
     }
 
@@ -4815,10 +4839,12 @@ function toggleDraftActionLogStage(stageKey) {
 
 function toggleDraftActionLogCategory(category) {
   toggleFilterValue(draftActionLogCategoryFilters, category)
-  // 清除不属于已选大类的细类筛�?  draftActionLogSubcategoryFilters.value = draftActionLogSubcategoryFilters.value.filter((sub) => {
+  // 清除不属于已选大类的细类筛选
+  draftActionLogSubcategoryFilters.value = draftActionLogSubcategoryFilters.value.filter((sub) => {
     const validCategories = draftActionLogCategoryFilters.value
     if (validCategories.length === 0) return false
-    // 检查这个细类是否属于已选大�?    return renderedActionLogs.value.some((entry) =>
+    // 检查这个细类是否属于已选大类
+    return renderedActionLogs.value.some((entry) =>
       entry.kind === 'action' &&
       entry.actionSubcategory === sub &&
       validCategories.includes(entry.actionCategory)
@@ -4933,22 +4959,22 @@ function buildActionLogEntryTitle(log) {
 
   if (log.selectionStrategy) {
     const strategyTypeLabel = ACTION_LOG_STRATEGY_TYPE_OPTIONS.find((opt) => opt.id === log.selectionStrategy)?.label
-    titleLines.push(`策略类型�?{strategyTypeLabel || log.selectionStrategy}`)
+    titleLines.push(`策略类型：${strategyTypeLabel || log.selectionStrategy}`)
   }
 
   // 添加行动分类信息（大类、细类、细节），分三行显示
   if (log.actionCategory) {
-    titleLines.push(`大类�?{log.actionCategory}`)
+    titleLines.push(`大类：${log.actionCategory}`)
   }
   if (log.actionSubcategory) {
-    titleLines.push(`细类�?{log.actionSubcategory}`)
+    titleLines.push(`细类：${log.actionSubcategory}`)
   }
   if (log.actionDetail) {
-    titleLines.push(`细节�?{log.actionDetail}`)
+    titleLines.push(`细节：${log.actionDetail}`)
   }
 
   if (log.description && titleLines[titleLines.length - 1] !== log.description) {
-    titleLines.push(`描述�?{log.description}`)
+    titleLines.push(`描述：${log.description}`)
   }
 
   if (log.durationMs > 0) {
@@ -5061,7 +5087,8 @@ function getScienceTilePercentPos(idx) {
 function applyPlayerState(player, backendPlayer) {
   if (!player || !backendPlayer) return
 
-  // 先回到后端约定的默认展示值，避免同人数新局沿用上一局的旧资源�?  Object.assign(player, createDefaultPlayerDisplayState())
+  // 先回到后端约定的默认展示值，避免同人数新局沿用上一局的旧资源
+  Object.assign(player, createDefaultPlayerDisplayState())
 
   if (backendPlayer.resources) {
     player.money = backendPlayer.resources.money ?? player.money
@@ -5207,9 +5234,11 @@ function renderBuildingForCell(row, col) {
   const cell = ensureMapCell(row, col)
   const renderToken = nextBuildingRenderToken(row, col)
 
-  // 1. 清除该位置所有已有元�?  clearPlacedElementsAt(row, col)
+  // 1. 清除该位置所有已有元素
+  clearPlacedElementsAt(row, col)
 
-  // 2. 如果该位置无建筑、无侧楼、无城市标记，直接返�?  const hasMainBuilding = cell.building_id && cell.building_id > 0
+  // 2. 如果该位置无建筑、无侧楼、无城市标记，直接返回
+  const hasMainBuilding = cell.building_id && cell.building_id > 0
   const hasAnnex = cell.has_annex
   const cityTileId = getCityTileIdForCell(row, col)
 
@@ -5222,15 +5251,18 @@ function renderBuildingForCell(row, col) {
     return
   }
 
-  // 3. 渲染主建筑（如果存在�?  if (hasMainBuilding) {
+  // 3. 渲染主建筑（如果存在）
+  if (hasMainBuilding) {
     placeElement(row, col, colorId, cell.building_id, 'append', renderToken)
   }
 
-  // 4. 渲染侧楼（左上方�?  if (hasAnnex) {
+  // 4. 渲染侧楼（左上方）
+  if (hasAnnex) {
     placeAnnex(row, col, colorId, renderToken)
   }
 
-  // 5. 渲染城市标记（右上方�?  if (cityTileId) {
+  // 5. 渲染城市标记（右上方）
+  if (cityTileId) {
     placeCityTile(row, col, cityTileId, renderToken)
   }
 }
@@ -5394,7 +5426,7 @@ watch(actions, () => {
       actionContent.scrollTop = 0
     }
   })
-  // 默认全部展开，不再自动检测高度溢�?  // 卡片过多时允许在可选行动框内滚�?  // measureActionOverflow 已停用，如需恢复手风琴模式可手动调用
+  // 默认全部展开，不再自动检测高度溢出  // 卡片过多时允许在可选行动框内滚动  // measureActionOverflow 已停用，如需恢复手风琴模式可手动调用
 }, { deep: true })
 
 // 监听行动记录变化，保持最新记录显示在最上方
@@ -5416,7 +5448,8 @@ function togglePlayer(playerId) {
 }
 
 function toggleCard(cardName) {
-  // 对地图卡片特殊处理：折叠前固�?SVG 高度，避免缩小动�?  if (cardName === 'map') {
+  // 对地图卡片特殊处理：折叠前固定 SVG 高度，避免缩小动画
+  if (cardName === 'map') {
     const svg = document.getElementById('hex-grid-svg')
     if (svg) {
       if (!collapsedCards['map']) {
@@ -5424,7 +5457,8 @@ function toggleCard(cardName) {
         const rect = svg.getBoundingClientRect()
         svg.style.height = `${rect.height}px`
       } else {
-        // 即将展开：延迟恢�?height: 100%，等待动画完�?        setTimeout(() => {
+        // 即将展开：延迟恢复 height: 100%，等待动画完成
+        setTimeout(() => {
           svg.style.height = ''
         }, 300)
       }
@@ -5475,7 +5509,8 @@ async function handleEndGame() {
       console.error('停止游戏请求失败:', e)
     }
 
-    // 清理前端状�?    gameStore.endGame()
+    // 清理前端状态
+    gameStore.endGame()
     timerStore.reset()
     resetActionLogHistory()
 
@@ -5498,7 +5533,8 @@ async function handleResetSettings() {
 
     const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5001'
 
-    // 1. 先获取原始设置（游戏还在运行，控制器存在�?    let apiInitSettings = null
+    // 1. 先获取原始设置（游戏还在运行，控制器存在）
+    let apiInitSettings = null
     try {
       const resp = await fetch(`${apiBaseUrl}/api/game/settings?mode=original`)
       const result = await resp.json()
@@ -5509,7 +5545,8 @@ async function handleResetSettings() {
       console.error('获取原始设置失败:', e)
     }
 
-    // 2. 再停止后端游戏（stop会删除控制器�?    try {
+    // 2. 再停止后端游戏（stop会删除控制器）
+    try {
       await fetch(`${apiBaseUrl}/api/game/stop`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
@@ -5518,7 +5555,7 @@ async function handleResetSettings() {
       console.error('停止游戏请求失败:', e)
     }
 
-    // 3. 合并完整设置：前端保存的完整配置 + 后端返回�?init_settings
+    // 3. 合并完整设置：前端保存的完整配置 + 后端返回的 init_settings
     const fullSettings = JSON.parse(JSON.stringify(gameStore.settings || {}))
     const settingsToSave = {
       ...fullSettings,
@@ -5530,7 +5567,8 @@ async function handleResetSettings() {
       settings: settingsToSave
     }))
 
-    // 4. 清理前端状�?    gameStore.endGame()
+    // 4. 清理前端状态
+    gameStore.endGame()
     timerStore.reset()
     resetActionLogHistory()
 
@@ -5562,10 +5600,11 @@ async function handleRestartGame() {
         apiInitSettings = result.settings
       }
     } catch (e) {
-      console.error('获取已解析设置失�?', e)
+      console.error('获取已解析设置失败', e)
     }
 
-    // 2. 再停止后端游戏（stop会删除控制器�?    try {
+    // 2. 再停止后端游戏（stop会删除控制器）
+    try {
       await fetch(`${apiBaseUrl}/api/game/stop`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
@@ -5574,7 +5613,7 @@ async function handleRestartGame() {
       console.error('停止游戏请求失败:', e)
     }
 
-    // 3. 合并完整设置：前端保存的完整配置 + 后端返回�?init_settings
+    // 3. 合并完整设置：前端保存的完整配置 + 后端返回的 init_settings
     const fullSettings = JSON.parse(JSON.stringify(gameStore.settings || {}))
     const settingsToSave = {
       ...fullSettings,
@@ -5586,7 +5625,8 @@ async function handleRestartGame() {
       settings: settingsToSave
     }))
 
-    // 4. 清理前端状�?    gameStore.endGame()
+    // 4. 清理前端状态
+    gameStore.endGame()
     timerStore.reset()
     resetActionLogHistory()
 
@@ -5633,7 +5673,7 @@ async function syncStateAfterActionSubmission(previousVersion) {
         }
       }
     } catch (error) {
-      console.error('提交行动后同步最新状态失�?', error)
+      console.error('提交行动后同步最新状态失败', error)
     }
   }
 
@@ -5683,14 +5723,14 @@ async function submitActionAndSync(actionId, options = {}) {
     const data = await response.json()
 
     if (!response.ok || data.status !== 'success') {
-      console.error('命令发送失�?', data.error || data.message || response.statusText)
+      console.error('命令发送失败', data.error || data.message || response.statusText)
       return { submitted: false, synced: false }
     }
 
     const synced = await syncStateAfterActionSubmission(previousVersion)
     return { submitted: true, synced }
   } catch (error) {
-    console.error('命令发送失�?', error)
+    console.error('命令发送失败', error)
     return { submitted: false, synced: false }
   }
 }
@@ -5750,9 +5790,11 @@ function getHexVertices(row, col) {
   return [
     { x: center.x + h, y: center.y - s / 2 },   // 0: 右上
     { x: center.x + h, y: center.y + s / 2 },   // 1: 右下
-    { x: center.x,     y: center.y + s },       // 2: �?    { x: center.x - h, y: center.y + s / 2 },   // 3: 左下
+    { x: center.x,     y: center.y + s },       // 2: 右
+    { x: center.x - h, y: center.y + s / 2 },   // 3: 左下
     { x: center.x - h, y: center.y - s / 2 },   // 4: 左上
-    { x: center.x,     y: center.y - s }        // 5: �?  ]
+    { x: center.x,     y: center.y - s }        // 5: 上
+  ]
 }
 
 function getBridgeVertexIndices(row1, col1, row2, col2) {
@@ -5767,12 +5809,15 @@ function getBridgeVertexIndices(row1, col1, row2, col2) {
   const nx = dx / dist
   const ny = dy / dist
 
-  // 6个顶点方向向量（屏幕坐标�?  const dirs = [
+  // 6个顶点方向向量（屏幕坐标）
+  const dirs = [
     { i: 0, nx: Math.sqrt(3) / 2, ny: -0.5 },    // 右上
     { i: 1, nx: Math.sqrt(3) / 2, ny:  0.5 },    // 右下
-    { i: 2, nx: 0,              ny:  1   },     // �?    { i: 3, nx: -Math.sqrt(3) / 2, ny:  0.5 },   // 左下
+    { i: 2, nx: 0,              ny:  1   },     // 下
+    { i: 3, nx: -Math.sqrt(3) / 2, ny:  0.5 },   // 左下
     { i: 4, nx: -Math.sqrt(3) / 2, ny: -0.5 },   // 左上
-    { i: 5, nx: 0,              ny: -1   }      // �?  ]
+    { i: 5, nx: 0,              ny: -1   }       // 上
+  ]
 
   // 找最大点积（最匹配的方向）
   let maxDot = -Infinity, v1 = 0
@@ -5781,7 +5826,7 @@ function getBridgeVertexIndices(row1, col1, row2, col2) {
     if (dot > maxDot) { maxDot = dot; v1 = d.i }
   }
 
-  // 相反顶点�?�?, 1�?, 2�?
+  // 相反顶点：下, 1上, 2右
   const opposites = { 0: 3, 1: 4, 2: 5, 3: 0, 4: 1, 5: 2 }
   return { v1, v2: opposites[v1] }
 }
@@ -5790,7 +5835,8 @@ function renderBridgeIndicators() {
   const bridgesLayer = document.getElementById('hex-bridges')
   if (!bridgesLayer) return
 
-  // 清除旧标�?  bridgesLayer.innerHTML = ''
+  // 清除旧标记
+  bridgesLayer.innerHTML = ''
 
   const bridges = mapState.bridges || {}
 
@@ -5821,13 +5867,14 @@ function renderBridgeIndicators() {
     group.setAttribute('data-bridge', cleanKey)
 
     if (owner === -1) {
-      // ========== 未建造桥梁：灰色双横�?==========
+      // ========== 未建造桥梁：灰色双横线==========
       const dx = p2.x - p1.x
       const dy = p2.y - p1.y
       const len = Math.sqrt(dx * dx + dy * dy)
       if (len === 0) continue
 
-      const perpX = -dy / len * 3 // 3px偏移�?px总间�?      const perpY = dx / len * 3
+      const perpX = -dy / len * 3 // 3px偏移，6px总间距
+      const perpY = dx / len * 3
 
       for (const sign of [1, -1]) {
         const line = document.createElementNS('http://www.w3.org/2000/svg', 'line')
@@ -5842,16 +5889,17 @@ function renderBridgeIndicators() {
         group.appendChild(line)
       }
     } else {
-      // ========== 已建造桥梁：带玩家颜色的桥图�?==========
+      // ========== 已建造桥梁：带玩家颜色的桥图标==========
       const player = players.value[owner]
       const planningCardId = player?.planningCardId || (owner + 1)
       const spriteCol = COLOR_TO_SPRITE_COL[planningCardId] ?? 7
-      const spriteRow = 7 // 桥梁在第8�?
-      // 计算旋转角度：方向角�?- 精灵图基准角度（18.8度）
+      const spriteRow = 7 // 桥梁在第8行
+      // 计算旋转角度：方向角度- 精灵图基准角度（18.8度）
       const directionAngle = idx.v1 * 60 - 30
       const rotationAngle = directionAngle - 18.8
 
-      // 使用足够大的 canvas 避免旋转后裁�?      const displaySize = 50
+      // 使用足够大的 canvas 避免旋转后裁剪
+      const displaySize = 50
 
       const foreignObject = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject')
       foreignObject.setAttribute('x', midX - displaySize / 2)
@@ -5885,7 +5933,8 @@ function generateHexMap() {
   const horizontalSpacing = hexSize * Math.sqrt(3)
   const verticalSpacing = hexSize * 1.5
 
-  // 计算网格总尺�?  const gridWidth = cols * horizontalSpacing + hexSize + 2
+  // 计算网格总尺寸
+  const gridWidth = cols * horizontalSpacing + hexSize + 2
   const gridHeight = rows * verticalSpacing + hexSize
 
   // 设置SVG的viewBox
@@ -5901,21 +5950,26 @@ function generateHexMap() {
   gridGroup.setAttribute('id', 'hex-grid-group')
   gridGroup.setAttribute('class', 'hex-grid-group')
 
-  // 创建桥梁�?  const bridgesLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+  // 创建桥梁层
+  const bridgesLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g')
   bridgesLayer.setAttribute('id', 'hex-bridges')
   bridgesLayer.setAttribute('class', 'hex-bridges')
 
-  // 创建编号�?  const numbersLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+  // 创建编号层
+  const numbersLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g')
   numbersLayer.setAttribute('id', 'hex-numbers')
 
-  // 创建元素�?  const elementsLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+  // 创建元素层
+  const elementsLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g')
   elementsLayer.setAttribute('id', 'hex-elements')
   elementsLayer.setAttribute('class', 'hex-elements')
 
-  // 创建高亮�?  const highlightLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+  // 创建高亮层
+  const highlightLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g')
   highlightLayer.setAttribute('id', 'hex-highlight-layer')
 
-  // 创建悬停�?  const hoverLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+  // 创建悬停层
+  const hoverLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g')
   hoverLayer.setAttribute('id', 'hex-hover-layer')
 
   for (let row = 0; row < rows; row++) {
@@ -5927,7 +5981,8 @@ function generateHexMap() {
       const colNumber = col + 1
       const hexId = `${rowLetter}${colNumber}`
 
-      // 创建六边�?- �?game_panel.html 完全一�?      const hexagon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon')
+      // 创建六边形- 与 game_panel.html 完全一致
+      const hexagon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon')
       hexagon.setAttribute('class', 'hexagon terrain-water')
       hexagon.setAttribute('id', `hex-${hexId}`)
       hexagon.setAttribute('points', getHexPoints(centerX, centerY, hexSize))
@@ -5948,7 +6003,8 @@ function generateHexMap() {
       text.textContent = hexId
       numbersLayer.appendChild(text)
 
-      // 创建悬停叠加�?      const hoverOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'polygon')
+      // 创建悬停叠加层
+      const hoverOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'polygon')
       hoverOverlay.setAttribute('class', 'hover-overlay')
       hoverOverlay.setAttribute('id', `hover-${row}-${col}`)
       hoverOverlay.setAttribute('data-row', row)
@@ -5986,7 +6042,8 @@ function generateHexMap() {
       })
       hoverLayer.appendChild(hoverOverlay)
 
-      // 创建高亮叠加�?      const highlightOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'polygon')
+      // 创建高亮叠加层
+      const highlightOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'polygon')
       highlightOverlay.setAttribute('class', 'highlight-overlay')
       highlightOverlay.setAttribute('id', `highlight-${row}-${col}`)
       highlightOverlay.setAttribute('data-row', row)
@@ -6007,12 +6064,14 @@ function generateHexMap() {
   // 应用初始地形
   applyInitialTerrain()
 
-  // 渲染桥梁指示�?  renderBridgeIndicators()
+  // 渲染桥梁指示器
+  // renderBridgeIndicators()
 
-  console.log('六边形地图生成完�?)
+  console.log('六边形地图生成完成')
 }
 
-// 应用初始地形 - �?game_panel.html 完全一�?function applyInitialTerrain() {
+// 应用初始地形 - 与 game_panel.html 完全一致
+function applyInitialTerrain() {
   for (let row = 0; row < 9; row++) {
     for (let col = 0; col < 13; col++) {
       setHexTerrain(row, col, INITIAL_TERRAIN[row][col])
@@ -6023,12 +6082,15 @@ function generateHexMap() {
 function setHexTerrain(row, col, terrainType) {
   const hex = document.querySelector(`.hexagon[data-row="${row}"][data-col="${col}"]`)
   if (hex && TERRAIN_COLORS[terrainType] !== undefined) {
-    // 移除旧的地形�?    const terrainClasses = Object.values(TERRAIN_TYPES).map(t => `terrain-${t}`)
+    // 移除旧的地形类
+    const terrainClasses = Object.values(TERRAIN_TYPES).map(t => `terrain-${t}`)
     hex.classList.remove(...terrainClasses)
-    // 添加新的地形类和颜色 - �?game_panel.html 保持一�?    hex.classList.add(`terrain-${TERRAIN_TYPES[terrainType]}`)
+    // 添加新的地形类和颜色 - 与 game_panel.html 保持一致
+    hex.classList.add(`terrain-${TERRAIN_TYPES[terrainType]}`)
     hex.setAttribute('fill', TERRAIN_COLORS[terrainType])
     hex.setAttribute('data-terrain', terrainType)
-    // 特殊处理：水域使用虚线边�?    const hoverOverlay = document.querySelector(`.hover-overlay[data-row="${row}"][data-col="${col}"]`)
+    // 特殊处理：水域使用虚线边框
+    const hoverOverlay = document.querySelector(`.hover-overlay[data-row="${row}"][data-col="${col}"]`)
     if (terrainType === 0) {
       hex.style.strokeDasharray = '4,2'
       hex.style.strokeWidth = '1px'
@@ -6044,7 +6106,8 @@ function setHexTerrain(row, col, terrainType) {
 }
 
 function setHexHighlights(hexList) {
-  // 清除所有现有高�?  document.querySelectorAll('.highlight-overlay.active, .highlight-overlay.hover').forEach(el => {
+  // 清除所有现有高亮
+  document.querySelectorAll('.highlight-overlay.active, .highlight-overlay.hover').forEach(el => {
     el.classList.remove('active', 'hover')
   })
 
@@ -6062,17 +6125,18 @@ function setHexHighlights(hexList) {
 // ========== 建筑放置功能 ==========
 
 function placeElement(hexRow, hexCol, colorId, buildingId, mode = 'replace', renderToken = null) {
-  // 计算位置ID (A1, B2�?
+  // 计算位置ID (A1, B2...)
   const positionId = getHexPositionId(hexRow, hexCol)
 
   // 获取对应的六边形元素
   const hexElement = document.getElementById(`hex-${positionId}`)
   if (!hexElement) {
-    console.error(`六边�?${positionId} 不存在`)
+    console.error(`六边形${positionId} 不存在`)
     return false
   }
 
-  // 获取元素�?  const elementsLayer = document.getElementById('hex-elements')
+  // 获取元素层
+  const elementsLayer = document.getElementById('hex-elements')
   if (!elementsLayer) {
     console.error('元素层不存在')
     return false
@@ -6083,7 +6147,8 @@ function placeElement(hexRow, hexCol, colorId, buildingId, mode = 'replace', ren
   const centerX = bbox.x + bbox.width / 2
   const bottomY = bbox.y + bbox.height * 0.85
 
-  // 替换模式：移除该位置的所有现有元�?  if (mode === 'replace') {
+  // 替换模式：移除该位置的所有现有元素
+  if (mode === 'replace') {
     clearPlacedElementsAt(hexRow, hexCol)
   }
 
@@ -6124,7 +6189,7 @@ function placeElement(hexRow, hexCol, colorId, buildingId, mode = 'replace', ren
 
   foreignObject.appendChild(canvas)
   elementsLayer.appendChild(foreignObject)
-  console.log(`已加载建�? ${normalizedColorId}-${normalizedBuildingId}`)
+  console.log(`已加载建筑 ${normalizedColorId}-${normalizedBuildingId}`)
   return true
 }
 
@@ -6139,9 +6204,11 @@ function getCityTileIdForCell(row, col) {
   const sac = player.settlements_and_cities || {}
   const posKey = `${row},${col}`
 
-  // 只在该坐标是根节点且是城市时才显示城�?  if (sac[posKey]) {
+  // 只在该坐标是根节点且是城市时才显示城市
+  if (sac[posKey]) {
     const [rootKey, isCity] = sac[posKey]
-    // 必须是根节点（自己是自己的根）且是城�?    if (rootKey === posKey && isCity) {
+    // 必须是根节点（自己是自己的根）且是城市
+    if (rootKey === posKey && isCity) {
       return assignments[posKey] || null
     }
   }
@@ -6164,7 +6231,8 @@ function placeAnnex(hexRow, hexCol, colorId, renderToken) {
   const displayWidth = 35
   const displayHeight = 40
 
-  // 右下角偏移（�?5%宽度�?5%高度�?  const offsetX = displayWidth * 0.45
+  // 右下角偏移（约5%宽度、约5%高度）
+  const offsetX = displayWidth * 0.45
   const offsetY = displayHeight * 0.15
 
   const x = centerX - displayWidth / 2 + offsetX
@@ -6189,7 +6257,8 @@ function placeAnnex(hexRow, hexCol, colorId, renderToken) {
   canvas.style.height = `${displayHeight}px`
   canvas.style.display = 'block'
 
-  // 侧楼固定使用 col=7（特殊建筑列），row=7（第8行，BUILDING_TO_SPRITE_ROW[8]�?  drawSpriteCell(canvas, 7, BUILDING_TO_SPRITE_ROW[8], displayWidth, displayHeight)
+  // 侧楼固定使用 col=7（特殊建筑列），row=7（第8行，BUILDING_TO_SPRITE_ROW[8]）
+  drawSpriteCell(canvas, 7, BUILDING_TO_SPRITE_ROW[8], displayWidth, displayHeight)
 
   foreignObject.appendChild(canvas)
   elementsLayer.appendChild(foreignObject)
@@ -6289,7 +6358,8 @@ function setBonusColumns(xList) {
 
 function flipSingleBonusColumn(index) {
   if (index < 0 || index >= bonusColumns.value.length) return false
-  // 确保该索引存�?  if (!bonusColumns.value[index]) return false
+  // 确保该索引存在
+  if (!bonusColumns.value[index]) return false
   bonusColumns.value[index].isFlipped = !bonusColumns.value[index].isFlipped
   return true
 }
@@ -6422,12 +6492,13 @@ async function fetchFullState(retries = 10, delay = 500) {
         return true
       }
       
-      // 如果游戏还没开始，等待后重�?      if (result.status === 'error') {
-        console.log(`游戏尚未启动，等待重�?(${i + 1}/${retries})...`)
+      // 如果游戏还没开始，等待后重试
+      if (result.status === 'error') {
+        console.log(`游戏尚未启动，等待重试(${i + 1}/${retries})...`)
         await new Promise(resolve => setTimeout(resolve, delay))
       }
     } catch (e) {
-      console.error('获取全量状态失�?', e)
+      console.error('获取全量状态失败', e)
       await new Promise(resolve => setTimeout(resolve, delay))
     }
   }
@@ -6457,11 +6528,11 @@ async function fetchFullState(retries = 10, delay = 500) {
       }
 
       if (result.status === 'error') {
-        console.log(`游戏尚未启动，等待重�?(${i + 1}/${retries})...`)
+        console.log(`游戏尚未启动，等待重试(${i + 1}/${retries})...`)
         await new Promise((resolve) => setTimeout(resolve, delay))
       }
     } catch (error) {
-      console.error('获取全量状态失�?', error)
+      console.error('获取全量状态失败', error)
       await new Promise((resolve) => setTimeout(resolve, delay))
     }
   }
@@ -6470,10 +6541,12 @@ async function fetchFullState(retries = 10, delay = 500) {
 }
 
 function applyFullState(state) {
-  // 应用元信�?  if (state.meta) {
+  // 应用元信息
+  if (state.meta) {
     applyMetaState(state.meta)
     
-    // 根据玩家数量初始化玩家列�?    const numPlayers = state.meta.num_players || 3
+    // 根据玩家数量初始化玩家列表
+    const numPlayers = state.meta.num_players || 3
     if (players.value.length !== numPlayers) {
       initPlayers(numPlayers)
     }
@@ -6503,7 +6576,8 @@ function applyFullState(state) {
     }
   }
   
-  // 应用玩家状�?  if (state.players && Array.isArray(state.players)) {
+  // 应用玩家状态
+  if (state.players && Array.isArray(state.players)) {
     state.players.forEach((p, idx) => {
       if (idx < players.value.length) {
         applyPlayerState(players.value[idx], p)
@@ -6513,12 +6587,14 @@ function applyFullState(state) {
     syncBonusColumnsFromPlayers(state.players)
   }
   
-  // 应用可选行�?  setAvailableActions(state.available_actions)
+  // 应用可选行动
+  setAvailableActions(state.available_actions)
 
   setActionLogsFromHistory(state.action_history)
   setFinalScores(state.final_scores)
   
-  // 应用地图状�?  if (state.map_state) {
+  // 应用地图状态
+  if (state.map_state) {
     if (state.map_state.bridges) {
       mapState.bridges = state.map_state.bridges
     }
@@ -6532,7 +6608,8 @@ function applyFullState(state) {
             // 获取建筑类型名称
             const buildingType = buildingIdToType[cell.building_id]
             if (buildingType) {
-              // 获取控制者的规划卡ID来构建图片路�?              const controllerPlayer = state.players?.[cell.controller]
+              // 获取控制者的规划卡ID来构建图片路径
+              const controllerPlayer = state.players?.[cell.controller]
               const planningCardId = controllerPlayer?.planning_card_id || (cell.controller + 1)
               placeElement(rowIdx, colIdx, planningCardId, cell.building_id, 'replace')
             }
@@ -6632,7 +6709,7 @@ function connectSSE() {
   eventSource = new EventSource(`${apiBaseUrl}/stream/game`)
 
   eventSource.onopen = () => {
-    console.log('SSE 连接已建�?)
+    console.log('SSE 连接已建立')
   }
 
   eventSource.onmessage = (event) => {
@@ -6648,11 +6725,14 @@ function connectSSE() {
 
   eventSource.onerror = (error) => {
     console.error('SSE 连接错误:', error)
-    // 检测连接是否已关闭（后端可能已停止�?    if (eventSource.readyState === EventSource.CLOSED) {
-      console.log('后端连接已关闭，清理游戏状�?)
-      // 清理 localStorage 中的游戏状�?      localStorage.removeItem('gameInProgress')
+    // 检测连接是否已关闭（后端可能已停止）
+    if (eventSource.readyState === EventSource.CLOSED) {
+      console.log('后端连接已关闭，清理游戏状态')
+      // 清理 localStorage 中的游戏状态
+      localStorage.removeItem('gameInProgress')
       localStorage.removeItem('gameSettings')
-      // 重置游戏状�?      gameStore.endGame()
+      // 重置游戏状态
+      gameStore.endGame()
       timerStore.reset()
       resetActionLogHistory()
       // 返回首页
@@ -6680,18 +6760,19 @@ function handleSSEMessage(message) {
       break
 
     case 'global_status':
-      // 对局状态统一�?meta 标志推导，避免被独立文案覆盖�?      break
+      // 对局状态统一由 meta 标志推导，避免被独立文案覆盖
+      break
 
     case 'log':
       appendActionLogEntry(player_id, data)
       break
 
     case 'actions':
-      // 处理可选行动，统一转换为前端格�?{id, text}
+      // 处理可选行动，统一转换为前端格式{id, text}
       console.log('[SSE] 收到 actions 消息:', message)
       setAvailableActions(data.actions)
       isAiPlayer.value = message.is_ai_player || false
-      console.log('[SSE] isAiPlayer 设置�?', isAiPlayer.value)
+      console.log('[SSE] isAiPlayer 设置为', isAiPlayer.value)
       break
 
     case 'terrain_update':
@@ -6762,7 +6843,8 @@ function handleSSEMessage(message) {
       break
 
     case 'full':
-      // 全量状态更�?- 来自 SSE 的初始状�?      if (message.state) {
+      // 全量状态更新- 来自 SSE 的初始状态
+      if (message.state) {
         applyGameViewFullState(message.state)
         updateStateVersion(message.version)
         console.log('SSE 全量状态已加载, version:', message.version)
@@ -6770,7 +6852,8 @@ function handleSSEMessage(message) {
       break
 
     case 'incremental':
-      // 增量更新 - 应用变更到本地状�?      console.log('[SSE] 收到增量更新, changes:', message.changes?.length || 0)
+      // 增量更新 - 应用变更到本地状态
+      console.log('[SSE] 收到增量更新, changes:', message.changes?.length || 0)
       if (message.changes) {
         applyIncrementalChanges(message.changes)
         updateStateVersion(message.version)
@@ -6791,7 +6874,8 @@ function handleSSEMessage(message) {
   }
 }
 
-// 应用增量变更到本地状�?function applyIncrementalChanges(changes) {
+// 应用增量变更到本地状态
+function applyIncrementalChanges(changes) {
   const pendingBuildingRenders = new Set()
 
   for (const change of changes) {
@@ -6858,7 +6942,7 @@ function applyGameViewChange(path, value, changeType, pendingBuildingRenders = n
     if (playerIdx >= 0 && playerIdx < players.value.length) {
       applyPlayerFieldChange(players.value[playerIdx], keys.slice(2), value, changeType)
 
-      // 如果�?settlements_and_cities �?city_tile_assignments 变更，触发对应地块重渲染
+      // 如果 settlements_and_cities 或 city_tile_assignments 变更，触发对应地块重渲染
       if (keys.length >= 3) {
         const fieldName = keys[2]
         if (fieldName === 'settlements_and_cities' || fieldName === 'city_tile_assignments') {
@@ -6871,7 +6955,8 @@ function applyGameViewChange(path, value, changeType, pendingBuildingRenders = n
               triggerBuildingRender(row, col, pendingBuildingRenders)
             }
           } else {
-            // 全量替换（路径只到字段级别），遍历该玩家所有控制地�?            const player = players.value[playerIdx]
+            // 全量替换（路径只到字段级别），遍历该玩家所有控制地块
+            const player = players.value[playerIdx]
             if (player?.controlled_map_ids) {
               for (const mapId of player.controlled_map_ids) {
                 if (Array.isArray(mapId) && mapId.length === 2) {
@@ -6915,7 +7000,8 @@ function applyGameViewChange(path, value, changeType, pendingBuildingRenders = n
     } else if (displayBoardKey === 'science_tile_owners') {
       applyTileOwnerMapChange(scienceTileOwners, keys.slice(2), value, changeType, scienceTilesOrder.value)
     } else if (displayBoardKey === 'city_tile_owners') {
-      // 城市板块拥有者变�?- 触发所有玩家控制地块的重渲�?      for (let playerIdx = 0; playerIdx < players.value.length; playerIdx++) {
+      // 城市板块拥有者变化- 触发所有玩家控制地块的重渲染
+      for (let playerIdx = 0; playerIdx < players.value.length; playerIdx++) {
         const player = players.value[playerIdx]
         if (player?.controlled_map_ids) {
           for (const mapId of player.controlled_map_ids) {
@@ -7006,15 +7092,17 @@ function applyGameViewChange(path, value, changeType, pendingBuildingRenders = n
 function applySingleChange(path, value, changeType) {
   const keys = path.split(/\.|\[|\]/).filter(k => k !== '')
 
-  // 处理 set 类型的增量更�?(added/removed)
+  // 处理 set 类型的增量更新(added/removed)
   if (keys.length >= 2) {
     const lastKey = keys[keys.length - 1]
     if (lastKey === 'added' || lastKey === 'removed') {
-      // 暂不处理集合类型的增量更�?      return
+      // 暂不处理集合类型的增量更新
+      return
     }
   }
 
-  // 根据路径更新对应的本地状�?  const rootKey = keys[0]
+  // 根据路径更新对应的本地状态
+  const rootKey = keys[0]
 
   // 处理 available_actions - 直接替换整个列表
   if (rootKey === 'available_actions') {
@@ -7033,7 +7121,8 @@ function applySingleChange(path, value, changeType) {
   }
 
   if (rootKey === 'players' && keys.length >= 2) {
-    // 更新玩家状�?    const playerIdx = parseInt(keys[1])
+    // 更新玩家状态
+    const playerIdx = parseInt(keys[1])
     if (playerIdx >= 0 && playerIdx < players.value.length) {
       const player = players.value[playerIdx]
       const remainingKeys = keys.slice(2)
@@ -7050,19 +7139,23 @@ function applySingleChange(path, value, changeType) {
         return
       }
 
-      // 其他字段使用普通更�?      updateNestedObject(player, remainingKeys, value)
+      // 其他字段使用普通更新
+      updateNestedObject(player, remainingKeys, value)
     }
   } else if (rootKey === 'meta' && keys.length >= 2) {
-    // 更新元信�?    const key = keys[1]
+    // 更新元信息
+    const key = keys[1]
     if (key === 'current_player_id') {
-      // 可以在这里添加当前玩家指示器的更�?    } else if (key === 'num_players') {
+      // 可以在这里添加当前玩家指示器的更新
+    } else if (key === 'num_players') {
       // 玩家数量变化时重新初始化玩家列表
       if (value > 0 && players.value.length !== value) {
         initPlayers(value)
       }
     }
   } else if (rootKey === 'map_state' && keys.length >= 4) {
-    // 更新地图状�?    if (keys[1] === 'grid') {
+    // 更新地图状态
+    if (keys[1] === 'grid') {
       const row = parseInt(keys[2])
       const col = parseInt(keys[3])
       if (keys.length >= 5) {
@@ -7082,7 +7175,8 @@ function applySingleChange(path, value, changeType) {
             }
           }
         } else if (field === 'controller') {
-          // 控制者更�?- 单独更新时可能需要重新渲染建�?        }
+          // 控制者变化- 单独更新时可能需要重新渲染建筑
+        }
       }
     } else if (keys[1] === 'bridges') {
       const bridgeKey = keys[2].replace(/^"|"$/g, '')
@@ -7102,9 +7196,11 @@ function applySingleChange(path, value, changeType) {
         setRoundScoring(index + 1, scoringId)
       })
     } else if (setupKey === 'final_scoring' && value > 0) {
-      // 最终计分更�?      setFinalRoundBonus(value)
+      // 最终计分变化
+      setFinalRoundBonus(value)
     } else if (setupKey === 'selected_round_boosters' && Array.isArray(value)) {
-      // 回合助推器更�?      setBonusColumns(value)
+      // 回合助推器变化
+      setBonusColumns(value)
     }
   }
 }
@@ -7136,7 +7232,8 @@ function handleDocumentClick(e) {
   }
 }
 
-// 禁止 Ctrl+A 全�?function handleKeyDown(e) {
+// 禁止 Ctrl+A 全选
+function handleKeyDown(e) {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
     e.preventDefault()
   }
@@ -7147,12 +7244,16 @@ onMounted(async () => {
   gameStore.loadFromStorage()
   document.addEventListener('click', handleDocumentClick)
   document.addEventListener('keydown', handleKeyDown)
-  // 初始化地�?  generateHexMap()
-  // 先获取全量状�?  await fetchFullState()
-  // 渲染桥梁指示�?  renderBridgeIndicators()
+  // 初始化地图
+  generateHexMap()
+  // 先获取全量状态
+  await fetchFullState()
+  // 渲染桥梁指示器
+  renderBridgeIndicators()
   await nextTick()
   setupPlayerCardResizeObserver()
-  // setupActionContentResizeObserver() // 已停用：不再自动检测高度溢�?  setupRoundInfoResizeObserver()
+  // setupActionContentResizeObserver() // 已停用：不再自动检测高度溢出
+  setupRoundInfoResizeObserver()
   updateRoundInfoLayout()
   setupScienceAbilityResizeObserver()
   updateScienceAbilityLayout()
@@ -7225,7 +7326,7 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
-/* ===== 左侧：玩家面�?===== */
+/* ===== 左侧：玩家面板===== */
 .players-monitor {
   width: 17%;
   height: 100%;
@@ -7895,7 +7996,7 @@ onUnmounted(() => {
   background-color: rgba(77, 166, 255, 0.1);
 }
 
-/* ===== 中间区域：游戏区�?===== */
+/* ===== 中间区域：游戏区域===== */
 .middle-section {
   background-color: #171717;
   border-radius: var(--border-radius);
@@ -8835,7 +8936,7 @@ onUnmounted(() => {
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
 }
 
-/* ===== 右侧：全局信息�?(21%) ===== */
+/* ===== 右侧：全局信息区(21%) ===== */
 .global-section {
   display: flex;
   flex-direction: column;
@@ -9014,7 +9115,7 @@ onUnmounted(() => {
   font-weight: 400;
 }
 
-/* 所有菜单按钮悬停态统一为红�?*/
+/* 所有菜单按钮悬停态统一为红色*/
 .menu-modal-btn:hover {
   border-color: #ef4444;
   background: rgba(239, 68, 68, 0.1);
@@ -9024,7 +9125,7 @@ onUnmounted(() => {
   color: #ef4444;
 }
 
-/* 二次确认状态样�?*/
+/* 二次确认状态样式*/
 .menu-modal-btn.confirm-state {
   border-color: #ef4444;
   background: rgba(239, 68, 68, 0.15);
@@ -9445,7 +9546,7 @@ onUnmounted(() => {
   flex: 1;
   min-height: 0;
   padding: 0 14px 14px;
-  /* 始终显示滚动条，在右侧预留空间，避免滚动条出�?消失时布局跳动 */
+  /* 始终显示滚动条，在右侧预留空间，避免滚动条出现消失时布局跳动 */
   overflow-y: scroll;
   background: transparent;
   display: flex;
@@ -9520,7 +9621,7 @@ onUnmounted(() => {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.015);
   transition: border-color 0.22s ease, box-shadow 0.22s ease, background-color 0.22s ease;
   box-sizing: border-box;
-  /* 关键修复：防�?flex item 被压缩，确保内容超出时出现滚动条而不是压缩卡�?*/
+  /* 关键修复：防止 flex item 被压缩，确保内容超出时出现滚动条而不是压缩卡片*/
   flex-shrink: 0;
 }
 
@@ -10167,7 +10268,7 @@ onUnmounted(() => {
   gap: 8px;
 }
 
-/* 扩大筛选弹窗宽�?*/
+/* 扩大筛选弹窗宽度*/
 .action-log-filter-modal :deep(.modal-content) {
   max-width: 60vw;
 }
@@ -10201,7 +10302,7 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
-/* 玩家面板分割�?- 参�?action-log-divider 样式 */
+/* 玩家面板分割线- 参考 action-log-divider 样式 */
 .player-pass-divider {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
@@ -10225,7 +10326,7 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
-/* 空状态提�?*/
+/* 空状态提示*/
 .player-empty-state {
   display: flex;
   align-items: center;
@@ -10472,7 +10573,7 @@ onUnmounted(() => {
   text-align: center;
 }
 
-/* 滚动条优�?*/
+/* 滚动条优化*/
 ::-webkit-scrollbar {
   width: 6px;
 }
@@ -10496,7 +10597,7 @@ onUnmounted(() => {
   background: var(--accent);
 }
 
-/* 响应�?*/
+/* 响应式*/
 @media (max-width: 1400px) {
   .main-container {
     flex-wrap: wrap;
@@ -10569,7 +10670,7 @@ onUnmounted(() => {
   }
 }
 
-/* 桥梁指示�?*/
+/* 桥梁指示器*/
 .bridge-indicator {
   pointer-events: none;
 }
@@ -10586,7 +10687,7 @@ onUnmounted(() => {
 </style>
 
 <style>
-/* ===== 六边形地图样式（全局，因�?SVG 元素是动态创建的�?===== */
+/* ===== 六边形地图样式（全局，因为 SVG 元素是动态创建的===== */
 .hexagon {
   fill: rgba(40, 40, 60, 0.7);
   stroke: rgb(219, 219, 219);
@@ -10605,7 +10706,7 @@ onUnmounted(() => {
   stroke: rgba(255, 255, 255, 0.15);
 }
 
-/* 地形颜色�?*/
+/* 地形颜色表*/
 .terrain-water { fill: transparent; }
 .terrain-plains { fill: #946035; }
 .terrain-swamp { fill: #595959; }
@@ -10615,7 +10716,7 @@ onUnmounted(() => {
 .terrain-wasteland { fill: #d94d4d; }
 .terrain-desert { fill: #e5e55a; }
 
-/* 六边形编号样�?*/
+/* 六边形编号样式*/
 .hex-number {
   font-family: Arial, sans-serif;
   font-size: 10px;
@@ -10638,7 +10739,7 @@ onUnmounted(() => {
   transition: all 0.3s ease;
 }
 
-/* 高亮激活状�?- 紫色边框和填�?*/
+/* 高亮激活状态- 紫色边框和填充*/
 .highlight-overlay.active {
   stroke: #9c27b0;
   stroke-dasharray: 12, 6;
@@ -10646,7 +10747,7 @@ onUnmounted(() => {
   fill: rgba(156, 39, 176, 0.2);
 }
 
-/* 高亮层悬停状�?- 蓝色边框 */
+/* 高亮层悬停状态- 蓝色边框 */
 .highlight-overlay.hover {
   stroke: var(--accent) !important;
   stroke-width: 4 !important;
@@ -10656,7 +10757,7 @@ onUnmounted(() => {
   stroke: var(--accent) !important;
 }
 
-/* 悬停叠加层样�?*/
+/* 悬停叠加层样式*/
 .hover-overlay {
   pointer-events: all;
   cursor: default;
