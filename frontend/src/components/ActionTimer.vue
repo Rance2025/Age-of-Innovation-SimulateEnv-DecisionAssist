@@ -13,33 +13,27 @@
     </template>
 
     <template v-else>
-      <div class="timer-circle">
-        <svg class="timer-svg" viewBox="0 0 36 36">
-          <circle
-            class="timer-circle-bg"
-            cx="18"
-            cy="18"
-            r="16"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="3"
-          />
-          <circle
-            v-if="hasVisibleProgress"
-            class="timer-circle-progress"
-            cx="18"
-            cy="18"
-            r="16"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="3"
-            :stroke-dasharray="strokeDasharray"
-            :stroke-dashoffset="strokeDashoffset"
-            stroke-linecap="round"
-            transform="rotate(-90 18 18)"
-          />
-        </svg>
+      <div class="timer-byoyomi-row">
         <span class="timer-text byo-yomi-time">{{ displayTime }}</span>
+        <div class="timer-pie">
+          <svg class="timer-pie-svg" viewBox="0 0 36 36">
+            <!-- 底色完整圆 -->
+            <circle
+              class="timer-pie-bg"
+              cx="18"
+              cy="18"
+              r="16"
+              fill="currentColor"
+            />
+            <!-- 进度扇形 -->
+            <path
+              v-if="hasVisibleProgress"
+              class="timer-pie-progress"
+              :d="sectorPath"
+              fill="currentColor"
+            />
+          </svg>
+        </div>
       </div>
     </template>
   </div>
@@ -65,14 +59,30 @@ const isTimeout = computed(() => (
   isByoYomi.value && progress.value <= 0
 ))
 
-const CIRCLE_RADIUS = 16
-const circumference = 2 * Math.PI * CIRCLE_RADIUS
+function polarToCartesian(cx, cy, radius, angleInDegrees) {
+  const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0
+  return {
+    x: cx + (radius * Math.cos(angleInRadians)),
+    y: cy + (radius * Math.sin(angleInRadians))
+  }
+}
 
-const strokeDashoffset = computed(() => (
-  circumference * (1 - progress.value)
-))
+function getSectorPath(cx, cy, r, startAngle, endAngle) {
+  const start = polarToCartesian(cx, cy, r, endAngle)
+  const end = polarToCartesian(cx, cy, r, startAngle)
+  const largeArcFlag = endAngle - startAngle <= 180 ? '0' : '1'
+  return [
+    'M', cx, cy,
+    'L', start.x, start.y,
+    'A', r, r, 0, largeArcFlag, 0, end.x, end.y,
+    'Z'
+  ].join(' ')
+}
 
-const strokeDasharray = `${circumference}`
+const sectorPath = computed(() => {
+  const angle = progress.value * 360
+  return getSectorPath(18, 18, 16, 0, angle)
+})
 </script>
 
 <style scoped>
@@ -90,49 +100,48 @@ const strokeDasharray = `${circumference}`
   letter-spacing: 0.05em;
 }
 
-.timer-circle {
-  position: relative;
-  width: 42px;
-  height: 42px;
-  display: flex;
+.timer-byoyomi-row {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 6px;
 }
 
-.timer-svg {
-  position: absolute;
-  top: 0;
-  left: 0;
+.timer-pie {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+}
+
+.timer-pie-svg {
   width: 100%;
   height: 100%;
 }
 
-.timer-circle-bg {
+.timer-pie-bg {
   color: rgba(255, 255, 255, 0.15);
 }
 
-.timer-circle-progress {
+.timer-pie-progress {
   color: #4ade80;
   transition:
-    stroke-dashoffset 0.1s linear,
+    d 0.1s linear,
     color 0.2s ease;
 }
 
 .timer-text.byo-yomi-time {
   font-size: 0.85em;
   color: #4ade80;
-  z-index: 1;
 }
 
-.action-timer.is-warning .timer-circle-progress,
+.action-timer.is-warning .timer-pie-progress,
 .action-timer.is-warning .timer-text.byo-yomi-time {
   color: #fbbf24;
   animation: pulse 1s ease-in-out infinite;
 }
 
-.action-timer.is-danger .timer-circle-progress,
+.action-timer.is-danger .timer-pie-progress,
 .action-timer.is-danger .timer-text.byo-yomi-time,
-.action-timer.is-timeout .timer-circle-progress,
+.action-timer.is-timeout .timer-pie-progress,
 .action-timer.is-timeout .timer-text.byo-yomi-time {
   color: #ef4444;
 }

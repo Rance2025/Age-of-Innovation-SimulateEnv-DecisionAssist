@@ -9,11 +9,10 @@
         v-if="visible"
         ref="popoverRef"
         class="popover"
-        :class="[`popover-placement-${actualPlacement}`, { 'popover-no-arrow': !showArrow }]"
+        :class="`popover-placement-${actualPlacement}`"
         :style="popoverStyle"
         @click.stop
       >
-        <div v-if="showArrow" class="popover-arrow" />
         <div class="popover-content">
           <slot name="content" />
         </div>
@@ -34,20 +33,14 @@ const props = defineProps({
   },
   offset: {
     type: Number,
-    default: 8
+    default: 16
   },
   width: {
     type: [String, Number],
     default: 'auto'
   },
-  maxWidth: {
-    type: Number,
-    default: 320
-  },
-  showArrow: {
-    type: Boolean,
-    default: true
-  }
+
+
 })
 
 const emit = defineEmits(['show', 'hide'])
@@ -70,8 +63,6 @@ const popoverStyle = computed(() => {
     style.width = typeof props.width === 'number' ? `${props.width}px` : props.width
   }
   
-  style.maxWidth = `${props.maxWidth}px`
-  
   return style
 })
 
@@ -91,7 +82,11 @@ function show() {
   emit('show')
   
   nextTick(() => {
-    calculatePosition(triggerRef.value, popoverRef.value, props.placement, props.offset)
+    // 使用 requestAnimationFrame 确保浏览器完成布局计算（包括图片、flex 布局等）
+    // 此时 Vue Transition 的 enter-from（opacity: 0）仍在生效，用户不会看到定位过程
+    requestAnimationFrame(() => {
+      calculatePosition(triggerRef.value, popoverRef.value, props.placement, props.offset)
+    })
   })
 }
 
@@ -113,6 +108,11 @@ function handleCloseAll() {
   }
 }
 
+defineExpose({
+  show,
+  hide
+})
+
 let scrollHandler = null
 let resizeHandler = null
 
@@ -121,7 +121,11 @@ watch(visible, (isVisible) => {
     document.addEventListener('click', handleClickOutside, true)
     document.addEventListener('popover:close-all', handleCloseAll)
     
-    scrollHandler = () => {
+    scrollHandler = (event) => {
+      // 忽略来自 popover 内部的滚动事件，避免内部滚动触发位置重计算
+      if (event.target && popoverRef.value && popoverRef.value.contains(event.target)) {
+        return
+      }
       calculatePosition(triggerRef.value, popoverRef.value, props.placement, props.offset)
     }
     resizeHandler = () => {
@@ -165,49 +169,6 @@ onUnmounted(() => {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   padding: 16px;
   pointer-events: auto;
-}
-
-.popover-arrow {
-  position: absolute;
-  width: 0;
-  height: 0;
-  border-style: solid;
-}
-
-.popover-placement-bottom .popover-arrow {
-  top: -8px;
-  left: 50%;
-  transform: translateX(-50%);
-  border-left: 8px solid transparent;
-  border-right: 8px solid transparent;
-  border-bottom: 8px solid #2a2a2a;
-}
-
-.popover-placement-top .popover-arrow {
-  bottom: -8px;
-  left: 50%;
-  transform: translateX(-50%);
-  border-left: 8px solid transparent;
-  border-right: 8px solid transparent;
-  border-top: 8px solid #2a2a2a;
-}
-
-.popover-placement-right .popover-arrow {
-  left: -8px;
-  top: 50%;
-  transform: translateY(-50%);
-  border-top: 8px solid transparent;
-  border-bottom: 8px solid transparent;
-  border-right: 8px solid #2a2a2a;
-}
-
-.popover-placement-left .popover-arrow {
-  right: -8px;
-  top: 50%;
-  transform: translateY(-50%);
-  border-top: 8px solid transparent;
-  border-bottom: 8px solid transparent;
-  border-left: 8px solid #2a2a2a;
 }
 
 .popover-content {

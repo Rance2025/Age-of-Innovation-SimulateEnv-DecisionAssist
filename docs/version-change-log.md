@@ -4,15 +4,43 @@
 
 ## 模板
 
-## 本次修改
-- 日期：
-- 分支：
+## 0.9.6.2
+- 日期：`2026-04-25`
+- 分支：`main`
 - 影响范围：
-  - 
+  - `frontend/src/views/GameView.vue`
+  - `frontend/src/components/PopoverContent.vue`
+  - `frontend/src/components/Popover.vue`
+  - `frontend/src/composables/usePopoverPosition.js`
 - 更新内容：
-  - 
+  - `feat: 在游戏地图区域点击所有非水域地块打开明细弹窗，复用现有 Popover + PopoverContent 组件`
+  - `ui: 非水域地块悬停叠加层添加 cursor: pointer 样式`
+  - `feat: Popover 组件暴露 show/hide 方法，支持程序化触发`
+  - `fix: 恢复被意外删除的 faction-badge、faction-badge-avatar-image、faction-badge-name 样式类，修复派系按钮显示`
+  - `ui: 将派系按钮的点击范围从图片扩展到整个胶囊（图片+文字）`
+  - `feat: 为玩家标题栏上的分数添加点击弹出分数明细弹窗`
+  - `ui: 为可点击的分数添加 cursor: pointer 样式`
+  - `ui: 调大 Popover 弹窗明细区域宽度（160px→200px）`
+  - `ui: 调大 Popover 左右布局间距（12px→16px，左右布局额外增至24px）`
+  - `fix: 删除 GameView.vue 中残留的 entity-preview-* 样式，修复科学/能力板块图片尺寸异常`
+  - `ui: 将明细弹窗标题从"变更记录"统一改为"变更明细"`
+  - `ui: 上下布局和无图片布局的滚动容器高度统一固定为 360px`
+  - `feat: 左右布局的滚动容器高度通过 ResizeObserver 实时同步左侧图片+名称的总高度，确保明细内容再多也不会撑高弹窗`
+  - `feat: PopoverContent 新增 placeholderCount prop，支持控制占位明细条目数`
+  - `chore: 临时将所有弹窗占位条目数调整为 20 条，便于测试滚动效果`
+  - `ui: 将 Popover 默认 offset 从 16px 改为 12px`
+  - `ui: 科学能力板块（科学板块 + 能力板块）的 Popover offset 单独设为 36px`
+  - `refactor: 移除 GameView.vue 中大部分显式 :offset 属性，使用默认 12px`
+  - `fix: 修复明细区域滚动时触发 Popover 重新定位导致弹窗向左移动的 bug，内部滚动事件不再触发位置重计算`
+  - `ui: 明细弹窗标题"变更明细"固定在顶部，不再随条目列表一起滚动`
+  - `refactor: 明细区域内部结构调整：popover-detail-section 改为 flex 列布局，detail-list 独立承担滚动`
+  - `fix: 修复 Popover 初次显示时位置偏移的 bug，根本原因是 Vue Transition 初始 transform: scale(0.95) 导致 getBoundingClientRect() 尺寸偏小`
+  - `fix: usePopoverPosition 改用 offsetWidth/offsetHeight 获取 popover 实际布局尺寸，不受 CSS transform 动画影响`
+  - `revert: 移除 setTimeout 和 isPositioning 隐藏方案，恢复流畅的打开/关闭动画`
+  - `fix: 修复左右布局弹窗初次打开定位偏移问题，ResizeObserver 尚未触发时 tallDetailMaxHeight 默认 'auto' 导致明细区域无限撑高，改为默认 280px`
+  - `fix: Popover.vue show() 使用 requestAnimationFrame 确保浏览器完成布局后再计算位置，避免内容（图片、flex 布局）未渲染完成时尺寸不准确`
 - 验证方式：
-  - 
+  - `cd frontend && npm run build`
 
 ## 0.9.6.1
 - 日期：`2026-04-25`
@@ -248,7 +276,18 @@
   - `在设置页面为AI玩家选择策略，确认策略弹窗正常显示并可正常选择`
   - `确认两处策略弹窗的UI和交互完全一致`
 
-## 本次修改
+## 0.9.6.2 补充
+- 日期：`2026-04-25`
+- 分支：`main`
+- 影响范围：
+  - `frontend/src/views/GameView.vue`
+- 更新内容：
+  - `ui: 将可选行动区右上角倒计时圆圈尺寸从 68px 增大到 84px，保持文字大小不变`
+  - `ui: 将读秒倒计时改为左右布局，左侧为倒计时文字，右侧为完整圆+扇形进度图标`
+  - `feat: 倒计时进度从圆环描边改为 SVG 填充扇形实现`
+  - `ui: 将读秒倒计时图标大小调整为 36px`
+- 验证方式：
+  - `cd frontend && npm run build`
 
 ## 0.9.5.36
 - 日期：`2026-04-22`

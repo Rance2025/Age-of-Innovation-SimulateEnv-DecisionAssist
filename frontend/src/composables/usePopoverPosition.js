@@ -5,7 +5,6 @@ export function usePopoverPosition() {
   const actualPlacement = ref('bottom')
 
   const viewportPadding = 12
-  const arrowSize = 8
 
   function calculatePosition(triggerEl, popoverEl, preferredPlacement = 'auto', offset = 8) {
     if (!triggerEl || !popoverEl) return
@@ -18,7 +17,9 @@ export function usePopoverPosition() {
     }
 
     const triggerRect = actualTriggerEl.getBoundingClientRect()
-    const popoverRect = popoverEl.getBoundingClientRect()
+    // 使用 offsetWidth/offsetHeight 获取实际布局尺寸，不受 CSS transform（如 Vue Transition 的 scale）影响
+    const popoverWidth = popoverEl.offsetWidth
+    const popoverHeight = popoverEl.offsetHeight
     const viewportWidth = window.innerWidth
     const viewportHeight = window.innerHeight
 
@@ -32,28 +33,28 @@ export function usePopoverPosition() {
 
       switch (placement) {
         case 'bottom':
-          top = triggerRect.bottom + offset + arrowSize
-          left = triggerRect.left + (triggerRect.width - popoverRect.width) / 2
+          top = triggerRect.bottom + offset
+          left = triggerRect.left + (triggerRect.width - popoverWidth) / 2
           break
         case 'top':
-          top = triggerRect.top - popoverRect.height - offset - arrowSize
-          left = triggerRect.left + (triggerRect.width - popoverRect.width) / 2
+          top = triggerRect.top - popoverHeight - offset
+          left = triggerRect.left + (triggerRect.width - popoverWidth) / 2
           break
         case 'right':
-          top = triggerRect.top + (triggerRect.height - popoverRect.height) / 2
-          left = triggerRect.right + offset + arrowSize
+          top = triggerRect.top + (triggerRect.height - popoverHeight) / 2
+          left = triggerRect.right + offset
           break
         case 'left':
-          top = triggerRect.top + (triggerRect.height - popoverRect.height) / 2
-          left = triggerRect.left - popoverRect.width - offset - arrowSize
+          top = triggerRect.top + (triggerRect.height - popoverHeight) / 2
+          left = triggerRect.left - popoverWidth - offset
           break
       }
 
       // 检查是否超出视口
       const fitsHorizontally = left >= viewportPadding && 
-        left + popoverRect.width <= viewportWidth - viewportPadding
+        left + popoverWidth <= viewportWidth - viewportPadding
       const fitsVertically = top >= viewportPadding && 
-        top + popoverRect.height <= viewportHeight - viewportPadding
+        top + popoverHeight <= viewportHeight - viewportPadding
 
       if (fitsHorizontally && fitsVertically) {
         position.value = { top, left }
@@ -63,11 +64,11 @@ export function usePopoverPosition() {
     }
 
     // 如果都不合适，使用 bottom 并限制在视口内
-    let top = triggerRect.bottom + offset + arrowSize
-    let left = triggerRect.left + (triggerRect.width - popoverRect.width) / 2
+    let top = triggerRect.bottom + offset
+    let left = triggerRect.left + (triggerRect.width - popoverWidth) / 2
     
-    top = Math.max(viewportPadding, Math.min(top, viewportHeight - popoverRect.height - viewportPadding))
-    left = Math.max(viewportPadding, Math.min(left, viewportWidth - popoverRect.width - viewportPadding))
+    top = Math.max(viewportPadding, Math.min(top, viewportHeight - popoverHeight - viewportPadding))
+    left = Math.max(viewportPadding, Math.min(left, viewportWidth - popoverWidth - viewportPadding))
     
     position.value = { top, left }
     actualPlacement.value = 'bottom'
