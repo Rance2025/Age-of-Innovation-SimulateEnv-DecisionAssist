@@ -42,7 +42,8 @@ const props = defineProps({
   inactive: Boolean,
   detailTitle: { type: String, default: '变更明细' },
   aspectRatio: String,
-  placeholderCount: { type: Number, default: 20 }
+  placeholderCount: { type: Number, default: 20 },
+  isSwitching: { type: Boolean, default: false }
 })
 
 const imageSectionRef = ref(null)
@@ -91,6 +92,23 @@ onUnmounted(() => {
 watch(() => [props.imageLayerStyle, props.name, props.aspectRatio], () => {
   nextTick(() => syncTallDetailHeight())
 }, { flush: 'post' })
+
+// FLIP 切换动画期间暂停 ResizeObserver，避免尺寸竞争
+watch(() => props.isSwitching, (switching) => {
+  if (switching) {
+    if (resizeObserver) {
+      resizeObserver.disconnect()
+    }
+  } else {
+    nextTick(() => {
+      syncTallDetailHeight()
+      if (imageSectionRef.value && typeof ResizeObserver !== 'undefined') {
+        resizeObserver = new ResizeObserver(() => syncTallDetailHeight())
+        resizeObserver.observe(imageSectionRef.value)
+      }
+    })
+  }
+})
 </script>
 
 <style scoped>

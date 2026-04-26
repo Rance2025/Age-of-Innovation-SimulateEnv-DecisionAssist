@@ -62,27 +62,15 @@
               <div class="player-header" @click="togglePlayer(player.id)">
                 <div class="player-header-left">
                   <div class="planning-card-indicator">
-                    <Popover
+                    <div
                       v-if="player.planningCardId !== null"
-                      placement="auto"
-                      
-                    >
-                      <div
-                        class="planning-card-circle is-visible"
-                        :tabindex="0"
-                        title=""
-                        :aria-label="`预览${player.planningCard}规划卡`"
-                        :style="{ backgroundColor: getPlanningCardColor(player.planningCardId) }"
-                      ></div>
-                      <template #content>
-                        <PopoverContent
-                          :image-container-style="{ '--preview-width': '176px', '--preview-aspect-ratio': '118/187' }"
-                          :image-layer-style="getPlanningCardPreviewStyle(player.planningCardId)"
-                          :name="player.planningCard || planningCardIdToName[player.planningCardId] || ''"
-                          aspect-ratio="118/187"
-                        />
-                      </template>
-                    </Popover>
+                      class="planning-card-circle is-visible"
+                      :tabindex="0"
+                      title=""
+                      :aria-label="`预览${player.planningCard}规划卡`"
+                      :style="{ backgroundColor: getPlanningCardColor(player.planningCardId) }"
+                      @click="handlePlanningCardClick($event, player)"
+                    ></div>
                     <div
                       v-else
                       class="planning-card-circle"
@@ -93,41 +81,28 @@
                   </div>
                   <div class="player-title">
                     <span class="player-name">玩家 {{ player.id + 1 }}</span>
-                    <Popover
+                    <span
                       v-if="player.palaceTileId !== null"
-                      placement="auto"
-                      
+                      class="palace-tile-badge"
+                      :class="{
+                        'is-inactive': !player.isGotPalace,
+                        'is-hidden-placeholder': false
+                      }"
+                      :tabindex="0"
+                      title=""
+                      :aria-label="`预览${player.palaceTileId}号宫殿板块${player.isGotPalace ? '' : '（未激活）'}`"
+                      aria-hidden="false"
+                      @click="handlePalaceTileClick($event, player)"
                     >
+                      <span class="palace-tile-badge-value">{{ player.palaceTileId }}</span>
                       <span
-                        class="palace-tile-badge"
-                        :class="{
-                          'is-inactive': !player.isGotPalace,
-                          'is-hidden-placeholder': false
-                        }"
-                        :tabindex="0"
-                        title=""
-                        :aria-label="`预览${player.palaceTileId}号宫殿板块${player.isGotPalace ? '' : '（未激活）'}`"
-                        aria-hidden="false"
+                        v-if="!player.isGotPalace"
+                        class="palace-tile-badge-status"
+                        aria-hidden="true"
                       >
-                        <span class="palace-tile-badge-value">{{ player.palaceTileId }}</span>
-                        <span
-                          v-if="!player.isGotPalace"
-                          class="palace-tile-badge-status"
-                          aria-hidden="true"
-                        >
-                          <i class="fas fa-ban"></i>
-                        </span>
+                        <i class="fas fa-ban"></i>
                       </span>
-                      <template #content>
-                        <PopoverContent
-                          :image-container-style="{ '--preview-width': '280px', '--preview-aspect-ratio': '142/74' }"
-                          :image-layer-style="getPalacePreviewStyle(player.palaceTileId)"
-                          :name="player.isGotPalace ? `${player.palaceTileId}号宫殿板块` : `${player.palaceTileId}号宫殿板块· 未激活`"
-                          :inactive="!player.isGotPalace"
-                          aspect-ratio="142/74"
-                        />
-                      </template>
-                    </Popover>
+                    </span>
                     <span
                       v-else
                       class="palace-tile-badge is-hidden-placeholder"
@@ -135,50 +110,28 @@
                       title=""
                       aria-hidden="true"
                     ></span>
-                    <Popover
+                    <span
                       v-if="player.factionId !== null"
-                      placement="auto"
-                      
+                      class="faction-badge"
+                      tabindex="0"
+                      title=""
+                      :aria-label="`预览${player.faction}派系板块`"
+                      @click="handleFactionClick($event, player)"
                     >
-                      <span
-                        class="faction-badge"
-                        tabindex="0"
-                        title=""
-                        :aria-label="`预览${player.faction}派系板块`"
-                      >
-                        <span class="faction-badge-avatar">
-                          <span
-                            class="faction-badge-avatar-image"
-                            aria-hidden="true"
-                            :style="getFactionBadgeStyle(player.factionId)"
-                          ></span>
-                        </span>
-                        <span class="faction-badge-name">{{ player.faction }}</span>
+                      <span class="faction-badge-avatar">
+                        <span
+                          class="faction-badge-avatar-image"
+                          aria-hidden="true"
+                          :style="getFactionBadgeStyle(player.factionId)"
+                        ></span>
                       </span>
-                      <template #content>
-                        <PopoverContent
-                          :image-container-style="{ '--preview-width': '320px', '--preview-aspect-ratio': '592/338' }"
-                          :image-layer-style="getFactionPreviewStyle(player.factionId)"
-                          :name="player.faction || factionIdToName[player.factionId] || ''"
-                          aspect-ratio="592/338"
-                        />
-                      </template>
-                    </Popover>
+                      <span class="faction-badge-name">{{ player.faction }}</span>
+                    </span>
                   </div>
                 </div>
                 <div class="player-header-right">
                   <PlayerTimer :player-id="player.id" :current-player-id="currentActionPlayerId" />
-                  <Popover
-                    placement="auto"
-                    
-                  >
-                    <div class="player-score" tabindex="0" :aria-label="`玩家${player.id + 1}分数明细`">{{ player.score }}</div>
-                    <template #content>
-                      <PopoverContent
-                        :detail-title="`玩家${player.id + 1}分数明细`"
-                      />
-                    </template>
-                  </Popover>
+                  <div class="player-score" tabindex="0" :aria-label="`玩家${player.id + 1}分数明细`" @click="handlePlayerScoreClick($event, player)">{{ player.score }}</div>
                 </div>
               </div>
               <div
@@ -199,55 +152,45 @@
                       'is-ultra-wide-row': row.length >= 6
                     }"
                   >
-                    <Popover
+                    <div
                       v-for="item in row"
                       :key="item.key"
-                      placement="auto"
-                      
-                      width="260"
+                      class="stat-item"
+                      :title="item.label"
+                      @click="handleStatItemClick($event, player, item)"
                     >
-                      <div
-                        class="stat-item"
-                        :title="item.label"
-                      >
-                        <div class="stat-content">
-                          <div class="stat-icon-wrapper">
-                            <canvas
-                              v-if="item.type === 'building'"
-                              :key="`bld-${player.planningCardId}-${item.buildingId}`"
-                              class="stat-image"
-                              :ref="el => drawPlayerBuildingIcon(el, player, item.buildingId)"
-                              :aria-label="item.label"
-                            ></canvas>
-                            <div
-                              v-else-if="item.type === 'magic'"
-                              class="icon-stack"
-                              aria-hidden="true"
-                            >
-                              <span class="magic-disc"></span>
-                              <span class="magic-disc-label">{{ item.magicValue }}</span>
-                            </div>
-                            <i
-                              v-else
-                              :class="[item.iconClass, 'stat-icon']"
-                              aria-hidden="true"
-                            ></i>
-                            <span
-                              v-if="item.badgeValue !== null && item.badgeValue !== undefined"
-                              class="stat-badge"
-                            >
-                              {{ item.badgeValue }}
-                            </span>
+                      <div class="stat-content">
+                        <div class="stat-icon-wrapper">
+                          <canvas
+                            v-if="item.type === 'building'"
+                            :key="`bld-${player.planningCardId}-${item.buildingId}`"
+                            class="stat-image"
+                            :ref="el => drawPlayerBuildingIcon(el, player, item.buildingId)"
+                            :aria-label="item.label"
+                          ></canvas>
+                          <div
+                            v-else-if="item.type === 'magic'"
+                            class="icon-stack"
+                            aria-hidden="true"
+                          >
+                            <span class="magic-disc"></span>
+                            <span class="magic-disc-label">{{ item.magicValue }}</span>
                           </div>
-                          <span class="stat-value">{{ item.value }}</span>
+                          <i
+                            v-else
+                            :class="[item.iconClass, 'stat-icon']"
+                            aria-hidden="true"
+                          ></i>
+                          <span
+                            v-if="item.badgeValue !== null && item.badgeValue !== undefined"
+                            class="stat-badge"
+                          >
+                            {{ item.badgeValue }}
+                          </span>
                         </div>
+                        <span class="stat-value">{{ item.value }}</span>
                       </div>
-                      <template #content>
-                        <PopoverContent
-                          :detail-title="`${item.label}明细`"
-                        />
-                      </template>
-                    </Popover>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -326,27 +269,15 @@
               <div class="player-header" @click="togglePlayer(player.id)">
                 <div class="player-header-left">
                   <div class="planning-card-indicator">
-                    <Popover
+                    <div
                       v-if="player.planningCardId !== null"
-                      placement="auto"
-                      
-                    >
-                      <div
-                        class="planning-card-circle is-visible"
-                        :tabindex="0"
-                        title=""
-                        :aria-label="`预览${player.planningCard}规划卡`"
-                        :style="{ backgroundColor: getPlanningCardColor(player.planningCardId) }"
-                      ></div>
-                      <template #content>
-                        <PopoverContent
-                          :image-container-style="{ '--preview-width': '176px', '--preview-aspect-ratio': '118/187' }"
-                          :image-layer-style="getPlanningCardPreviewStyle(player.planningCardId)"
-                          :name="player.planningCard || planningCardIdToName[player.planningCardId] || ''"
-                          aspect-ratio="118/187"
-                        />
-                      </template>
-                    </Popover>
+                      class="planning-card-circle is-visible"
+                      :tabindex="0"
+                      title=""
+                      :aria-label="`预览${player.planningCard}规划卡`"
+                      :style="{ backgroundColor: getPlanningCardColor(player.planningCardId) }"
+                      @click="handlePlanningCardClick($event, player)"
+                    ></div>
                     <div
                       v-else
                       class="planning-card-circle"
@@ -357,41 +288,28 @@
                   </div>
                   <div class="player-title">
                     <span class="player-name">玩家 {{ player.id + 1 }}</span>
-                    <Popover
+                    <span
                       v-if="player.palaceTileId !== null"
-                      placement="auto"
-                      
+                      class="palace-tile-badge"
+                      :class="{
+                        'is-inactive': !player.isGotPalace,
+                        'is-hidden-placeholder': false
+                      }"
+                      :tabindex="0"
+                      title=""
+                      :aria-label="`预览${player.palaceTileId}号宫殿板块${player.isGotPalace ? '' : '（未激活）'}`"
+                      aria-hidden="false"
+                      @click="handlePalaceTileClick($event, player)"
                     >
+                      <span class="palace-tile-badge-value">{{ player.palaceTileId }}</span>
                       <span
-                        class="palace-tile-badge"
-                        :class="{
-                          'is-inactive': !player.isGotPalace,
-                          'is-hidden-placeholder': false
-                        }"
-                        :tabindex="0"
-                        title=""
-                        :aria-label="`预览${player.palaceTileId}号宫殿板块${player.isGotPalace ? '' : '（未激活）'}`"
-                        aria-hidden="false"
+                        v-if="!player.isGotPalace"
+                        class="palace-tile-badge-status"
+                        aria-hidden="true"
                       >
-                        <span class="palace-tile-badge-value">{{ player.palaceTileId }}</span>
-                        <span
-                          v-if="!player.isGotPalace"
-                          class="palace-tile-badge-status"
-                          aria-hidden="true"
-                        >
-                          <i class="fas fa-ban"></i>
-                        </span>
+                        <i class="fas fa-ban"></i>
                       </span>
-                      <template #content>
-                        <PopoverContent
-                          :image-container-style="{ '--preview-width': '280px', '--preview-aspect-ratio': '142/74' }"
-                          :image-layer-style="getPalacePreviewStyle(player.palaceTileId)"
-                          :name="player.isGotPalace ? `${player.palaceTileId}号宫殿板块` : `${player.palaceTileId}号宫殿板块· 未激活`"
-                          :inactive="!player.isGotPalace"
-                          aspect-ratio="142/74"
-                        />
-                      </template>
-                    </Popover>
+                    </span>
                     <span
                       v-else
                       class="palace-tile-badge is-hidden-placeholder"
@@ -399,50 +317,28 @@
                       title=""
                       aria-hidden="true"
                     ></span>
-                    <Popover
+                    <span
                       v-if="player.factionId !== null"
-                      placement="auto"
-                      
+                      class="faction-badge"
+                      tabindex="0"
+                      title=""
+                      :aria-label="`预览${player.faction}派系板块`"
+                      @click="handleFactionClick($event, player)"
                     >
-                      <span
-                        class="faction-badge"
-                        tabindex="0"
-                        title=""
-                        :aria-label="`预览${player.faction}派系板块`"
-                      >
-                        <span class="faction-badge-avatar">
-                          <span
-                            class="faction-badge-avatar-image"
-                            aria-hidden="true"
-                            :style="getFactionBadgeStyle(player.factionId)"
-                          ></span>
-                        </span>
-                        <span class="faction-badge-name">{{ player.faction }}</span>
+                      <span class="faction-badge-avatar">
+                        <span
+                          class="faction-badge-avatar-image"
+                          aria-hidden="true"
+                          :style="getFactionBadgeStyle(player.factionId)"
+                        ></span>
                       </span>
-                      <template #content>
-                        <PopoverContent
-                          :image-container-style="{ '--preview-width': '320px', '--preview-aspect-ratio': '592/338' }"
-                          :image-layer-style="getFactionPreviewStyle(player.factionId)"
-                          :name="player.faction || factionIdToName[player.factionId] || ''"
-                          aspect-ratio="592/338"
-                        />
-                      </template>
-                    </Popover>
+                      <span class="faction-badge-name">{{ player.faction }}</span>
+                    </span>
                   </div>
                 </div>
                 <div class="player-header-right">
                   <PlayerTimer :player-id="player.id" :current-player-id="currentActionPlayerId" />
-                  <Popover
-                    placement="auto"
-                    
-                  >
-                    <div class="player-score" tabindex="0" :aria-label="`玩家${player.id + 1}分数明细`">{{ player.score }}</div>
-                    <template #content>
-                      <PopoverContent
-                        :detail-title="`玩家${player.id + 1}分数明细`"
-                      />
-                    </template>
-                  </Popover>
+                  <div class="player-score" tabindex="0" :aria-label="`玩家${player.id + 1}分数明细`" @click="handlePlayerScoreClick($event, player)">{{ player.score }}</div>
                 </div>
               </div>
               <div
@@ -463,55 +359,45 @@
                       'is-ultra-wide-row': row.length >= 6
                     }"
                   >
-                    <Popover
+                    <div
                       v-for="item in row"
                       :key="item.key"
-                      placement="auto"
-                      
-                      width="260"
+                      class="stat-item"
+                      :title="item.label"
+                      @click="handleStatItemClick($event, player, item)"
                     >
-                      <div
-                        class="stat-item"
-                        :title="item.label"
-                      >
-                        <div class="stat-content">
-                          <div class="stat-icon-wrapper">
-                            <canvas
-                              v-if="item.type === 'building'"
-                              :key="`bld-${player.planningCardId}-${item.buildingId}`"
-                              class="stat-image"
-                              :ref="el => drawPlayerBuildingIcon(el, player, item.buildingId)"
-                              :aria-label="item.label"
-                            ></canvas>
-                            <div
-                              v-else-if="item.type === 'magic'"
-                              class="icon-stack"
-                              aria-hidden="true"
-                            >
-                              <span class="magic-disc"></span>
-                              <span class="magic-disc-label">{{ item.magicValue }}</span>
-                            </div>
-                            <i
-                              v-else
-                              :class="[item.iconClass, 'stat-icon']"
-                              aria-hidden="true"
-                            ></i>
-                            <span
-                              v-if="item.badgeValue !== null && item.badgeValue !== undefined"
-                              class="stat-badge"
-                            >
-                              {{ item.badgeValue }}
-                            </span>
+                      <div class="stat-content">
+                        <div class="stat-icon-wrapper">
+                          <canvas
+                            v-if="item.type === 'building'"
+                            :key="`bld-${player.planningCardId}-${item.buildingId}`"
+                            class="stat-image"
+                            :ref="el => drawPlayerBuildingIcon(el, player, item.buildingId)"
+                            :aria-label="item.label"
+                          ></canvas>
+                          <div
+                            v-else-if="item.type === 'magic'"
+                            class="icon-stack"
+                            aria-hidden="true"
+                          >
+                            <span class="magic-disc"></span>
+                            <span class="magic-disc-label">{{ item.magicValue }}</span>
                           </div>
-                          <span class="stat-value">{{ item.value }}</span>
+                          <i
+                            v-else
+                            :class="[item.iconClass, 'stat-icon']"
+                            aria-hidden="true"
+                          ></i>
+                          <span
+                            v-if="item.badgeValue !== null && item.badgeValue !== undefined"
+                            class="stat-badge"
+                          >
+                            {{ item.badgeValue }}
+                          </span>
                         </div>
+                        <span class="stat-value">{{ item.value }}</span>
                       </div>
-                      <template #content>
-                        <PopoverContent
-                          :detail-title="`${item.label}明细`"
-                        />
-                      </template>
-                    </Popover>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -677,27 +563,11 @@
                     <!-- 编号层-->
                     <g id="hex-numbers"></g>
                   </svg>
-                  <!-- 地块明细弹窗 -->
-                  <Popover
-                    ref="tileDetailPopoverRef"
-                    placement="auto"
-                    width="260"
-                    :offset="32"
-                    click-outside-exclude=".hover-overlay"
-                    @show="isTileDetailPopoverOpen = true"
-                    @hide="isTileDetailPopoverOpen = false"
-                  >
-                    <div
-                      ref="tileDetailTriggerRef"
-                      style="position: absolute; width: 1px; height: 1px; pointer-events: none;"
-                    ></div>
-                    <template #content>
-                      <PopoverContent
-                        v-if="selectedTileDetail"
-                        :detail-title="selectedTileDetail.title"
-                      />
-                    </template>
-                  </Popover>
+                  <!-- 地块明细弹窗 trigger -->
+                  <div
+                    ref="tileDetailTriggerRef"
+                    style="position: absolute; width: 1px; height: 1px; pointer-events: none;"
+                  ></div>
                 </div>
               </div>
             </div>
@@ -720,10 +590,9 @@
                   <!-- 左侧计分板-->
                   <div class="left-column" id="left-scoring-grid" :style="roundInfoLeftColumnStyle">
                     <!-- 第回合 -->
-                    <Popover
+                    <div
                       v-if="roundStates[1]?.currentX > 0"
-                      placement="top"
-
+                      @click="handleRoundClick($event, 1)"
                     >
                       <div
                         class="grid-cell round-1"
@@ -743,15 +612,7 @@
                           </div>
                         </div>
                       </div>
-                      <template #content>
-                        <PopoverContent
-                          :image-container-style="{ '--preview-width': '174px', '--preview-aspect-ratio': '232/134' }"
-                          :image-layer-style="getRoundScoringSpriteStyleByBackendId(roundStates[1]?.currentX)"
-                          name="第1 回合"
-                          aspect-ratio="232/134"
-                        />
-                      </template>
-                    </Popover>
+                    </div>
                     <div
                       v-else
                       class="grid-cell round-1"
@@ -771,10 +632,9 @@
                       </div>
                     </div>
                     <!-- 第回合 -->
-                    <Popover
+                    <div
                       v-if="roundStates[4]?.currentX > 0"
-                      placement="top"
-
+                      @click="handleRoundClick($event, 4)"
                     >
                       <div
                         class="grid-cell round-4"
@@ -794,15 +654,7 @@
                           </div>
                         </div>
                       </div>
-                      <template #content>
-                        <PopoverContent
-                          :image-container-style="{ '--preview-width': '174px', '--preview-aspect-ratio': '232/134' }"
-                          :image-layer-style="getRoundScoringSpriteStyleByBackendId(roundStates[4]?.currentX)"
-                          name="第4 回合"
-                          aspect-ratio="232/134"
-                        />
-                      </template>
-                    </Popover>
+                    </div>
                     <div
                       v-else
                       class="grid-cell round-4"
@@ -822,10 +674,9 @@
                       </div>
                     </div>
                     <!-- 第回合 -->
-                    <Popover
+                    <div
                       v-if="roundStates[2]?.currentX > 0"
-                      placement="top"
-
+                      @click="handleRoundClick($event, 2)"
                     >
                       <div
                         class="grid-cell round-2"
@@ -845,15 +696,7 @@
                           </div>
                         </div>
                       </div>
-                      <template #content>
-                        <PopoverContent
-                          :image-container-style="{ '--preview-width': '174px', '--preview-aspect-ratio': '232/134' }"
-                          :image-layer-style="getRoundScoringSpriteStyleByBackendId(roundStates[2]?.currentX)"
-                          name="第2 回合"
-                          aspect-ratio="232/134"
-                        />
-                      </template>
-                    </Popover>
+                    </div>
                     <div
                       v-else
                       class="grid-cell round-2"
@@ -873,10 +716,9 @@
                       </div>
                     </div>
                     <!-- 第回合 -->
-                    <Popover
+                    <div
                       v-if="roundStates[5]?.currentX > 0"
-                      placement="top"
-                      
+                      @click="handleRoundClick($event, 5)"
                     >
                       <div
                         class="grid-cell round-5"
@@ -896,15 +738,7 @@
                           </div>
                         </div>
                       </div>
-                      <template #content>
-                        <PopoverContent
-                          :image-container-style="{ '--preview-width': '174px', '--preview-aspect-ratio': '232/134' }"
-                          :image-layer-style="getRoundScoringSpriteStyleByBackendId(roundStates[5]?.currentX)"
-                          name="第5 回合"
-                          aspect-ratio="232/134"
-                        />
-                      </template>
-                    </Popover>
+                    </div>
                     <div
                       v-else
                       class="grid-cell round-5"
@@ -924,10 +758,9 @@
                       </div>
                     </div>
                     <!-- 第回合 -->
-                    <Popover
+                    <div
                       v-if="roundStates[3]?.currentX > 0"
-                      placement="top"
-                      
+                      @click="handleRoundClick($event, 3)"
                     >
                       <div
                         class="grid-cell round-3"
@@ -947,15 +780,7 @@
                           </div>
                         </div>
                       </div>
-                      <template #content>
-                        <PopoverContent
-                          :image-container-style="{ '--preview-width': '174px', '--preview-aspect-ratio': '232/134' }"
-                          :image-layer-style="getRoundScoringSpriteStyleByBackendId(roundStates[3]?.currentX)"
-                          name="第3 回合"
-                          aspect-ratio="232/134"
-                        />
-                      </template>
-                    </Popover>
+                    </div>
                     <div
                       v-else
                       class="grid-cell round-3"
@@ -975,10 +800,9 @@
                       </div>
                     </div>
                     <!-- 第回合（支持叠加） -->
-                    <Popover
+                    <div
                       v-if="roundStates[6]?.currentX > 0"
-                      placement="top"
-                      
+                      @click="handleRoundClick($event, 6)"
                     >
                       <div
                         class="grid-cell round-6"
@@ -1004,15 +828,7 @@
                           </div>
                         </div>
                       </div>
-                      <template #content>
-                        <PopoverContent
-                          :image-container-style="{ '--preview-width': '174px', '--preview-aspect-ratio': '232/134' }"
-                          :image-layer-style="getRoundScoringSpriteStyleByBackendId(roundStates[6]?.currentX)"
-                          name="第6 回合"
-                          aspect-ratio="232/134"
-                        />
-                      </template>
-                    </Popover>
+                    </div>
                     <div
                       v-else
                       class="grid-cell round-6"
@@ -1041,21 +857,18 @@
 
                     <!-- 右侧奖励板-->
                   <div class="right-column" id="right-bonus-grid">
-                    <Popover
+                    <div
                       v-for="(bonus, index) in bonusColumns.filter(b => b.x > 0)"
                       :key="index"
-                      placement="top"
-                      
+                      class="bonus-cell"
+                      :class="{ flipped: bonus.isFlipped }"
+                      :data-index="index"
+                      :data-x="bonus.x"
+                      :tabindex="0"
+                      title=""
+                      :aria-label="`预览回合助推板${bonus.x}`"
+                      @click="handleBoosterClick($event, bonus)"
                     >
-                      <div
-                        class="bonus-cell"
-                        :class="{ flipped: bonus.isFlipped }"
-                        :data-index="index"
-                        :data-x="bonus.x"
-                        :tabindex="0"
-                        title=""
-                        :aria-label="`预览回合助推板${bonus.x}`"
-                      >
                       <div class="card-container">
                         <div class="card-face front">
                           <div aria-hidden="true" class="bonus-sprite-image" :style="getRoundBoosterFrontSpriteStyleByBackendId(bonus.x)"></div>
@@ -1079,16 +892,7 @@
                         <span class="bonus-coin-badge-text">x{{ bonus.coinCount }}</span>
                       </span>
                       <span class="bonus-label" :aria-label="`回合助推板${bonus.x}`">{{ bonus.x }}</span>
-                      </div>
-                      <template #content>
-                        <PopoverContent
-                          :image-container-style="{ '--preview-width': '111px', '--preview-aspect-ratio': '3/8' }"
-                          :image-layer-style="getRoundBoosterFrontSpriteStyleByBackendId(bonus.x)"
-                          :name="`回合助推板${bonus.x}`"
-                          aspect-ratio="3/8"
-                        />
-                      </template>
-                    </Popover>
+                    </div>
                     <div
                       v-for="(bonus, index) in bonusColumns.filter(b => b.x <= 0)"
                       :key="`empty-${index}`"
@@ -1136,88 +940,60 @@
                         <div class="science-board" :class="['science-board-' + numPlayers, (numPlayers === 3 || numPlayers === 5) ? 'crop-top' : '']" :style="(numPlayers === 3 || numPlayers === 5) ? {} : { backgroundImage: 'url(/assets/images/science_board_' + numPlayers + '.png)' }">
                           <div v-if="numPlayers === 3 || numPlayers === 5" class="science-board-inner">
                             <img class="science-board-img" :src="'/assets/images/science_board_' + numPlayers + '.png'" alt="science board" />
-                          <Popover
+                          <div
                             v-for="(tileId, idx) in scienceTilesOrder"
                             :key="'sci-' + idx"
-                            placement="top"
-      
+                            class="science-board-tile"
+                            :style="getScienceBoardTileStyle(tileId, idx)"
+                            :tabindex="tileId ? 0 : -1"
+                            :title="''"
+                            :aria-label="tileId ? `预览科学板块 ${tileId}` : undefined"
+                            @click="handleScienceTileClick($event, tileId)"
                           >
-                            <div
-                              class="science-board-tile"
-                              :style="getScienceBoardTileStyle(tileId, idx)"
-                              :tabindex="tileId ? 0 : -1"
-                              :title="''"
-                              :aria-label="tileId ? `预览科学板块 ${tileId}` : undefined"
-                            >
-                              <canvas
-                                v-if="tileId && getScienceTileOwnerMarkId(tileId) !== null"
-                                :key="`stm-${tileId}-${getScienceTileOwnerMarkId(tileId)}`"
-                                class="science-tile-owner-mark"
-                                :ref="el => drawScienceTileOwnerMark(el, getScienceTileOwnerMarkId(tileId))"
-                              ></canvas>
-                              <span v-if="tileId" class="tile-index-badge">{{ tileId }}</span>
-                            </div>
-                            <template #content>
-                        <PopoverContent
-                          :image-container-style="{ '--preview-width': '140px', '--preview-aspect-ratio': '329/200' }"
-                          :image-layer-style="getScienceTileStyleByBackendId(tileId)"
-                          :name="`科学板块 ${tileId}`"
-                          aspect-ratio="329/200"
-                          :placeholder-count="20"
-                        />
-                            </template>
-                          </Popover>
+                            <canvas
+                              v-if="tileId && getScienceTileOwnerMarkId(tileId) !== null"
+                              :key="`stm-${tileId}-${getScienceTileOwnerMarkId(tileId)}`"
+                              class="science-tile-owner-mark"
+                              :ref="el => drawScienceTileOwnerMark(el, getScienceTileOwnerMarkId(tileId))"
+                            ></canvas>
+                            <span v-if="tileId" class="tile-index-badge">{{ tileId }}</span>
+                          </div>
                         </div>
                         <template v-else>
-                          <Popover
+                          <div
                             v-for="(tileId, idx) in scienceTilesOrder"
                             :key="'sci-' + idx"
-                            placement="top"
-      
+                            class="science-board-tile"
+                            :style="getScienceBoardTileStyle(tileId, idx)"
+                            :tabindex="tileId ? 0 : -1"
+                            :title="''"
+                            :aria-label="tileId ? `预览科学板块 ${tileId}` : undefined"
+                            @click="handleScienceTileClick($event, tileId)"
                           >
-                            <div
-                              class="science-board-tile"
-                              :style="getScienceBoardTileStyle(tileId, idx)"
-                              :tabindex="tileId ? 0 : -1"
-                              :title="''"
-                              :aria-label="tileId ? `预览科学板块 ${tileId}` : undefined"
-                            >
-                              <canvas
-                                v-if="tileId && getScienceTileOwnerMarkId(tileId) !== null"
-                                :key="`stm2-${tileId}-${getScienceTileOwnerMarkId(tileId)}`"
-                                class="science-tile-owner-mark"
-                                :ref="el => drawScienceTileOwnerMark(el, getScienceTileOwnerMarkId(tileId))"
-                              ></canvas>
-                              <span v-if="tileId" class="tile-index-badge">{{ tileId }}</span>
-                            </div>
-                            <template #content>
-                        <PopoverContent
-                          :image-container-style="{ '--preview-width': '140px', '--preview-aspect-ratio': '329/200' }"
-                          :image-layer-style="getScienceTileStyleByBackendId(tileId)"
-                          :name="`科学板块 ${tileId}`"
-                          aspect-ratio="329/200"
-                        />
-                            </template>
-                          </Popover>
+                            <canvas
+                              v-if="tileId && getScienceTileOwnerMarkId(tileId) !== null"
+                              :key="`stm2-${tileId}-${getScienceTileOwnerMarkId(tileId)}`"
+                              class="science-tile-owner-mark"
+                              :ref="el => drawScienceTileOwnerMark(el, getScienceTileOwnerMarkId(tileId))"
+                            ></canvas>
+                            <span v-if="tileId" class="tile-index-badge">{{ tileId }}</span>
+                          </div>
                           </template>
                         </div>
                       </div>
                       <!-- 能力板块 -->
                       <div class="ability-board-wrapper">
                         <div class="ability-board" :style="{ backgroundImage: 'url(/assets/images/ability_tiles_board.jpg)' }">
-                          <Popover
+                          <div
                             v-for="(tileId, idx) in abilityTilesOrder"
                             :key="'abi-' + idx"
-                            placement="top"
-      
+                            class="ability-board-tile"
+                            :style="getAbilityBoardTileStyle(tileId, idx)"
+                            :tabindex="tileId ? 0 : -1"
+                            :title="''"
+                            :aria-label="tileId ? `预览能力板块 ${tileId}` : undefined"
+                            @click="handleAbilityTileClick($event, tileId)"
                           >
-                            <div
-                              class="ability-board-tile"
-                              :style="getAbilityBoardTileStyle(tileId, idx)"
-                              :tabindex="tileId ? 0 : -1"
-                              :title="''"
-                              :aria-label="tileId ? `预览能力板块 ${tileId}` : undefined"
-                            >
                             <div v-if="tileId" class="ability-tile-owner-strip" aria-hidden="true">
                               <canvas
                                 v-for="(markId, ownerIndex) in getAbilityTileOwnerMarkIds(tileId)"
@@ -1228,16 +1004,7 @@
                             </div>
                             <span v-if="tileId" class="tile-index-badge">{{ tileId }}</span>
                             <span v-if="tileId" class="ability-tile-remaining-badge">×{{ getAbilityTileRemainingCount(tileId) }}</span>
-                            </div>
-                            <template #content>
-                        <PopoverContent
-                          :image-container-style="{ '--preview-width': '116px', '--preview-aspect-ratio': '120/117' }"
-                          :image-layer-style="getAbilityTileStyleByBackendId(tileId)"
-                          :name="`能力板块 ${tileId}`"
-                          aspect-ratio="120/117"
-                        />
-                            </template>
-                          </Popover>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1245,17 +1012,12 @@
                   <div ref="cultBoardSectionRef" class="cult-board-section">
                     <img src="/assets/images/tracks_board.png" alt="tracks board" class="cult-board-image" />
                     <div class="track-click-areas">
-                      <Popover
+                      <div
                         v-for="(type, idx) in TRACK_TYPES"
                         :key="`track-${type}`"
-                        placement="auto"
-                        width="280"
-                      >
-                        <div class="track-click-area"></div>
-                        <template #content>
-                          <PopoverContent :detail-title="`${TRACK_LABELS[type]}轨道明细`" />
-                        </template>
-                      </Popover>
+                        class="track-click-area"
+                        @click="handleTrackClick($event, type)"
+                      ></div>
                     </div>
                     <div class="tracks-board-overlay">
                       <TransitionGroup name="track-marker-fade">
@@ -1919,6 +1681,8 @@
     </Modal>
 
   </div>
+
+  <GlobalPopover />
 </template>
 
 <script setup>
@@ -1930,8 +1694,8 @@ import Modal from '../components/Modal.vue'
 import ActionTimer from '../components/ActionTimer.vue'
 import PlayerTimer from '../components/PlayerTimer.vue'
 import StrategyPickerModal from '../components/StrategyPickerModal.vue'
-import Popover from '../components/Popover.vue'
-import PopoverContent from '../components/PopoverContent.vue'
+import { useGlobalPopover } from '../composables/useGlobalPopover.js'
+import GlobalPopover from '../components/GlobalPopover.vue'
 import { STRATEGY_OPTIONS, SUPPORTED_STRATEGY_IDS } from '../constants/strategies.js'
 import {
   getFinalScoringOverlaySpriteStyleByBackendId,
@@ -1951,6 +1715,206 @@ defineOptions({
 const router = useRouter()
 const gameStore = useGameStore()
 const timerStore = useTimerStore()
+const globalPopover = useGlobalPopover()
+
+// ========== 全局弹窗点击处理 ==========
+function handlePlanningCardClick(event, player) {
+  event.stopPropagation()
+  globalPopover.open({
+    id: `planning-${player.id}`,
+    triggerEl: event.currentTarget,
+    type: 'planning-card',
+    placement: 'auto',
+    data: {
+      imageContainerStyle: { '--preview-width': '176px', '--preview-aspect-ratio': '118/187' },
+      imageLayerStyle: getPlanningCardPreviewStyle(player.planningCardId),
+      name: player.planningCard || planningCardIdToName[player.planningCardId] || '',
+      aspectRatio: '118/187'
+    }
+  })
+}
+
+function handlePalaceTileClick(event, player) {
+  event.stopPropagation()
+  globalPopover.open({
+    id: `palace-${player.id}`,
+    triggerEl: event.currentTarget,
+    type: 'palace-tile',
+    placement: 'auto',
+    data: {
+      imageContainerStyle: { '--preview-width': '280px', '--preview-aspect-ratio': '142/74' },
+      imageLayerStyle: getPalacePreviewStyle(player.palaceTileId),
+      name: player.isGotPalace ? `${player.palaceTileId}号宫殿板块` : `${player.palaceTileId}号宫殿板块· 未激活`,
+      inactive: !player.isGotPalace,
+      aspectRatio: '142/74'
+    }
+  })
+}
+
+function handleFactionClick(event, player) {
+  event.stopPropagation()
+  globalPopover.open({
+    id: `faction-${player.id}`,
+    triggerEl: event.currentTarget,
+    type: 'faction-badge',
+    placement: 'auto',
+    data: {
+      imageContainerStyle: { '--preview-width': '320px', '--preview-aspect-ratio': '592/338' },
+      imageLayerStyle: getFactionPreviewStyle(player.factionId),
+      name: player.faction || factionIdToName[player.factionId] || '',
+      aspectRatio: '592/338'
+    }
+  })
+}
+
+function handlePlayerScoreClick(event, player) {
+  event.stopPropagation()
+  globalPopover.open({
+    id: `score-${player.id}`,
+    triggerEl: event.currentTarget,
+    type: 'player-score',
+    placement: 'auto',
+    data: {
+      detailTitle: `玩家${player.id + 1}分数明细`
+    }
+  })
+}
+
+function handleStatItemClick(event, player, item) {
+  event.stopPropagation()
+  globalPopover.open({
+    id: `stat-${player.id}-${item.key}`,
+    triggerEl: event.currentTarget,
+    type: 'stat-item',
+    placement: 'auto',
+    data: {
+      detailTitle: `${item.label}明细`
+    }
+  })
+}
+
+function handleRoundClick(event, roundNumber) {
+  event.stopPropagation()
+  const roundState = roundStates[roundNumber]
+  if (!roundState || roundState.currentX <= 0) return
+  globalPopover.open({
+    id: `round-${roundNumber}`,
+    triggerEl: event.currentTarget,
+    type: 'round',
+    placement: 'top',
+    data: {
+      imageContainerStyle: { '--preview-width': '174px', '--preview-aspect-ratio': '232/134' },
+      imageLayerStyle: getRoundScoringSpriteStyleByBackendId(roundState.currentX),
+      name: `第${roundNumber} 回合`,
+      aspectRatio: '232/134'
+    }
+  })
+}
+
+function handleBoosterClick(event, bonus) {
+  event.stopPropagation()
+  if (!bonus || bonus.x <= 0) return
+  globalPopover.open({
+    id: `booster-${bonus.x}`,
+    triggerEl: event.currentTarget,
+    type: 'booster',
+    placement: 'top',
+    data: {
+      imageContainerStyle: { '--preview-width': '111px', '--preview-aspect-ratio': '3/8' },
+      imageLayerStyle: getRoundBoosterFrontSpriteStyleByBackendId(bonus.x),
+      name: `回合助推板${bonus.x}`,
+      aspectRatio: '3/8'
+    }
+  })
+}
+
+function handleScienceTileClick(event, tileId) {
+  event.stopPropagation()
+  globalPopover.open({
+    id: `science-${tileId}`,
+    triggerEl: event.currentTarget,
+    type: 'science',
+    placement: 'top',
+    data: {
+      imageContainerStyle: { '--preview-width': '140px', '--preview-aspect-ratio': '329/200' },
+      imageLayerStyle: getScienceTileStyleByBackendId(tileId),
+      name: `科学板块 ${tileId}`,
+      aspectRatio: '329/200',
+      placeholderCount: 20
+    }
+  })
+}
+
+function handleAbilityTileClick(event, tileId) {
+  event.stopPropagation()
+  globalPopover.open({
+    id: `ability-${tileId}`,
+    triggerEl: event.currentTarget,
+    type: 'ability',
+    placement: 'top',
+    data: {
+      imageContainerStyle: { '--preview-width': '116px', '--preview-aspect-ratio': '120/117' },
+      imageLayerStyle: getAbilityTileStyleByBackendId(tileId),
+      name: `能力板块 ${tileId}`,
+      aspectRatio: '120/117'
+    }
+  })
+}
+
+function handleTrackClick(event, type) {
+  event.stopPropagation()
+  globalPopover.open({
+    id: `track-${type}`,
+    triggerEl: event.currentTarget,
+    type: 'track',
+    placement: 'auto',
+    data: {
+      detailTitle: `${TRACK_LABELS[type]}轨道明细`
+    }
+  })
+}
+
+function handleTileClick(row, col) {
+  const hex = document.querySelector(`.hexagon[data-row="${row}"][data-col="${col}"]`)
+  const terrain = hex ? hex.getAttribute('data-terrain') : '0'
+  if (terrain === '0') return
+  const tileKey = `${row}-${col}`
+  
+  // Toggle：点击同一地块则关闭
+  if (globalPopover.currentTriggerId.value === tileKey && globalPopover.visible.value) {
+    globalPopover.close()
+    return
+  }
+  
+  const position = `${MAP_CONFIG.rowLetters[row]}${col + 1}`
+  const terrainName = TERRAIN_TYPES[terrain]
+  selectedTileDetail.value = {
+    title: `${position} 地块 · ${terrainName}`
+  }
+  
+  // 设置 trigger div 位置到六边形中心
+  const container = tileDetailTriggerRef.value?.closest('.map-container-full')
+  if (container && hex) {
+    const containerRect = container.getBoundingClientRect()
+    const hexRect = hex.getBoundingClientRect()
+    
+    tileDetailTriggerRef.value.style.left = (hexRect.left + hexRect.width / 2 - containerRect.left) + 'px'
+    tileDetailTriggerRef.value.style.top = (hexRect.top + hexRect.height / 2 - containerRect.top) + 'px'
+  }
+  
+  globalPopover.open({
+    id: tileKey,
+    triggerEl: tileDetailTriggerRef.value,
+    type: 'detail',
+    placement: 'auto',
+    offset: 32,
+    clickOutsideExclude: '.hover-overlay',
+    data: {
+      detailTitle: selectedTileDetail.value?.title || '',
+      placeholderCount: 20
+    }
+  })
+}
 
 // ========== 地图配置 ==========
 const MAP_CONFIG = {
@@ -2528,10 +2492,7 @@ const pendingSelectionModes = ref([])
 const stateVersion = ref(0)
 // 地块明细弹窗数据
 const selectedTileDetail = ref(null)
-const tileDetailPopoverRef = ref(null)
 const tileDetailTriggerRef = ref(null)
-const isTileDetailPopoverOpen = ref(false)
-const lastClickedTileKey = ref(null)
 const gameMeta = reactive({
   round: 0,
   num_players: 3,
@@ -6049,43 +6010,7 @@ function generateHexMap() {
         if (highlight) highlight.classList.remove('hover')
       })
       hoverOverlay.addEventListener('click', function(event) {
-        const hex = document.querySelector(`.hexagon[data-row="${row}"][data-col="${col}"]`)
-        const terrain = hex ? hex.getAttribute('data-terrain') : '0'
-        if (terrain === '0') return
-        const tileKey = `${row}-${col}`
-        // 如果点击的是同一个地块且 popover 已打开，则关闭（toggle行为）
-        if (lastClickedTileKey.value === tileKey && isTileDetailPopoverOpen.value) {
-          tileDetailPopoverRef.value?.hide()
-          return
-        }
-        lastClickedTileKey.value = tileKey
-        const position = `${MAP_CONFIG.rowLetters[row]}${col + 1}`
-        const terrainName = TERRAIN_TYPES[terrain]
-        selectedTileDetail.value = {
-          title: `${position} 地块 · ${terrainName}`
-        }
-        nextTick(() => {
-          if (tileDetailTriggerRef.value && hex) {
-            const container = tileDetailTriggerRef.value.closest('.map-container-full')
-            if (container) {
-              const containerRect = container.getBoundingClientRect()
-              const hexRect = hex.getBoundingClientRect()
-              const hexCenterX = hexRect.left + hexRect.width / 2
-              const hexCenterY = hexRect.top + hexRect.height / 2
-              // trigger 放在六边形中心点，Popover 的 16px offset 从中心点开始计算
-              tileDetailTriggerRef.value.style.left = (hexCenterX - containerRect.left) + 'px'
-              tileDetailTriggerRef.value.style.top = (hexCenterY - containerRect.top) + 'px'
-            }
-          }
-          if (isTileDetailPopoverOpen.value) {
-            // 弹窗已打开（不同地块）→ 直接更新位置，实现平滑位移
-            tileDetailPopoverRef.value?.updatePosition()
-          } else {
-            // 弹窗未打开 → 正常show
-            document.dispatchEvent(new CustomEvent('popover:close-all'))
-            tileDetailPopoverRef.value?.show()
-          }
-        })
+        handleTileClick(row, col)
       })
       hoverLayer.appendChild(hoverOverlay)
 

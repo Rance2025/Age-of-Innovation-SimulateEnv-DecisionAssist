@@ -4,14 +4,47 @@
 
 ## 本次修改
 
-- 日期：`待定`
-- 分支：`待定`
+## 0.9.6.7
+
+- 日期：`2026-04-27`
+- 分支：`main`
 - 影响范围：
-  - `待补充`
+  - `frontend/src/views/GameView.vue`
+  - `frontend/src/components/`
+  - `frontend/src/composables/`
 - 更新内容：
-  - `chore: 待补充`
+  - `feat: 新增全局单例弹窗系统（useGlobalPopover + GlobalPopover + GlobalPopoverContent）`
+  - `refactor: 将 44 个分散的 Popover 实例统一替换为全局单例调用`
+  - `refactor: 移除旧 Popover 组件（Popover.vue、PopoverContent.vue、usePopoverPosition.js）`
+  - `ui: 弹窗切换时支持位置平滑平移 + 内容瞬间切换`
+  - `ui: 保持现有内容占位（明细列表为占位条目）`
+  - `fix: 修复重构全局单例弹窗后回合助推板不显示的 bug（Popover 组件触发元素有 display: contents，重构后多包裹了一层 div 导致 flex 布局失效）`
+  - `fix: 合并助推板外层包裹 div，让 class="bonus-cell" 直接作为 flex item`
+  - `feat: 新增 FLIP 动画工具 useFlipTransition.js，支持 GPU 加速的位置 + 尺寸平滑过渡`
+  - `refactor: 重构全局单例 Popover 切换动画，使用 FLIP 技术替代 top/left transition，过渡期间 overflow: hidden 裁剪超出内容`
+  - `fix: 修复切换动画硬编码 setTimeout(300) 与 CSS transition 不同步的隐患，改用 transitionend 事件驱动`
+  - `fix: 修复快速连点多个触发器可能导致的状态混乱，引入动画队列保证切换动画顺序执行`
+  - `fix: 修复首次打开弹窗从左上角 (0,0) 闪现的问题，初始位置移出视口 (-9999,-9999)`
+  - `fix: 修复 scroll/resize 在切换动画期间干扰定位的问题，延迟到动画结束后自动更新`
+  - `fix: 修复 popover 内部滚动事件仍触发位置更新的边界情况`
+  - `chore: 清理 state._clickOutsideHandler 状态污染，改为模块级私有变量`
+  - `chore: 完善组件卸载时的资源清理（事件监听、timeout、FLIP 动画中断）`
+  - `chore: 使用状态机(status)替代分散的 isClosing 标志位，统一状态流转控制`
+  - `fix: 修复 popover 切换动画被误判为外部点击导致的关闭再打开问题，clickOutsideHandler 改为冒泡阶段监听`
+  - `fix: 修复 FLIP 动画尺寸计算因 box-sizing 不包含 padding/border 导致过渡不平滑，global-popover 添加 box-sizing: border-box`
+  - `fix: 修复切换动画期间 ResizeObserver 持续调整内部高度与 FLIP 竞争，切换期间暂停 observer`
+  - `fix: 修复 FLIP 切换动画时序缺陷，浏览器在两帧之间偷看到新位置导致闪烁。将 Last+Invert+Play 全部放在单个 requestAnimationFrame 内完成，中间状态绝不被渲染`
+  - `refactor: useFlipTransition.js 导入 nextTick 替代 nextFrame，确保 Vue DOM 更新完成后才进入 FLIP 的 Last 阶段`
 - 验证方式：
-  - `待补充`
+  - `手动测试所有触发点（玩家面板、回合信息、科学能力、地块）`
+  - `验证 toggle 行为（再次点击关闭）`
+  - `验证切换动画（FLIP 位置 + 尺寸平滑过渡，内容瞬间切换，无闪烁）`
+  - `验证快速连点多个触发器（动画顺序执行，状态不混乱）`
+  - `验证点击外部关闭 + 地块 overlay 排除`
+  - `验证 scroll/resize 时位置正确更新`
+  - `验证首次打开无位置闪现`
+  - `验证回合助推板正确显示`
+  - `cd frontend && npm run build`
 
 ## 0.9.6.6
 
