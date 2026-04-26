@@ -683,8 +683,9 @@
                     placement="auto"
                     width="260"
                     :offset="32"
+                    click-outside-exclude=".hover-overlay"
                     @show="isTileDetailPopoverOpen = true"
-                    @hide="isTileDetailPopoverOpen = false; lastClickedTileKey = null"
+                    @hide="isTileDetailPopoverOpen = false"
                   >
                     <div
                       ref="tileDetailTriggerRef"
@@ -6052,7 +6053,7 @@ function generateHexMap() {
         const terrain = hex ? hex.getAttribute('data-terrain') : '0'
         if (terrain === '0') return
         const tileKey = `${row}-${col}`
-        // 如果点击的是同一个地块且 popover 已打开，则关闭
+        // 如果点击的是同一个地块且 popover 已打开，则关闭（toggle行为）
         if (lastClickedTileKey.value === tileKey && isTileDetailPopoverOpen.value) {
           tileDetailPopoverRef.value?.hide()
           return
@@ -6076,7 +6077,14 @@ function generateHexMap() {
               tileDetailTriggerRef.value.style.top = (hexCenterY - containerRect.top) + 'px'
             }
           }
-          tileDetailPopoverRef.value?.show()
+          if (isTileDetailPopoverOpen.value) {
+            // 弹窗已打开（不同地块）→ 直接更新位置，实现平滑位移
+            tileDetailPopoverRef.value?.updatePosition()
+          } else {
+            // 弹窗未打开 → 正常show
+            document.dispatchEvent(new CustomEvent('popover:close-all'))
+            tileDetailPopoverRef.value?.show()
+          }
         })
       })
       hoverLayer.appendChild(hoverOverlay)

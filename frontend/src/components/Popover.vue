@@ -39,7 +39,10 @@ const props = defineProps({
     type: [String, Number],
     default: 'auto'
   },
-
+  clickOutsideExclude: {
+    type: [String, Function],
+    default: ''
+  }
 
 })
 
@@ -85,17 +88,50 @@ function show() {
     // 使用 requestAnimationFrame 确保浏览器完成布局计算（包括图片、flex 布局等）
     // 此时 Vue Transition 的 enter-from（opacity: 0）仍在生效，用户不会看到定位过程
     requestAnimationFrame(() => {
+      const el = popoverRef.value
+      // show() 期间临时禁用位置transition，避免从上一次关闭位置"飞"到新位置
+      el?.classList.remove('has-position-transition')
+      
       calculatePosition(triggerRef.value, popoverRef.value, props.placement, props.offset)
+      
+      // 强制浏览器同步重排，确保新位置已应用且不触发过渡
+      el?.offsetHeight
+      
+      requestAnimationFrame(() => {
+        // 进入动画开始后，恢复位置transition（供 updatePosition() 平滑位移使用）
+        el?.classList.add('has-position-transition')
+      })
     })
   })
 }
 
 function hide() {
+  // 关闭时移除位置transition，下次show时重新添加
+  popoverRef.value?.classList.remove('has-position-transition')
   visible.value = false
   emit('hide')
 }
 
+function updatePosition() {
+  if (!visible.value) return
+  nextTick(() => {
+    requestAnimationFrame(() => {
+      calculatePosition(triggerRef.value, popoverRef.value, props.placement, props.offset)
+    })
+  })
+}
+
 function handleClickOutside(event) {
+  // 新增：检查是否被排除（用于地块弹窗排除 SVG overlay 点击）
+  if (props.clickOutsideExclude) {
+    if (typeof props.clickOutsideExclude === 'string') {
+      if (event.target.matches?.(props.clickOutsideExclude)) return
+      if (event.target.closest?.(props.clickOutsideExclude)) return
+    } else if (typeof props.clickOutsideExclude === 'function') {
+      if (props.clickOutsideExclude(event.target)) return
+    }
+  }
+  
   if (visible.value && popoverRef.value && !popoverRef.value.contains(event.target) && 
       triggerRef.value && !triggerRef.value.contains(event.target)) {
     hide()
@@ -110,7 +146,8 @@ function handleCloseAll() {
 
 defineExpose({
   show,
-  hide
+  hide,
+  updatePosition
 })
 
 let scrollHandler = null
@@ -126,10 +163,26 @@ watch(visible, (isVisible) => {
       if (event.target && popoverRef.value && popoverRef.value.contains(event.target)) {
         return
       }
+      // 滚动时临时禁用位置transition，避免不跟手的"飘"动画
+      const el = popoverRef.value
+      el?.classList.remove('has-position-transition')
       calculatePosition(triggerRef.value, popoverRef.value, props.placement, props.offset)
+      // 关键：等 Vue 把新位置写到 DOM 后再恢复 transition
+      nextTick(() => {
+        el?.offsetHeight // 强制重排，锁定新位置
+        el?.classList.add('has-position-transition')
+      })
     }
     resizeHandler = () => {
+      // resize时临时禁用位置transition，避免不跟手的"飘"动画
+      const el = popoverRef.value
+      el?.classList.remove('has-position-transition')
       calculatePosition(triggerRef.value, popoverRef.value, props.placement, props.offset)
+      // 关键：等 Vue 把新位置写到 DOM 后再恢复 transition
+      nextTick(() => {
+        el?.offsetHeight // 强制重排，锁定新位置
+        el?.classList.add('has-position-transition')
+      })
     }
     
     window.addEventListener('scroll', scrollHandler, true)
@@ -189,5 +242,10 @@ onUnmounted(() => {
 
 .popover-trigger {
   display: contents;
+}
+
+/* 位置平滑过渡：仅在updatePosition切换时启用，首次show时不应有 */
+.popover.has-position-transition {
+  transition: opacity 0.2s ease, transform 0.2s ease, top 0.3s ease, left 0.3s ease;
 }
 </style>

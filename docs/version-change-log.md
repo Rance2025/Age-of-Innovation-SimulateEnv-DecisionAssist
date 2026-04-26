@@ -13,6 +13,26 @@
 - 验证方式：
   - `待补充`
 
+## 0.9.6.6
+
+- 日期：`2026-04-26`
+- 分支：`main`
+- 影响范围：
+  - `frontend/src/components/Popover.vue`
+  - `frontend/src/views/GameView.vue`
+- 更新内容：
+  - `fix: 修复地块明细弹窗重复打开的 bug（Popover clickOutside 在 capture 阶段抢先关闭弹窗，导致再次点击同一地块时状态已变，toggle 逻辑失效）`
+  - `feat: Popover 组件新增 clickOutsideExclude prop，支持通过 CSS 选择器或函数排除特定元素的点击外部判定`
+  - `fix: 修复地块弹窗切换地块后无法再次关闭的 bug，移除 @hide 回调中重置 lastClickedTileKey 的操作，避免 close-all 干扰 toggle 状态`
+  - `feat: Popover 组件暴露 updatePosition() 方法，支持在弹窗已打开时平滑更新位置`
+  - `feat: 地块弹窗切换不同地块时，使用 updatePosition() 实现平滑位移动画，不再 hide/show 闪烁`
+  - `ui: Popover 容器添加位置过渡动画控制（has-position-transition 类），首次显示无位置飘移，切换时有 0.3s 平滑过渡`
+  - `fix: 修复 popover 进入动画从旧位置"飞"到新位置的 bug，show() 期间先移除位置 transition，定位完成并强制重排后再恢复`
+  - `fix: 修复页面滚动/窗口 resize 时 popover 位置更新不跟手的 bug，scrollHandler 和 resizeHandler 中同样临时禁用位置 transition`
+  - `fix: 修复滚动时 popover 位置更新仍有延迟动画的根因：Vue 响应式 ref 的 DOM 更新是异步的，offsetHeight 在旧位置强制重排无效。改为在 nextTick 中恢复 transition，确保 DOM 已更新到新位置`
+- 验证方式：
+  - `cd frontend && npm run build`
+
 ## 0.9.6.5
 
 - 日期：`2026-04-26`
