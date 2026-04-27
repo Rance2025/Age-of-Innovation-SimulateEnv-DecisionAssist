@@ -13,6 +13,24 @@
 - **验证方式**：
   - `待验证`
 
+## 0.9.6.9
+
+- **日期**：2026-04-27
+- **分支**：main
+- **影响范围**：
+  - `frontend/src/views/GameView.vue`
+  - `frontend/src/views/GameView.draftBoard.test.mjs`
+- **更新内容**：
+  - `ui: 调整初选板块规划卡、派系、宫殿板块为单行自适应宽度展示，并按图片原比例计算高度`
+  - `ui: 为初选板块规划卡和派系添加名称标签，为宫殿板块添加编号标签`
+  - `fix: 修复初选板块折叠时直接 display none 导致收缩缺少平滑动画的问题`
+  - `test: 增加初选板块布局、折叠动画和标签展示的静态回归测试`
+- **验证方式**：
+  - `node --test frontend/src/views/GameView.draftBoard.test.mjs`
+  - `node --test frontend/src/utils/draftSetupState.test.mjs`
+  - `node --test frontend/src/utils/publicAssetPaths.test.mjs`
+  - `cd frontend && npm run build`
+
 ## 0.9.6.8
 
 - **日期**：2026-04-27

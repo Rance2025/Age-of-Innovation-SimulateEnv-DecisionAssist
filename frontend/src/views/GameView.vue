@@ -1070,6 +1070,7 @@
                           class="draft-item-image planning-card-image"
                           :style="getPlanningCardPreviewStyle(cardId)"
                         ></div>
+                        <span class="draft-item-label">{{ planningCardIdToName[cardId] || `规划卡 ${cardId}` }}</span>
                       </div>
                     </div>
                   </div>
@@ -1086,6 +1087,7 @@
                           class="draft-item-image faction-image"
                           :style="getFactionPreviewStyle(factionId)"
                         ></div>
+                        <span class="draft-item-label">{{ factionIdToName[factionId] || `派系 ${factionId}` }}</span>
                       </div>
                     </div>
                   </div>
@@ -1102,6 +1104,7 @@
                           class="draft-item-image palace-tile-image"
                           :style="getPalacePreviewStyle(palaceId)"
                         ></div>
+                        <span class="draft-item-label draft-item-label--number">{{ palaceId }}</span>
                       </div>
                     </div>
                   </div>
@@ -8698,6 +8701,9 @@ onUnmounted(() => {
 .draft-board-status {
   padding: 16px;
   min-height: 0;
+  overflow: hidden;
+  opacity: 1;
+  transition: opacity 0.3s ease;
 }
 
 .draft-board-content {
@@ -8721,43 +8727,73 @@ onUnmounted(() => {
 
 .draft-section-items {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 12px;
+  width: 100%;
 }
 
 .draft-item {
-  flex-shrink: 0;
+  flex: 1 1 0;
+  min-width: 0;
   border-radius: 8px;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .draft-item-image {
+  width: 100%;
+  height: auto;
+  aspect-ratio: var(--draft-item-aspect-ratio);
+  flex-shrink: 0;
   background-repeat: no-repeat;
   background-position: center;
 }
 
+.draft-item-label {
+  min-height: 16px;
+  padding: 2px 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(18, 23, 31, 0.92);
+  color: var(--text-primary);
+  font-size: 0.54rem;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-sizing: border-box;
+}
+
+.draft-item-label--number {
+  font-size: 0.58rem;
+  font-variant-numeric: tabular-nums;
+}
+
 /* 规划卡尺寸 */
 .planning-card-image {
-  width: 88px;
-  height: 139px;
+  --draft-item-aspect-ratio: 118 / 187;
 }
 
 /* 派系尺寸 */
 .faction-image {
-  width: 160px;
-  height: 91px;
+  --draft-item-aspect-ratio: 592 / 338;
 }
 
 /* 宫殿板块尺寸 */
 .palace-tile-image {
-  width: 140px;
-  height: 73px;
+  --draft-item-aspect-ratio: 142 / 74;
 }
 
 /* 折叠状态 */
 .game-card.collapsed .draft-board-status {
-  display: none;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .science-ability-status {
