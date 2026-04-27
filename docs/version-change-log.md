@@ -4,14 +4,37 @@
 
 ## 本次修改
 
-- **日期**：2026-04-27
-- **分支**：main
+- **日期**：待记录
+- **分支**：待记录
 - **影响范围**：
   - `待记录`
 - **更新内容**：
   - `chore: 待记录`
 - **验证方式**：
   - `待验证`
+
+## 0.9.6.13
+
+- **日期**：2026-04-27
+- **分支**：main
+- **影响范围**：
+  - `frontend/src/composables/useGlobalPopover.test.mjs`
+  - `frontend/src/components/PlayerTimer.vue`
+  - `frontend/src/views/GameView.vue`
+  - `frontend/src/App.vue`
+  - `frontend/src/App.routeTransition.test.mjs`
+  - `docs/version-change-log.md`
+- **更新内容**：
+  - `fix: 保持全局单例 Popover 窗外点击监听的原有冒泡阶段语义，并在玩家卡片标题栏时间按钮与行动记录筛选按钮点击时显式关闭 Popover，修复这两个阻止冒泡的外部控件不会关闭弹窗的问题`
+  - `test: 新增全局 Popover 外部控件关闭回归测试，约束会阻止冒泡的控件自行关闭弹窗且不改动 Popover 间切换点击语义`
+  - `fix: 修复从游戏页面结束游戏、重新初始或重新设置后路由已切换但首页/设置页内容空白的问题`
+  - `test: 新增路由过渡稳定元素壳回归测试，防止异步路由组件在页面切换时只留下占位节点`
+- **验证方式**：
+  - `node --test frontend/src/composables/useGlobalPopover.test.mjs`
+  - `node --test frontend/src/App.routeTransition.test.mjs`
+  - `node --test "frontend/src/**/*.test.mjs"`
+  - `cd frontend && npm run build`
+  - `Playwright 浏览器验证：从游戏页分别执行重新初始、结束游戏、重新开始，确认跳转后的设置页/首页直接渲染且 gameInProgress/gameSettings 已清空`
 
 ## 0.9.6.12
 

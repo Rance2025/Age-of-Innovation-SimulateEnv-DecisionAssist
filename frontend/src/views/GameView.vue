@@ -4627,6 +4627,8 @@ function toggleFilterValue(listRef, value) {
 }
 
 function openActionLogFilterModal() {
+  globalPopover.close()
+
   if (actionLogFilterModalOpen.value) {
     actionLogFilterModalOpen.value = false
     return

@@ -4,7 +4,9 @@
     <main class="main-content">
       <router-view v-slot="{ Component, route }">
         <transition name="page" mode="out-in">
-          <component :is="Component" :key="route.path" />
+          <div class="route-page" :key="route.path">
+            <component :is="Component" />
+          </div>
         </transition>
       </router-view>
     </main>
@@ -27,6 +29,10 @@ onMounted(() => {
 .main-content {
   padding-top: 56px;
   min-height: 100vh;
+}
+
+.route-page {
+  min-height: calc(100vh - 56px);
 }
 
 /* 页面统一缓入缓出效果 - 纯渐变 */

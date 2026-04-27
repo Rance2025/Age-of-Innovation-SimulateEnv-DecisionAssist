@@ -61,6 +61,7 @@
 <script setup>
 import { computed, onUnmounted, ref } from 'vue'
 import { useTimerStore } from '../stores/timer'
+import { useGlobalPopover } from '../composables/useGlobalPopover.js'
 
 const props = defineProps({
   playerId: {
@@ -74,6 +75,7 @@ const props = defineProps({
 })
 
 const timerStore = useTimerStore()
+const globalPopover = useGlobalPopover()
 const visibleMode = ref('compact')
 const transitionPhase = ref('idle')
 
@@ -108,6 +110,8 @@ const isRingVisible = computed(() => (
 ))
 
 function toggleMode() {
+  globalPopover.close()
+
   if (transitionPhase.value !== 'idle') {
     return
   }
