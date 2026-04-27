@@ -13,6 +13,35 @@
 - **验证方式**：
   - `待验证`
 
+## 0.9.6.10
+
+- **日期**：2026-04-27
+- **分支**：main
+- **影响范围**：
+  - `frontend/src/views/GameView.vue`
+  - `frontend/src/views/GameView.draftBoard.test.mjs`
+  - `frontend/src/views/GameView.panelAndRoundPopover.test.mjs`
+  - `frontend/src/components/GlobalPopover.vue`
+  - `frontend/src/components/GlobalPopoverContent.vue`
+  - `frontend/src/utils/draftBoardSelectionState.js`
+  - `frontend/src/utils/draftBoardSelectionState.test.mjs`
+- **更新内容**：
+  - `ui: 将游戏卡片展开状态最大高度从 60% 调整为 100%，恢复原 max-height 折叠/展开动画逻辑`
+  - `feat: 初选板块根据玩家已选规划卡、派系和宫殿板块显示玩家颜色外边框与右上角斜边角标`
+  - `feat: 当某类初选板块所有玩家均已选择后，将该类型未选剩余板块置灰`
+  - `ui: 将初选板块未选剩余项的置灰效果改为纯黑白滤镜，不再额外压暗`
+  - `ui: 宫殿板块弹窗中未激活宫殿预览图显示黑白置灰与居中红色禁止图标，玩家面板徽章保持原样`
+  - `fix: 回合信息第6回合弹窗叠加显示回合计分图与最终计分图，保持与页面内展示一致`
+  - `fix: 补齐旧增量更新路径对 palace_tile_id 和 is_got_palace 的本地字段同步`
+  - `test: 增加初选板块玩家选择状态、卡片高度、折叠动画、角标、置灰、宫殿弹窗未激活状态与回合6弹窗叠加的回归测试`
+- **验证方式**：
+  - `node --test frontend/src/utils/draftBoardSelectionState.test.mjs`
+  - `node --test frontend/src/views/GameView.draftBoard.test.mjs`
+  - `node --test frontend/src/views/GameView.panelAndRoundPopover.test.mjs`
+  - `node --test frontend/src/utils/draftSetupState.test.mjs`
+  - `node --test frontend/src/utils/publicAssetPaths.test.mjs`
+  - `cd frontend && npm run build`
+
 ## 0.9.6.9
 
 - **日期**：2026-04-27

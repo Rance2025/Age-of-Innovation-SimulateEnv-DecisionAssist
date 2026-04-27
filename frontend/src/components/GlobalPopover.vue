@@ -17,6 +17,7 @@
             v-if="data"
             :image-container-style="data.imageContainerStyle"
             :image-layer-style="data.imageLayerStyle"
+            :overlay-layer-style="data.overlayLayerStyle"
             :name="data.name"
             :inactive="data.inactive"
             :detail-title="data.detailTitle || '变更明细'"

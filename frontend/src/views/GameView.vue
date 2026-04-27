@@ -1065,7 +1065,13 @@
                         v-for="cardId in draftSetup.selectedPlanningCards"
                         :key="`draft-planning-${cardId}`"
                         class="draft-item"
+                        :class="getDraftItemClass('planning', cardId)"
+                        :style="getDraftItemStyle('planning', cardId)"
                       >
+                        <span
+                          v-if="getDraftOwnerLabel('planning', cardId)"
+                          class="draft-item-corner"
+                        >{{ getDraftOwnerLabel('planning', cardId) }}</span>
                         <div
                           class="draft-item-image planning-card-image"
                           :style="getPlanningCardPreviewStyle(cardId)"
@@ -1082,7 +1088,13 @@
                         v-for="factionId in draftSetup.selectedFactions"
                         :key="`draft-faction-${factionId}`"
                         class="draft-item"
+                        :class="getDraftItemClass('faction', factionId)"
+                        :style="getDraftItemStyle('faction', factionId)"
                       >
+                        <span
+                          v-if="getDraftOwnerLabel('faction', factionId)"
+                          class="draft-item-corner"
+                        >{{ getDraftOwnerLabel('faction', factionId) }}</span>
                         <div
                           class="draft-item-image faction-image"
                           :style="getFactionPreviewStyle(factionId)"
@@ -1099,7 +1111,13 @@
                         v-for="palaceId in draftSetup.selectedPalaceTiles"
                         :key="`draft-palace-${palaceId}`"
                         class="draft-item"
+                        :class="getDraftItemClass('palace', palaceId)"
+                        :style="getDraftItemStyle('palace', palaceId)"
                       >
+                        <span
+                          v-if="getDraftOwnerLabel('palace', palaceId)"
+                          class="draft-item-corner"
+                        >{{ getDraftOwnerLabel('palace', palaceId) }}</span>
                         <div
                           class="draft-item-image palace-tile-image"
                           :style="getPalacePreviewStyle(palaceId)"
@@ -1781,6 +1799,7 @@ import {
   applyDraftSetupState,
   applyDraftSetupChange
 } from '../utils/draftSetupState.js'
+import { getDraftSelectionState } from '../utils/draftBoardSelectionState.js'
 import availableActionDisplayGroups from '../../../backend/game/utils/available_action_display_groups.json'
 
 defineOptions({
@@ -1881,10 +1900,19 @@ function handleRoundClick(event, roundNumber) {
     data: {
       imageContainerStyle: { '--preview-width': '174px', '--preview-aspect-ratio': '232/134' },
       imageLayerStyle: getRoundScoringSpriteStyleByBackendId(roundState.currentX),
+      overlayLayerStyle: getRoundPopoverOverlayStyle(roundNumber, roundState),
       name: `第${roundNumber} 回合`,
       aspectRatio: '232/134'
     }
   })
+}
+
+function getRoundPopoverOverlayStyle(roundNumber, roundState) {
+  if (roundNumber !== 6 || roundState?.finalScoringId === null) {
+    return null
+  }
+
+  return getFinalScoringOverlaySpriteStyleByBackendId(roundState.finalScoringId)
 }
 
 function handleBoosterClick(event, bonus) {
@@ -4359,6 +4387,35 @@ function getPlayerResolvedPlanningColor(playerId) {
 
   const planningCardId = normalizePlanningCardId(players.value[normalizedPlayerId]?.planningCardId)
   return planningCardId ? planningCardIdToColor[planningCardId] || 'transparent' : 'transparent'
+}
+
+function getDraftItemSelection(type, boardId) {
+  return getDraftSelectionState(players.value, type, boardId)
+}
+
+function getDraftItemClass(type, boardId) {
+  const selection = getDraftItemSelection(type, boardId)
+  return {
+    'is-selected': selection.isSelected,
+    'is-unavailable': selection.isUnavailable
+  }
+}
+
+function getDraftItemStyle(type, boardId) {
+  const { ownerPlayerId } = getDraftItemSelection(type, boardId)
+  if (ownerPlayerId === null) {
+    return {}
+  }
+
+  const ownerColor = getPlayerResolvedPlanningColor(ownerPlayerId)
+  return {
+    '--draft-owner-color': ownerColor === 'transparent' ? '#64748b' : ownerColor
+  }
+}
+
+function getDraftOwnerLabel(type, boardId) {
+  const { ownerPlayerId } = getDraftItemSelection(type, boardId)
+  return ownerPlayerId === null ? '' : ownerPlayerId + 1
 }
 
 function getActionLogPlayerColor(playerId) {
@@ -7191,6 +7248,16 @@ function applySingleChange(path, value, changeType) {
         return
       }
 
+      if (remainingKeys.length === 1 && remainingKeys[0] === 'palace_tile_id') {
+        setPlayerPalaceTile(player, value)
+        return
+      }
+
+      if (remainingKeys.length === 1 && remainingKeys[0] === 'is_got_palace') {
+        setPlayerPalaceActivation(player, value)
+        return
+      }
+
       // 其他字段使用普通更新
       updateNestedObject(player, remainingKeys, value)
     }
@@ -8113,9 +8180,9 @@ onUnmounted(() => {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  max-height: 60%;
+  max-height: 100%;
   flex-shrink: 0;
-  transition: max-height 0.3s ease;
+  transition: max-height 0.3s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .game-card:hover {
@@ -8733,13 +8800,48 @@ onUnmounted(() => {
 }
 
 .draft-item {
+  position: relative;
   flex: 1 1 0;
   min-width: 0;
+  border: 2px solid transparent;
   border-radius: 8px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease, opacity 0.18s ease;
+}
+
+.draft-item.is-selected {
+  border-color: var(--draft-owner-color);
+  box-shadow: 0 0 0 1px var(--draft-owner-color), 0 3px 12px rgba(0, 0, 0, 0.34);
+}
+
+.draft-item.is-unavailable {
+  filter: grayscale(1);
+}
+
+.draft-item-corner {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 4;
+  width: 28px;
+  height: 28px;
+  padding: 2px 4px 0 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  background: var(--draft-owner-color);
+  color: #ffffff;
+  clip-path: polygon(100% 0, 100% 100%, 0 0);
+  font-size: 0.6rem;
+  font-weight: 800;
+  line-height: 1;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
 }
 
 .draft-item-image {

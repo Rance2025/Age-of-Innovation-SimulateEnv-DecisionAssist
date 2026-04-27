@@ -9,6 +9,14 @@
           :style="imageContainerStyle"
         >
           <div class="entity-preview-image-layer" :style="imageLayerStyle"></div>
+          <div
+            v-if="overlayLayerStyle"
+            class="entity-preview-image-layer entity-preview-image-overlay-layer"
+            :style="overlayLayerStyle"
+          ></div>
+          <div v-if="inactive" class="entity-preview-inactive-mark" aria-hidden="true">
+            <i class="fas fa-ban"></i>
+          </div>
         </div>
       </div>
       <div v-if="name" class="entity-preview-name">{{ name }}</div>
@@ -38,6 +46,7 @@ import { computed, ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 const props = defineProps({
   imageContainerStyle: Object,
   imageLayerStyle: Object,
+  overlayLayerStyle: Object,
   name: String,
   inactive: Boolean,
   detailTitle: { type: String, default: '变更明细' },
@@ -170,8 +179,8 @@ watch(() => props.isSwitching, (switching) => {
   overflow: hidden;
 }
 
-.entity-preview-image.is-inactive {
-  filter: saturate(0.82);
+.entity-preview-image.is-inactive .entity-preview-image-layer {
+  filter: grayscale(1);
 }
 
 .entity-preview-image-layer {
@@ -180,6 +189,24 @@ watch(() => props.isSwitching, (switching) => {
   background-repeat: no-repeat;
   background-position: center;
   background-size: contain;
+}
+
+.entity-preview-image-overlay-layer {
+  z-index: 2;
+}
+
+.entity-preview-inactive-mark {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ef4444;
+  font-size: 2.6rem;
+  line-height: 1;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.68);
+  pointer-events: none;
 }
 
 .entity-preview-name {
