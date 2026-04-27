@@ -1072,11 +1072,13 @@
                           v-if="getDraftOwnerLabel('planning', cardId)"
                           class="draft-item-corner"
                         >{{ getDraftOwnerLabel('planning', cardId) }}</span>
-                        <div
-                          class="draft-item-image planning-card-image"
-                          :style="getPlanningCardPreviewStyle(cardId)"
-                        ></div>
-                        <span class="draft-item-label">{{ planningCardIdToName[cardId] || `规划卡 ${cardId}` }}</span>
+                        <div class="draft-item-visual">
+                          <div
+                            class="draft-item-image planning-card-image"
+                            :style="getPlanningCardPreviewStyle(cardId)"
+                          ></div>
+                          <span class="draft-item-label">{{ planningCardIdToName[cardId] || `规划卡 ${cardId}` }}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1095,11 +1097,13 @@
                           v-if="getDraftOwnerLabel('faction', factionId)"
                           class="draft-item-corner"
                         >{{ getDraftOwnerLabel('faction', factionId) }}</span>
-                        <div
-                          class="draft-item-image faction-image"
-                          :style="getFactionPreviewStyle(factionId)"
-                        ></div>
-                        <span class="draft-item-label">{{ factionIdToName[factionId] || `派系 ${factionId}` }}</span>
+                        <div class="draft-item-visual">
+                          <div
+                            class="draft-item-image faction-image"
+                            :style="getFactionPreviewStyle(factionId)"
+                          ></div>
+                          <span class="draft-item-label">{{ factionIdToName[factionId] || `派系 ${factionId}` }}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1118,11 +1122,13 @@
                           v-if="getDraftOwnerLabel('palace', palaceId)"
                           class="draft-item-corner"
                         >{{ getDraftOwnerLabel('palace', palaceId) }}</span>
-                        <div
-                          class="draft-item-image palace-tile-image"
-                          :style="getPalacePreviewStyle(palaceId)"
-                        ></div>
-                        <span class="draft-item-label draft-item-label--number">{{ palaceId }}</span>
+                        <div class="draft-item-visual">
+                          <div
+                            class="draft-item-image palace-tile-image"
+                            :style="getPalacePreviewStyle(palaceId)"
+                          ></div>
+                          <span class="draft-item-label draft-item-label--number">{{ palaceId }}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1198,7 +1204,7 @@
                 <span>{{ currentActionOwnerLabel }}</span>
               </div>
               <div class="action-mode-chip">{{ currentActionModeLabel }}</div>
-              <div class="action-count"><span id="action-count">{{ actionCount }}</span></div>
+              <div class="action-count">共<span id="action-count">{{ actionCount }}</span>项</div>
             </div>
             <div v-if="isAiPlayer && !gameMeta.is_game_over" class="ai-thinking-badge">
               <img src="https://img.icons8.com/3d-fluency/500/sparkles.png" alt="AI" />
@@ -8809,13 +8815,14 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  background: transparent;
+  box-shadow: none;
   transition: border-color 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease, opacity 0.18s ease;
 }
 
 .draft-item.is-selected {
   border-color: var(--draft-owner-color);
-  box-shadow: 0 0 0 2px var(--draft-owner-color), 0 3px 12px rgba(0, 0, 0, 0.34);
+  box-shadow: 0 0 0 2px var(--draft-owner-color);
 }
 
 .draft-item.is-unavailable {
@@ -8844,23 +8851,33 @@ onUnmounted(() => {
   font-variant-numeric: tabular-nums;
 }
 
+.draft-item-visual {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  border-radius: 6px;
+  overflow: hidden;
+  transform-origin: center;
+  transition: transform 0.18s ease;
+}
+
 .draft-item-image {
   width: 100%;
   height: auto;
   aspect-ratio: var(--draft-item-aspect-ratio);
   flex-shrink: 0;
-  border-radius: 6px;
+  border-radius: 6px 6px 0 0;
   background-repeat: no-repeat;
   background-position: center;
-  transform-origin: center;
-  transition: transform 0.18s ease;
 }
 
-.draft-item.is-unavailable .draft-item-image {
+.draft-item.is-unavailable .draft-item-visual {
   transform: scale(0.85);
 }
 
 .draft-item-label {
+  width: 100%;
+  flex: 0 0 auto;
   min-height: 16px;
   padding: 2px 1px;
   display: flex;

@@ -13,6 +13,29 @@
 - **验证方式**：
   - `待验证`
 
+## 0.9.6.12
+
+- **日期**：2026-04-27
+- **分支**：main
+- **影响范围**：
+  - `frontend/src/views/GameView.vue`
+  - `frontend/src/views/GameView.draftBoard.test.mjs`
+  - `frontend/src/views/GameView.actionHeader.test.mjs`
+  - `docs/version-change-log.md`
+- **更新内容**：
+  - `ui: 取消初选板块外层容器投影并将承载背景改为透明`
+  - `ui: 将初选板块置灰缩放从单张图片调整为图片与标签整体同步缩放`
+  - `ui: 将初选板块图片下侧圆角改为直角，使图片与标签衔接为一体`
+  - `ui: 取消初选板块选中态额外细外框，仅保留玩家色选中边框`
+  - `ui: 固定初选板块标签宽度与图片一致，避免右侧边缘细微错位`
+  - `test: 更新初选板块样式回归测试，覆盖透明容器、整体缩放、取消额外外框、图片下侧直角与标签宽度对齐`
+  - `fix: 对照 0.9.5.20 恢复可选行动区第三个胶囊的“共 x 项”文案`
+  - `test: 新增可选行动头部胶囊文案回归测试，防止行动数量胶囊再次退化为纯数字`
+- **验证方式**：
+  - `node --test frontend/src/views/GameView.actionHeader.test.mjs`
+  - `node --test frontend/src/views/GameView.draftBoard.test.mjs`
+  - `cd frontend && npm run build`
+
 ## 0.9.6.11
 
 - **日期**：2026-04-27
