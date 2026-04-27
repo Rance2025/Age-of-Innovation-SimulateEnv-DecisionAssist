@@ -269,8 +269,9 @@ export const useGameStateStore = defineStore('gameState', () => {
       }
 
       // 应用全量状态
-      if (data.data) {
-        applyFullState(data.data)
+      const stateData = data.data || data.state
+      if (stateData) {
+        applyFullState(stateData)
         console.log('[GameState] Full state loaded, version:', version.value)
       }
     } catch (error) {

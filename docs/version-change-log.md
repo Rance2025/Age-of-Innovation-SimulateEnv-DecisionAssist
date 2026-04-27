@@ -4,6 +4,45 @@
 
 ## 本次修改
 
+- **日期**：2026-04-27
+- **分支**：main
+- **影响范围**：
+  - `待记录`
+- **更新内容**：
+  - `chore: 待记录`
+- **验证方式**：
+  - `待验证`
+
+## 0.9.6.8
+
+- **日期**：2026-04-27
+- **分支**：main
+- **影响范围**：
+  - `frontend/src/views/GameView.vue`
+  - `frontend/src/stores/gameState.js`
+  - `frontend/src/utils/draftSetupState.js`
+  - `frontend/src/utils/draftSetupState.test.mjs`
+  - `frontend/src/utils/publicAssetPaths.test.mjs`
+  - `frontend/assets/images/`
+  - `frontend/public/assets/images/`
+  - `docs/superpowers/specs/2026-04-27-selection-board-design.md`
+  - `docs/superpowers/plans/2026-04-27-selection-board.md`
+- **更新内容**：
+  - `feat: 在游戏区域新增初选板块卡片，展示本局可用的规划卡、派系、宫殿板块图片`
+  - `ui: 采用上中下三栏布局，每栏横向排列对应板块图片`
+  - `ui: 卡片支持折叠/展开，与现有游戏卡片交互一致`
+  - `fix: 修复初选板块图片无法显示的问题，将静态图片资源从 frontend/assets/images 移动到 frontend/public/assets/images 目录，确保 Vite 能正确服务`
+  - `fix: 修复 fetchFullState 解析 API 响应时字段名不匹配的问题，后端返回 state 而非 data，导致 setup 数据未加载`
+  - `fix: 修复初选板块读取未初始化 Pinia store 导致规划卡、派系、宫殿板块数组为空的问题，改为由 GameView 全量状态同步 draftSetup`
+  - `fix: 修复建筑与城市板块图片仍引用 frontend/assets/images 旧路径导致构建警告与运行时路径失效的问题`
+  - `docs: 补充初选板块设计与执行计划文档`
+  - `test: 增加初选板块状态同步的 Node 回归测试`
+  - `test: 增加公共图片资源路径回归测试，防止继续引用已迁移的 frontend/assets/images 目录`
+- **验证方式**：
+  - `node --test frontend/src/utils/draftSetupState.test.mjs`
+  - `node --test frontend/src/utils/publicAssetPaths.test.mjs`
+  - `cd frontend && npm run build`
+
 ## 0.9.6.7
 
 - 日期：`2026-04-27`

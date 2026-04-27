@@ -1041,6 +1041,73 @@
                 </div>
               </div>
             </div>
+
+            <!-- 初选板块卡片 -->
+            <div class="game-card" :class="{ collapsed: collapsedCards['draft'] }">
+              <div class="game-header" @click="toggleCard('draft')">
+                <div class="game-header-left">
+                  <div class="game-title">
+                    <i class="fas fa-hand-pointer"></i>
+                    <span>初选板块</span>
+                  </div>
+                </div>
+                <div class="game-indicator">
+                  <i class="fas fa-chevron-down"></i>
+                </div>
+              </div>
+              <div class="draft-board-status">
+                <div class="draft-board-content">
+                  <!-- 规划卡栏 -->
+                  <div class="draft-section">
+                    <div class="draft-section-title">规划卡</div>
+                    <div class="draft-section-items">
+                      <div
+                        v-for="cardId in draftSetup.selectedPlanningCards"
+                        :key="`draft-planning-${cardId}`"
+                        class="draft-item"
+                      >
+                        <div
+                          class="draft-item-image planning-card-image"
+                          :style="getPlanningCardPreviewStyle(cardId)"
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- 派系栏 -->
+                  <div class="draft-section">
+                    <div class="draft-section-title">派系</div>
+                    <div class="draft-section-items">
+                      <div
+                        v-for="factionId in draftSetup.selectedFactions"
+                        :key="`draft-faction-${factionId}`"
+                        class="draft-item"
+                      >
+                        <div
+                          class="draft-item-image faction-image"
+                          :style="getFactionPreviewStyle(factionId)"
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- 宫殿板块栏 -->
+                  <div class="draft-section">
+                    <div class="draft-section-title">宫殿板块</div>
+                    <div class="draft-section-items">
+                      <div
+                        v-for="palaceId in draftSetup.selectedPalaceTiles"
+                        :key="`draft-palace-${palaceId}`"
+                        class="draft-item"
+                      >
+                        <div
+                          class="draft-item-image palace-tile-image"
+                          :style="getPalacePreviewStyle(palaceId)"
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1706,6 +1773,11 @@ import {
   getAbilityTileStyleByBackendId,
   getScienceTileStyleByBackendId
 } from '../utils/tileSprites'
+import {
+  createDraftSetupState,
+  applyDraftSetupState,
+  applyDraftSetupChange
+} from '../utils/draftSetupState.js'
 import availableActionDisplayGroups from '../../../backend/game/utils/available_action_display_groups.json'
 
 defineOptions({
@@ -1716,6 +1788,7 @@ const router = useRouter()
 const gameStore = useGameStore()
 const timerStore = useTimerStore()
 const globalPopover = useGlobalPopover()
+const draftSetup = reactive(createDraftSetupState())
 
 // ========== 全局弹窗点击处理 ==========
 function handlePlanningCardClick(event, player) {
@@ -2182,7 +2255,7 @@ function initPlayers(count) {
 
 // 折叠状态
 const collapsedPlayers = reactive({})
-const collapsedCards = reactive({ map: false, round: false, tactical: false })
+const collapsedCards = reactive({ map: false, round: false, tactical: false, draft: false })
 
 function syncCollapsedPlayers(count) {
   Object.keys(collapsedPlayers).forEach((playerId) => {
@@ -2280,7 +2353,7 @@ const SCIENCE_ABILITY_LEFT_WIDTH_PER_HEIGHT = Object.freeze({
 })
 const CULT_BOARD_WIDTH_PER_HEIGHT = 861 / 1248
 
-const SPRITESHEET_URL = new URL('../../assets/images/structures.png', import.meta.url).href
+const SPRITESHEET_URL = '/assets/images/structures.png'
 const SPRITE_CELL_WIDTH = 141
 const SPRITE_CELL_HEIGHT = 158
 const SPRITE_SCALE_MAP_BUILDING = 0.25
@@ -2316,7 +2389,7 @@ let spriteSheetLoaded = false
 spriteSheet.onload = () => { spriteSheetLoaded = true }
 
 // 城市板块精灵图
-const CITY_TILES_URL = new URL('../../assets/images/city_tiles.png', import.meta.url).href
+const CITY_TILES_URL = '/assets/images/city_tiles.png'
 const CITY_TILE_COUNT = 7
 const CITY_TILE_SCALE = 0.25
 const CITY_TILE_ID_TO_INDEX = { 4: 0, 5: 1, 6: 2, 7: 3, 1: 4, 2: 5, 3: 6 }
@@ -6611,6 +6684,8 @@ function applyGameViewFullState(state) {
   }
 
   if (state.setup) {
+    applyDraftSetupState(draftSetup, state.setup)
+
     if (state.setup.round_scoring_order) {
       state.setup.round_scoring_order.forEach((scoringId, index) => {
         setRoundScoring(index + 1, scoringId)
@@ -7036,6 +7111,8 @@ function applyGameViewChange(path, value, changeType, pendingBuildingRenders = n
 
   if (rootKey === 'setup' && keys.length >= 2) {
     const setupKey = keys[1]
+    applyDraftSetupChange(draftSetup, keys.slice(1), value, changeType)
+
     if (setupKey === 'round_scoring_order' && Array.isArray(value)) {
       value.forEach((scoringId, index) => {
         setRoundScoring(index + 1, scoringId)
@@ -8615,6 +8692,72 @@ onUnmounted(() => {
 .game-card.collapsed .game-status,
 .game-card.collapsed .science-ability-status {
   opacity: 0;
+}
+
+/* 初选板块卡片 */
+.draft-board-status {
+  padding: 16px;
+  min-height: 0;
+}
+
+.draft-board-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.draft-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.draft-section-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding-left: 4px;
+}
+
+.draft-section-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.draft-item {
+  flex-shrink: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.draft-item-image {
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+/* 规划卡尺寸 */
+.planning-card-image {
+  width: 88px;
+  height: 139px;
+}
+
+/* 派系尺寸 */
+.faction-image {
+  width: 160px;
+  height: 91px;
+}
+
+/* 宫殿板块尺寸 */
+.palace-tile-image {
+  width: 140px;
+  height: 73px;
+}
+
+/* 折叠状态 */
+.game-card.collapsed .draft-board-status {
+  display: none;
 }
 
 .science-ability-status {
