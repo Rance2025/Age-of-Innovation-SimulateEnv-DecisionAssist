@@ -13,6 +13,29 @@
 - **验证方式**：
   - `待验证`
 
+## 0.9.6.11
+
+- **日期**：2026-04-27
+- **分支**：main
+- **影响范围**：
+  - `frontend/src/components/GlobalPopoverContent.vue`
+  - `frontend/src/views/GameView.vue`
+  - `frontend/src/views/GameView.draftBoard.test.mjs`
+  - `frontend/src/views/GameView.panelAndRoundPopover.test.mjs`
+  - `docs/version-change-log.md`
+- **更新内容**：
+  - `ui: 参照 0.9.5.43 恢复宫殿板块弹窗未激活态的降饱和、半透明灰遮罩与红色禁用图标样式，并进一步降低饱和度`
+  - `ui: 将初选板块剩余项置灰单独调整为 0.15 饱和度，并取消半透明灰色遮罩`
+  - `ui: 为初选板块置灰图片增加中心缩小到 0.85 的缩放动画，并补充图片自身圆角以避免缩放后直角外露`
+  - `test: 更新宫殿板块弹窗与初选板块置灰样式回归测试，约束各自置灰表现`
+- **验证方式**：
+  - `node --test frontend/src/views/GameView.panelAndRoundPopover.test.mjs`
+  - `node --test frontend/src/views/GameView.draftBoard.test.mjs`
+  - `node --test frontend/src/utils/draftBoardSelectionState.test.mjs`
+  - `node --test frontend/src/utils/draftSetupState.test.mjs`
+  - `node --test frontend/src/utils/publicAssetPaths.test.mjs`
+  - `cd frontend && npm run build`
+
 ## 0.9.6.10
 
 - **日期**：2026-04-27

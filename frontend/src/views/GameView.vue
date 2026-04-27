@@ -8815,11 +8815,11 @@ onUnmounted(() => {
 
 .draft-item.is-selected {
   border-color: var(--draft-owner-color);
-  box-shadow: 0 0 0 1px var(--draft-owner-color), 0 3px 12px rgba(0, 0, 0, 0.34);
+  box-shadow: 0 0 0 2px var(--draft-owner-color), 0 3px 12px rgba(0, 0, 0, 0.34);
 }
 
 .draft-item.is-unavailable {
-  filter: grayscale(1);
+  filter: saturate(0.15);
 }
 
 .draft-item-corner {
@@ -8849,8 +8849,15 @@ onUnmounted(() => {
   height: auto;
   aspect-ratio: var(--draft-item-aspect-ratio);
   flex-shrink: 0;
+  border-radius: 6px;
   background-repeat: no-repeat;
   background-position: center;
+  transform-origin: center;
+  transition: transform 0.18s ease;
+}
+
+.draft-item.is-unavailable .draft-item-image {
+  transform: scale(0.85);
 }
 
 .draft-item-label {

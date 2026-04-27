@@ -21,15 +21,18 @@ test('inactive palace styling belongs to the popover preview, not the player pan
   assert.doesNotMatch(gameViewSource, /\.palace-tile-badge\.is-inactive \.palace-tile-badge-value\s*\{/)
   assert.doesNotMatch(gameViewSource, /\.palace-tile-badge\.is-inactive \.palace-tile-badge-status\s*\{/)
 
-  const inactiveImageStyles = cssBlock(globalPopoverContentSource, '.entity-preview-image.is-inactive .entity-preview-image-layer')
-  const inactiveMarkStyles = cssBlock(globalPopoverContentSource, '.entity-preview-inactive-mark')
+  const inactiveImageStyles = cssBlock(globalPopoverContentSource, '.entity-preview-image.is-inactive')
+  const inactiveOverlayStyles = cssBlock(globalPopoverContentSource, '.entity-preview-image-overlay')
+  const inactiveIconStyles = cssBlock(globalPopoverContentSource, '.entity-preview-status-icon i')
 
   assert.match(globalPopoverContentSource, /v-if="inactive"/)
-  assert.match(globalPopoverContentSource, /class="entity-preview-inactive-mark"/)
-  assert.match(inactiveImageStyles, /filter:\s*grayscale\(1\)/)
-  assert.match(inactiveMarkStyles, /inset:\s*0/)
-  assert.match(inactiveMarkStyles, /color:\s*#ef4444/)
-  assert.match(inactiveMarkStyles, /justify-content:\s*center/)
+  assert.match(globalPopoverContentSource, /class="entity-preview-image-overlay"/)
+  assert.match(globalPopoverContentSource, /class="entity-preview-status-icon"/)
+  assert.match(inactiveImageStyles, /filter:\s*saturate\(0\.68\)/)
+  assert.match(inactiveOverlayStyles, /inset:\s*0/)
+  assert.match(inactiveOverlayStyles, /background:\s*rgba\(113,\s*120,\s*132,\s*0\.42\)/)
+  assert.match(inactiveOverlayStyles, /justify-content:\s*center/)
+  assert.match(inactiveIconStyles, /font-size:\s*4rem/)
 })
 
 test('round 6 popover passes final scoring overlay layer and popover content renders it', () => {

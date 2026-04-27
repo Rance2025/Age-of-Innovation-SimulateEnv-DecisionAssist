@@ -14,9 +14,11 @@
             class="entity-preview-image-layer entity-preview-image-overlay-layer"
             :style="overlayLayerStyle"
           ></div>
-          <div v-if="inactive" class="entity-preview-inactive-mark" aria-hidden="true">
+        </div>
+        <div v-if="inactive" class="entity-preview-image-overlay" aria-hidden="true">
+          <span class="entity-preview-status-icon">
             <i class="fas fa-ban"></i>
-          </div>
+          </span>
         </div>
       </div>
       <div v-if="name" class="entity-preview-name">{{ name }}</div>
@@ -179,8 +181,8 @@ watch(() => props.isSwitching, (switching) => {
   overflow: hidden;
 }
 
-.entity-preview-image.is-inactive .entity-preview-image-layer {
-  filter: grayscale(1);
+.entity-preview-image.is-inactive {
+  filter: saturate(0.68);
 }
 
 .entity-preview-image-layer {
@@ -195,18 +197,29 @@ watch(() => props.isSwitching, (switching) => {
   z-index: 2;
 }
 
-.entity-preview-inactive-mark {
+.entity-preview-image-overlay {
   position: absolute;
   inset: 0;
-  z-index: 3;
+  border-radius: 12px;
+  background: rgba(113, 120, 132, 0.42);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #ef4444;
-  font-size: 2.6rem;
-  line-height: 1;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.68);
+  z-index: 3;
   pointer-events: none;
+}
+
+.entity-preview-status-icon {
+  color: #ef4444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-shadow: 0 6px 18px rgba(0, 0, 0, 0.36);
+}
+
+.entity-preview-status-icon i {
+  font-size: 4rem;
+  line-height: 1;
 }
 
 .entity-preview-name {
