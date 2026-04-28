@@ -593,15 +593,24 @@ class GameStateBase:
             # 已建城的聚落不再合并，保持独立
             if is_city_a and is_city_b:
                 return root_b, True
+            
+            # 新非建城聚落合并进已建城聚落
+            if is_city_a and not is_city_b:
+                # 更新b的父节点信息，以a为新父节点
+                settlements_and_cities[root_b] = [root_a, True]
+                return root_a, True
+            elif not is_city_a and is_city_b:
+                # 更新a的父节点信息，以b为新父节点
+                settlements_and_cities[root_a] = [root_b, True]
+                return root_b, True
 
             # 新聚落的城市状态
-            new_is_city = is_city_a or is_city_b
-            # 更新a的父节点信息，以b为新父节点
-            settlements_and_cities[root_a] = [root_b, new_is_city]
-            # 更新父节点b的城市状态
-            settlements_and_cities[root_b] = [root_b, new_is_city]
-
-            return root_b, new_is_city
+            if not is_city_a and not is_city_b:
+                # 更新a的父节点信息，以b为新父节点
+                settlements_and_cities[root_a] = [root_b, False]
+                # 更新父节点b的城市状态
+                settlements_and_cities[root_b] = [root_b, False]
+                return root_b, False
         
     class DisplayBoardState:
         """展示板状态"""

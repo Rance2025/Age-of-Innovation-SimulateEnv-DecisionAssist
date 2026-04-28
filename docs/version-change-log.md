@@ -13,6 +13,21 @@
 - **验证方式**：
   - `待验证`
 
+## 0.9.6.15
+
+- **日期**：2026-04-28
+- **分支**：main
+- **影响范围**：
+  - `backend/game/aoi_game/game_state.py`
+  - `test/test_settlement_merge.py`
+  - `docs/version-change-log.md`
+- **更新内容**：
+  - `fix: 修复聚落更新逻辑在已建城聚落与未建城聚落合并时错误切换根节点的问题，改为始终将未建城聚落并入城市聚落，避免聚落根节点与城市状态漂移`
+  - `test: 新增聚落合并根节点回归测试，约束城市聚落在两种参数顺序下都保持为合并后的根节点`
+- **验证方式**：
+  - `python -m unittest discover -s test -p "test_settlement_merge.py"`
+  - `python -m unittest discover -s test -p "test_largest_chain_scoring.py"`
+
 ## 0.9.6.14
 
 - **日期**：2026-04-28
