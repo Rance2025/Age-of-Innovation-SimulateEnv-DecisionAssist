@@ -13,6 +13,24 @@
 - **验证方式**：
   - `待验证`
 
+## 0.9.6.14
+
+- **日期**：2026-04-28
+- **分支**：main
+- **影响范围**：
+  - `backend/__init__.py`
+  - `backend/game/aoi_game/game_state.py`
+  - `test/test_largest_chain_scoring.py`
+  - `docs/version-change-log.md`
+- **更新内容**：
+  - `fix: 为后端目录补充本地包标记文件，修复启动脚本在存在外部同名 backend 包时会错误导入外部模块并报错 backend.api.app 不存在的问题`
+  - `fix: 修复最终大链终局结算对航行跨水连接的可达性判定，允许从聚落邻接水域出发按航行等级搜索本方可连接建筑，避免跨水大链被错误断开`
+  - `fix: 修复最终大链结算在玩家仅拥有孤立聚落或单个聚落 root 时遗漏这些 root，导致最大大链被错误算作 0 并触发错误平分链分的问题`
+  - `test: 新增最终大链航行跨水连通与单 root 终局计分回归测试，约束跨水聚落连通和孤立聚落比较都能稳定生效`
+- **验证方式**：
+  - `python -m unittest discover -s test -p "test_largest_chain_scoring.py"`
+  - `python -c "import sys; sys.path.insert(0, r'D:\Coding\Age-of-Innovation_TableGame'); from backend.api.app import run_app; print('import success', run_app.__name__)"`
+
 ## 0.9.6.13
 
 - **日期**：2026-04-27

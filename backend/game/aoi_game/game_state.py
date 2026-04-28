@@ -1039,14 +1039,13 @@ class GameStateBase:
                     if (
                         # 在合法边界内
                         0 <= new_i <= 8 and 0 <= new_j <= 12
-                        # 被该玩家自身控制
-                        and self.map_board_state.map_grid[new_i][new_j][1] == player_id
                     ):
-                        # 如果是非水域地块，则直接加入当前地块的可抵地块集合中
-                        if self.map_board_state.map_grid[new_i][new_j][0] != 0 :
+                        terrain, controller = self.map_board_state.map_grid[new_i][new_j][:2]
+                        # 如果是非水域地块，且被玩家自身控制，则直接加入当前地块的可抵地块集合中
+                        if terrain != 0 and controller == player_id:
                             all_reachable_map_ids.add((new_i,new_j))
                         # 如果该地块是水域，则需根据航行等级进一步判定
-                        elif player.navigation_level >= 1:
+                        elif terrain == 0 and player.navigation_level >= 1:
                             navigation_reachable_map_ids_dict[1].append((new_i,new_j))
             
             # 进一步进行航行判定，检索所有可航抵水域地块
@@ -1116,48 +1115,35 @@ class GameStateBase:
             for root in chains_controlled.keys():
                 chains_reachable[root] = find_reachable_pos_set_rely_on_chain_root(root)
             
-            # 生成所有根坐标对列表
+            # 为所有根坐标建立连通关系图，确保孤立根节点也会参与大链比较
             root_list = list(chains_controlled.keys())
-            all_root_pair = []
+            root_graph = {root: set() for root in root_list}
             for i in range(len(root_list)-1):
                 for j in range(i+1,len(root_list)):
-                    all_root_pair.append(
-                        (root_list[i],root_list[j])
-                    )
-            
-            # 生成所有互联的根坐标对列表
-            chained_root_pairs_list = []
-            for r1, r2 in all_root_pair:
-                if chains_controlled[r1] & chains_reachable[r2]:
-                    chained_root_pairs_list.append((r1,r2))
+                    r1, r2 = root_list[i], root_list[j]
+                    if chains_controlled[r1] & chains_reachable[r2]:
+                        root_graph[r1].add(r2)
+                        root_graph[r2].add(r1)
 
-            # 生成所有互联的根坐标集群列表
+            # 遍历所有连通分量，单个孤立根节点会自然形成只包含自己的分量
             chained_root_clusters_list = []
-            for a, b in chained_root_pairs_list:
-                merged = False
-                for comp in chained_root_clusters_list:
-                    if a in comp or b in comp:
-                        comp.add(a)
-                        comp.add(b)
-                        merged = True
-                        break
-                if not merged:
-                    chained_root_clusters_list.append({a, b})
-            while True:
-                changed = False
-                for i in range(len(chained_root_clusters_list)):
-                    for j in range(i+1, len(chained_root_clusters_list)):
-                        if chained_root_clusters_list[i] & chained_root_clusters_list[j]:  # 如果有交集
-                            chained_root_clusters_list[i] |= chained_root_clusters_list[j]  # 合并
-                            chained_root_clusters_list.pop(j)
-                            changed = True
-                            break
-                    if changed:
-                        break
-                if not changed:
-                    break
+            visited_roots = set()
+            for root in root_list:
+                if root in visited_roots:
+                    continue
+                current_cluster = set()
+                stack = [root]
+                visited_roots.add(root)
+                while stack:
+                    current_root = stack.pop()
+                    current_cluster.add(current_root)
+                    for connected_root in root_graph[current_root]:
+                        if connected_root not in visited_roots:
+                            visited_roots.add(connected_root)
+                            stack.append(connected_root)
+                chained_root_clusters_list.append(current_cluster)
 
-            # 遍历每一个互联的根坐标集群，寻找最大的控制坐标链（大链）
+            # 遍历每一个连通分量，寻找最大的控制坐标链（大链）
             largest_chained_controlled_pos_num = 0
             for cluster in chained_root_clusters_list:
                 current_root_pos_num = 0
