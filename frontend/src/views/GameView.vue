@@ -1395,7 +1395,7 @@
             </div>
             <div class="action-log-toolbar">
               <div class="action-count action-log-count-chip">
-                <span id="action-log-count">{{ filteredActionLogs.length }}</span> / {{ renderedActionLogs.length }} 条              </div>
+                <span id="action-log-count">{{ filteredActionLogEntryCount }}</span> / {{ renderedActionLogEntryCount }} 条              </div>
               <div class="action-log-filter">
                 <button
                   type="button"
@@ -2691,6 +2691,7 @@ const actionLogSubcategoryFilterOptions = computed(() => {
   }))
 })
 const renderedActionLogs = computed(() => Array.isArray(actionLogs.value) ? actionLogs.value : [])
+const renderedActionLogEntryCount = computed(() => renderedActionLogs.value.filter((entry) => entry.kind !== 'divider').length)
 const availableActionLogStrategyTypeOptions = computed(() => {
   const usedStrategyIds = new Set(
     actionLogs.value
@@ -2816,6 +2817,7 @@ const filteredActionLogs = computed(() => {
     return true
   })
 })
+const filteredActionLogEntryCount = computed(() => filteredActionLogs.value.filter((entry) => entry.kind !== 'divider').length)
 
 const activePlayerItems = computed(() => {
   const activeOrder = gameMeta.current_player_order || []

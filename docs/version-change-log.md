@@ -13,6 +13,21 @@
 - **验证方式**：
   - `待验证`
 
+## 0.9.6.17
+
+- **日期**：2026-04-29
+- **分支**：main
+- **影响范围**：
+  - `frontend/src/views/GameView.vue`
+  - `frontend/src/views/GameView.actionLogCount.test.mjs`
+  - `docs/version-change-log.md`
+- **更新内容**：
+  - `fix: 修复行动记录头部条目数将阶段分割线计入已筛选/总数统计的问题，改为仅统计真实行动记录`
+  - `test: 新增行动记录条目数口径回归测试，约束分割线继续显示但不再参与计数`
+- **验证方式**：
+  - `node --test --test-isolation=none frontend/src/views/GameView.actionLogCount.test.mjs frontend/src/views/GameView.actionHeader.test.mjs`
+  - `cd frontend && npm run build`
+
 ## 0.9.6.16
 
 - **日期**：2026-04-29
