@@ -220,6 +220,7 @@
             <h3>最终得分</h3>
             <div class="score-table">
               <div class="score-header">
+                <span>名次</span>
                 <span>玩家</span>
                 <span>ID/策略</span>
                 <span>总分</span>
@@ -233,6 +234,13 @@
                 :key="idx"
                 class="score-row"
               >
+                <span class="score-rank">
+                  <i
+                    v-if="pr.rank_icon_class"
+                    :class="[pr.rank_icon_class, `is-${pr.rank_tone}`]"
+                    class="score-rank-icon"
+                  ></i>
+                </span>
                 <span class="player-name" :class="{ 'is-ai': pr.identity_is_ai }">
                   <span>{{ pr.player_label }}</span>
                   <i v-if="pr.identity_icon" :class="pr.identity_icon"></i>
@@ -1264,7 +1272,7 @@ onUnmounted(() => {
   border: 1px solid var(--border);
   border-radius: 16px;
   width: 90%;
-  max-width: 600px;
+  max-width: 860px;
   max-height: 80vh;
   overflow: hidden;
   transform: scale(0.95);
@@ -1364,7 +1372,7 @@ onUnmounted(() => {
 .score-header,
 .score-row {
   display: grid;
-  grid-template-columns: 0.72fr 2.18fr 0.9fr 0.9fr 0.9fr 0.9fr 0.9fr;
+  grid-template-columns: 0.7fr 0.9fr 2.08fr repeat(5, minmax(0, 0.88fr));
   gap: 8px;
   padding: 12px 16px;
   align-items: center;
@@ -1375,6 +1383,36 @@ onUnmounted(() => {
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--accent-light);
+}
+
+.score-header > span:first-child,
+.score-row > span:first-child {
+  justify-self: center;
+  text-align: center;
+  transform: translateX(-8px);
+}
+
+.score-rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 20px;
+}
+
+.score-rank-icon {
+  display: block;
+}
+
+.score-rank-icon.is-gold {
+  color: #f5c451;
+}
+
+.score-rank-icon.is-silver {
+  color: #c2ccd6;
+}
+
+.score-rank-icon.is-bronze {
+  color: #c9895a;
 }
 
 .score-row {
@@ -1409,6 +1447,11 @@ onUnmounted(() => {
   line-height: 1.3;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+.score-row > span:nth-child(n + 4),
+.score-header > span:nth-child(n + 4) {
+  text-align: right;
 }
 
 .total-score {
@@ -1467,17 +1510,17 @@ onUnmounted(() => {
 
   .score-header,
   .score-row {
-    grid-template-columns: 0.72fr 2.08fr 0.8fr 0.8fr;
+    grid-template-columns: 0.58fr 0.72fr 1.84fr repeat(2, minmax(0, 0.8fr));
     gap: 4px;
     font-size: 0.8rem;
   }
 
-  .score-header span:nth-child(5),
   .score-header span:nth-child(6),
   .score-header span:nth-child(7),
-  .score-row span:nth-child(5),
+  .score-header span:nth-child(8),
   .score-row span:nth-child(6),
-  .score-row span:nth-child(7) {
+  .score-row span:nth-child(7),
+  .score-row span:nth-child(8) {
     display: none;
   }
 }

@@ -13,6 +13,32 @@
 - **验证方式**：
   - `待验证`
 
+## 0.9.6.18
+
+- **日期**：2026-04-29
+- **分支**：main
+- **影响范围**：
+  - `frontend/src/utils/historyScoreRows.js`
+  - `frontend/src/utils/historyScoreRows.test.mjs`
+  - `frontend/src/views/GameView.vue`
+  - `frontend/src/views/GameView.finalScoreModal.test.mjs`
+  - `frontend/src/views/HistoryView.vue`
+  - `frontend/src/views/HistoryView.scoreTable.test.mjs`
+  - `docs/version-change-log.md`
+- **更新内容**：
+  - `ui: 将最终比分弹窗与历史对局详情的分数表统一为名次、玩家、ID/策略与分项得分列，玩家列仅保留数字加 AI 图标，分数列统一右对齐`
+  - `ui: 在最终比分弹窗与历史对局详情中新增奖牌式名次列，并将该列整体左移微调，缓解名次列左侧留白过大带来的视觉不平衡`
+  - `feat: 为比分行新增按总分降序的排名逻辑，前三名显示金银铜奖牌图标，4/5 名不再显示名次标记`
+  - `feat: 在最终比分弹窗底部新增“退出本局游戏”按钮，并复用现有结束游戏的 stop、清理本地状态、关闭 SSE 与返回首页链路`
+  - `fix: 修复最终比分弹窗模板引用 formatScoreValue 后未在 GameView 中定义函数，导致点击“查看最终比分”时弹窗无法正常打开的问题`
+  - `test: 新增最终比分弹窗与历史比分表静态回归测试，并补充比分行构建器的排序与玩家身份兼容性测试`
+- **验证方式**：
+  - `node frontend/src/utils/historyScoreRows.test.mjs`
+  - `node frontend/src/views/GameView.finalScoreModal.test.mjs`
+  - `node frontend/src/views/HistoryView.layout.test.mjs`
+  - `node frontend/src/views/HistoryView.scoreTable.test.mjs`
+  - `cd frontend && npm run build`
+
 ## 0.9.6.17
 
 - **日期**：2026-04-29

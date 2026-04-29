@@ -1742,37 +1742,55 @@
       title="最终比分"
       :show-close="true"
       :close-on-overlay="true"
-    >
-      <div class="final-score-modal">
-        <div v-if="hasFinalScores" class="final-score-table">
-          <div class="final-score-grid final-score-header">
-            <span>玩家</span>
-            <span>总分</span>
-            <span>板块</span>
-            <span>连锁</span>
-            <span>轨道</span>
-            <span>资源</span>
+      >
+        <div class="final-score-modal">
+          <div v-if="hasFinalScores" class="final-score-table">
+            <div class="final-score-grid final-score-header">
+              <span>名次</span>
+              <span>玩家</span>
+              <span>ID/策略</span>
+              <span>总分</span>
+              <span>板块</span>
+              <span>连锁</span>
+              <span>轨道</span>
+              <span>资源</span>
+            </div>
+            <div
+              v-for="entry in finalScoreRows"
+              :key="entry.player_id"
+              class="final-score-grid final-score-row"
+            >
+              <span class="final-score-rank">
+                <i
+                  v-if="entry.rank_icon_class"
+                  :class="[entry.rank_icon_class, `is-${entry.rank_tone}`]"
+                  class="final-score-rank-icon"
+                ></i>
+              </span>
+              <span class="final-score-player" :class="{ 'is-ai': entry.identity_is_ai }">
+                <span>{{ entry.player_label }}</span>
+                <i v-if="entry.identity_icon" :class="entry.identity_icon"></i>
+              </span>
+              <span class="final-score-identity" :title="entry.identity_text">{{ entry.identity_text }}</span>
+              <span class="final-score-total">{{ formatScoreValue(entry.total) }}</span>
+              <span>{{ formatScoreValue(entry.board) }}</span>
+              <span>{{ formatScoreValue(entry.chain) }}</span>
+              <span>{{ formatScoreValue(entry.track) }}</span>
+              <span>{{ formatScoreValue(entry.resource) }}</span>
+            </div>
           </div>
-          <div
-            v-for="entry in finalScoreEntries"
-            :key="entry.playerId"
-            class="final-score-grid final-score-row"
-            :class="{ 'is-winner': entry.isWinner }"
-          >
-            <span class="final-score-player">
-              <span class="final-score-player-dot" :style="{ backgroundColor: entry.playerColor }"></span>
-              <span>玩家 {{ entry.playerId + 1 }}</span>
-            </span>
-            <span class="final-score-total">{{ entry.total }}</span>
-            <span>{{ entry.board }}</span>
-            <span>{{ entry.chain }}</span>
-            <span>{{ entry.track }}</span>
-            <span>{{ entry.resource }}</span>
+          <div v-else class="final-score-empty">最终比分尚未同步</div>
+          <div class="final-score-actions">
+            <button
+              type="button"
+              class="final-score-exit-btn"
+              @click="handleFinalScoreExit"
+            >
+              退出本局游戏
+            </button>
           </div>
         </div>
-        <div v-else class="final-score-empty">最终比分尚未同步</div>
-      </div>
-    </Modal>
+      </Modal>
 
   </div>
 
@@ -1814,6 +1832,7 @@ import {
   applyDraftSetupChange
 } from '../utils/draftSetupState.js'
 import { getDraftSelectionState } from '../utils/draftBoardSelectionState.js'
+import { buildHistoryScoreRows } from '../utils/historyScoreRows.js'
 import availableActionDisplayGroups from '../../../backend/game/utils/available_action_display_groups.json'
 
 defineOptions({
@@ -3049,36 +3068,13 @@ const actionSubtitle = computed(() => {
 
   return `当前为 ${currentActionOwnerLabel.value} 的 ${currentActionModeLabel.value} 行动阶段`
 })
-const finalScoreEntries = computed(() => {
-  if (!finalScores.value || typeof finalScores.value !== 'object') {
-    return []
-  }
-
-  const entries = Object.entries(finalScores.value).map(([playerId, score]) => {
-    const normalizedPlayerId = normalizeActionLogPlayerId(playerId)
-    if (normalizedPlayerId === null || !score || typeof score !== 'object') {
-      return null
-    }
-
-    return {
-      playerId: normalizedPlayerId,
-      playerColor: getCurrentActionOwnerColor(normalizedPlayerId),
-      total: normalizeFinalScoreValue(score.total),
-      board: normalizeFinalScoreValue(score.board),
-      chain: normalizeFinalScoreValue(score.chain),
-      track: normalizeFinalScoreValue(score.track),
-      resource: normalizeFinalScoreValue(score.resource)
-    }
-  }).filter(Boolean).sort((left, right) => left.playerId - right.playerId)
-
-  const highestTotal = entries.reduce((currentMax, entry) => Math.max(currentMax, entry.total), Number.NEGATIVE_INFINITY)
-
-  return entries.map((entry) => ({
-    ...entry,
-    isWinner: Number.isFinite(highestTotal) && entry.total === highestTotal
-  }))
-})
-const hasFinalScores = computed(() => finalScoreEntries.value.length > 0)
+const finalScoreRows = computed(() =>
+  buildHistoryScoreRows({
+    players: gameStore.settings?.players,
+    finalScores: finalScores.value,
+  })
+)
+const hasFinalScores = computed(() => finalScoreRows.value.some((entry) => entry.total !== null))
 const actionEmptyStateMessage = computed(() => {
   if (gameMeta.is_game_over) {
     return '本局已结束'
@@ -4337,11 +4333,6 @@ function setAvailableActions(rawActions) {
   actionCount.value = nextActions.length
 }
 
-function normalizeFinalScoreValue(value) {
-  const normalizedValue = Number(value)
-  return Number.isFinite(normalizedValue) ? normalizedValue : 0
-}
-
 function setFinalScores(rawScores) {
   if (!rawScores || typeof rawScores !== 'object') {
     finalScores.value = null
@@ -4358,6 +4349,46 @@ function openFinalScoreModal() {
   }
 
   finalScoreModalOpen.value = true
+}
+
+function formatScoreValue(value) {
+  return value ?? '--'
+}
+
+async function stopBackendGame() {
+  try {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5001'
+    await fetch(`${apiBaseUrl}/api/game/stop`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    })
+  } catch (e) {
+    console.error('停止游戏请求失败:', e)
+  }
+}
+
+function cleanupEndedGameSession() {
+  finalScoreModalOpen.value = false
+  gameStore.endGame()
+  timerStore.reset()
+  resetActionLogHistory()
+
+  if (eventSource) {
+    eventSource.close()
+    eventSource = null
+  }
+}
+
+async function leaveCurrentGame() {
+  await stopBackendGame()
+  cleanupEndedGameSession()
+  setTimeout(() => router.push('/'), 500)
+}
+
+async function handleFinalScoreExit() {
+  confirmState.value = null
+  gameMenuOpen.value = false
+  await leaveCurrentGame()
 }
 
 let systemRecordSequence = 0
@@ -5632,30 +5663,7 @@ async function handleEndGame() {
   if (confirmState.value === 'end') {
     confirmState.value = null
     gameMenuOpen.value = false
-
-    // 调用后端API停止游戏
-    try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5001'
-      await fetch(`${apiBaseUrl}/api/game/stop`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      })
-    } catch (e) {
-      console.error('停止游戏请求失败:', e)
-    }
-
-    // 清理前端状态
-    gameStore.endGame()
-    timerStore.reset()
-    resetActionLogHistory()
-
-    // 关闭SSE连接
-    if (eventSource) {
-      eventSource.close()
-      eventSource = null
-    }
-
-    setTimeout(() => router.push('/'), 500)
+    await leaveCurrentGame()
   } else {
     confirmState.value = 'end'
   }
@@ -10829,15 +10837,15 @@ onUnmounted(() => {
 }
 
 .final-score-grid {
-  min-width: 620px;
+  min-width: 820px;
   display: grid;
-  grid-template-columns: minmax(132px, 1.5fr) repeat(5, minmax(68px, 0.78fr));
+  grid-template-columns: 56px 84px minmax(156px, 1.7fr) repeat(5, minmax(68px, 0.78fr));
   align-items: center;
   gap: 12px;
 }
 
 .final-score-header {
-  padding: 0 12px 12px;
+  padding: 0 20px 12px 12px;
   border-bottom: 1px solid var(--border);
   color: var(--text-secondary);
   font-size: 0.76rem;
@@ -10845,18 +10853,44 @@ onUnmounted(() => {
 }
 
 .final-score-row {
-  padding: 13px 12px;
+  padding: 13px 20px 13px 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   color: var(--text-primary);
   font-size: 0.9rem;
+}
+
+.final-score-header > span:first-child,
+.final-score-row > span:first-child {
+  justify-self: center;
+  text-align: center;
+  transform: translateX(-8px);
 }
 
 .final-score-row:last-child {
   border-bottom: none;
 }
 
-.final-score-row.is-winner {
-  background: rgba(92, 190, 240, 0.08);
+.final-score-rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 20px;
+}
+
+.final-score-rank-icon {
+  display: block;
+}
+
+.final-score-rank-icon.is-gold {
+  color: #f5c451;
+}
+
+.final-score-rank-icon.is-silver {
+  color: #c2ccd6;
+}
+
+.final-score-rank-icon.is-bronze {
+  color: #c9895a;
 }
 
 .final-score-player {
@@ -10867,17 +10901,57 @@ onUnmounted(() => {
   font-weight: 600;
 }
 
-.final-score-player-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
+.final-score-player.is-ai i {
+  color: var(--accent-light);
+  font-size: 0.85em;
   flex-shrink: 0;
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.06);
+}
+
+.final-score-identity {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.3;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.final-score-header > span:nth-child(n + 4),
+.final-score-row > span:nth-child(n + 4) {
+  text-align: right;
 }
 
 .final-score-total {
   color: #dcecfb;
   font-weight: 700;
+}
+
+.final-score-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.final-score-exit-btn {
+  appearance: none;
+  min-height: 40px;
+  padding: 0 18px;
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  border-radius: 10px;
+  background: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+}
+
+.final-score-exit-btn:hover {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.18);
+  color: #fee2e2;
 }
 
 .final-score-empty {
