@@ -8,9 +8,9 @@ from datetime import datetime
 from typing import Optional, Dict, Any
 
 import yaml
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, ForeignKey, func
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, func
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy.orm import sessionmaker
 
 Base = declarative_base()
 
@@ -31,81 +31,77 @@ def resolve_project_path(path_value: str) -> str:
     return os.path.abspath(os.path.join(project_root, path_value))
 
 
+def _dump_json(data: Any) -> str:
+    return json.dumps(data if data is not None else None, ensure_ascii=False)
+
+
+def _load_json(data: Optional[str], default: Any):
+    if not data:
+        return default
+    return json.loads(data)
+
+
+def _parse_datetime(value: Optional[str]) -> datetime:
+    if isinstance(value, str) and value.strip():
+        return datetime.fromisoformat(value)
+    return datetime.now().astimezone()
+
+
 class GameRecord(Base):
-    """游戏记录主表"""
-    __tablename__ = 'game_records'
+    """单表存储一局游戏完整历史记录。"""
+    __tablename__ = 'game_history_records'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    timestamp = Column(DateTime, default=datetime.now, index=True)
+    schema_version = Column(String(20), nullable=False, default='1.0')
+    external_game_id = Column(String(120), nullable=True, index=True)
+    started_at = Column(DateTime, nullable=False, index=True)
+    ended_at = Column(DateTime, nullable=True)
+    end_status = Column(String(20), nullable=False, index=True)
+    error_message = Column(Text, nullable=True)
     num_players = Column(Integer, nullable=False)
-    setup_mode = Column(String(20), nullable=False)
-    path_length = Column(Integer, default=0)
-    setup_tile_args = Column(Text)
-    setup_player_order_args = Column(Text)
-    action_mode = Column(Text)
+    game_mode = Column(String(20), nullable=False, default='custom')
+    path_length = Column(Integer, nullable=False, default=0)
 
-    action_history = relationship("ActionHistory", back_populates="game", cascade="all, delete-orphan")
-    player_results = relationship("PlayerResult", back_populates="game", cascade="all, delete-orphan")
+    requested_config_json = Column(Text, nullable=False)
+    resolved_config_json = Column(Text, nullable=False)
+    players_json = Column(Text, nullable=False)
+    action_history_json = Column(Text, nullable=False)
+    final_player_remaining_json = Column(Text, nullable=False)
+    final_scores_json = Column(Text, nullable=True)
 
-    def to_dict(self, include_details=False):
+    def to_dict(self, include_details: bool = False):
         data = {
             'id': self.id,
-            'timestamp': self.timestamp.isoformat() if self.timestamp else None,
+            'schema_version': self.schema_version,
+            'game_id': self.external_game_id,
+            'started_at': self.started_at.isoformat() if self.started_at else None,
+            'ended_at': self.ended_at.isoformat() if self.ended_at else None,
+            'end_status': self.end_status,
             'num_players': self.num_players,
-            'setup_mode': self.setup_mode,
+            'game_mode': self.game_mode,
             'path_length': self.path_length,
-            'created_at': self.timestamp.strftime('%Y-%m-%d %H:%M') if self.timestamp else None
         }
-        if include_details:
-            data['setup_tile_args'] = json.loads(self.setup_tile_args) if self.setup_tile_args else None
-            data['setup_player_order_args'] = json.loads(self.setup_player_order_args) if self.setup_player_order_args else None
-            data['action_mode'] = json.loads(self.action_mode) if self.action_mode else None
-            data['action_history'] = [ah.to_dict() for ah in self.action_history]
-            data['player_results'] = [pr.to_dict() for pr in self.player_results]
+
+        if not include_details:
+            return data
+
+        requested_config = _load_json(self.requested_config_json, {})
+        resolved_config = _load_json(self.resolved_config_json, {})
+        players = _load_json(self.players_json, [])
+        action_history = _load_json(self.action_history_json, [])
+        final_player_remaining_ms = _load_json(self.final_player_remaining_json, [])
+        final_scores = _load_json(self.final_scores_json, None)
+
+        data.update({
+            'error_message': self.error_message,
+            'requested_config': requested_config,
+            'resolved_config': resolved_config,
+            'players': players,
+            'action_history': action_history,
+            'final_player_remaining_ms': final_player_remaining_ms,
+            'final_scores': final_scores,
+        })
         return data
-
-
-class ActionHistory(Base):
-    """行动历史记录"""
-    __tablename__ = 'action_history'
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    game_id = Column(Integer, ForeignKey('game_records.id'), nullable=False, index=True)
-    sequence = Column(Integer, nullable=False)
-    player_id = Column(Integer, nullable=False)
-    action_type = Column(String(20), nullable=False)
-    action_id = Column(Integer, nullable=False)
-
-    game = relationship("GameRecord", back_populates="action_history")
-
-    def to_dict(self):
-        return {'player_id': self.player_id, 'action_type': self.action_type, 'action_id': self.action_id}
-
-
-class PlayerResult(Base):
-    """玩家结果"""
-    __tablename__ = 'player_results'
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    game_id = Column(Integer, ForeignKey('game_records.id'), nullable=False, index=True)
-    player_id = Column(Integer, nullable=False)
-    total_score = Column(Integer, nullable=False)
-    board_score = Column(Integer, default=0)
-    chain_score = Column(Integer, default=0)
-    track_score = Column(Integer, default=0)
-    resource_score = Column(Integer, default=0)
-
-    game = relationship("GameRecord", back_populates="player_results")
-
-    def to_dict(self):
-        return {
-            'player_id': self.player_id,
-            'total': self.total_score,
-            'board': self.board_score,
-            'chain': self.chain_score,
-            'track': self.track_score,
-            'resource': self.resource_score
-        }
 
 
 class GameRepository:
@@ -137,37 +133,27 @@ class GameRepository:
         """创建游戏记录"""
         session = self.Session()
         try:
-            game = GameRecord(
-                timestamp=datetime.fromisoformat(game_data.get('timestamp', datetime.now().isoformat())),
+            action_history = list(game_data.get('action_history', []) or [])
+            record = GameRecord(
+                schema_version=game_data.get('schema_version', '1.0'),
+                external_game_id=game_data.get('game_id'),
+                started_at=_parse_datetime(game_data.get('started_at')),
+                ended_at=_parse_datetime(game_data.get('ended_at')) if game_data.get('ended_at') else None,
+                end_status=game_data.get('end_status', 'finished'),
+                error_message=game_data.get('error_message'),
                 num_players=game_data.get('num_players', 3),
-                setup_mode=game_data.get('setup_mode', 'target'),
-                path_length=game_data.get('path_length', 0),
-                setup_tile_args=json.dumps(game_data.get('setup_tile_args', [])),
-                setup_player_order_args=json.dumps(game_data.get('setup_player_order_args', [])),
-                action_mode=json.dumps(game_data.get('action_mode', []))
+                game_mode=game_data.get('game_mode', 'custom'),
+                path_length=game_data.get('path_length', len(action_history)),
+                requested_config_json=_dump_json(game_data.get('requested_config', {})),
+                resolved_config_json=_dump_json(game_data.get('resolved_config', {})),
+                players_json=_dump_json(game_data.get('players', [])),
+                action_history_json=_dump_json(action_history),
+                final_player_remaining_json=_dump_json(game_data.get('final_player_remaining_ms', [])),
+                final_scores_json=_dump_json(game_data.get('final_scores')),
             )
-            session.add(game)
-            session.flush()
-
-            for idx, action in enumerate(game_data.get('action_history', [])):
-                ah = ActionHistory(
-                    game_id=game.id, sequence=idx, player_id=action[0],
-                    action_type=action[1], action_id=action[2]
-                )
-                session.add(ah)
-
-            result = game_data.get('result', {})
-            for player_id, scores in result.items():
-                pr = PlayerResult(
-                    game_id=game.id, player_id=int(player_id),
-                    total_score=scores.get('total', 0), board_score=scores.get('board', 0),
-                    chain_score=scores.get('chain', 0), track_score=scores.get('track', 0),
-                    resource_score=scores.get('resource', 0)
-                )
-                session.add(pr)
-
+            session.add(record)
             session.commit()
-            return game.id
+            return record.id
         except Exception as e:
             session.rollback()
             raise e
@@ -183,7 +169,7 @@ class GameRepository:
         finally:
             session.close()
 
-    def list_games(self, page=1, per_page=10, sort_by='timestamp', sort_order='desc', filters=None):
+    def list_games(self, page=1, per_page=10, sort_by='started_at', sort_order='desc', filters=None):
         """获取游戏列表（分页）"""
         session = self.Session()
         try:
@@ -192,10 +178,20 @@ class GameRepository:
             if filters:
                 if 'num_players' in filters:
                     query = query.filter(GameRecord.num_players == filters['num_players'])
-                if 'setup_mode' in filters:
-                    query = query.filter(GameRecord.setup_mode == filters['setup_mode'])
+                if 'end_status' in filters:
+                    query = query.filter(GameRecord.end_status == filters['end_status'])
+                if 'game_mode' in filters:
+                    query = query.filter(GameRecord.game_mode == filters['game_mode'])
 
-            sort_column = getattr(GameRecord, sort_by, GameRecord.timestamp)
+            sort_column_map = {
+                'timestamp': GameRecord.started_at,
+                'started_at': GameRecord.started_at,
+                'ended_at': GameRecord.ended_at,
+                'num_players': GameRecord.num_players,
+                'path_length': GameRecord.path_length,
+                'end_status': GameRecord.end_status,
+            }
+            sort_column = sort_column_map.get(sort_by, GameRecord.started_at)
             if sort_order == 'desc':
                 query = query.order_by(sort_column.desc())
             else:
@@ -207,8 +203,10 @@ class GameRepository:
             return {
                 'games': [g.to_dict(include_details=False) for g in games],
                 'pagination': {
-                    'page': page, 'per_page': per_page, 'total': total,
-                    'total_pages': (total + per_page - 1) // per_page
+                    'page': page,
+                    'per_page': per_page,
+                    'total': total,
+                    'total_pages': (total + per_page - 1) // per_page,
                 }
             }
         finally:

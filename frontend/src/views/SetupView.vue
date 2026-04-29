@@ -1060,6 +1060,7 @@ import { useGameStore } from '../stores/game'
 import Modal from '../components/Modal.vue'
 import StrategyPickerModal from '../components/StrategyPickerModal.vue'
 import { STRATEGY_OPTIONS, SUPPORTED_STRATEGY_IDS } from '../constants/strategies.js'
+import { GAME_MODE_OPTIONS } from '../utils/gameModeMeta.js'
 import {
   getFinalScoringSelectionSpriteStyleByBackendId,
   getRoundBoosterFrontSpriteStyleByBackendId,
@@ -1075,11 +1076,7 @@ defineOptions({
 const router = useRouter()
 const gameStore = useGameStore()
 
-const gameModes = [
-  { value: 'standard', name: '标准模式', desc: '45min 基础时间 + 45s 读秒\n超时采用随机 · 经快速行动优化', icon: 'fas fa-chess' },
-  { value: 'quick', name: '快速模式', desc: '25min 基础时间 + 25s 读秒\n超时采用随机 · 经快速行动优化', icon: 'fas fa-bolt' },
-  { value: 'custom', name: '自定义', desc: '自由配置各项参数', icon: 'fas fa-cogs' }
-]
+const gameModes = GAME_MODE_OPTIONS
 
 const initNavItems = [
   { id: 'planningCards', name: '规划卡', icon: 'fas fa-address-card' },
@@ -2089,7 +2086,9 @@ function getTimerConfig() {
 function buildGameSettings() {
   const players = form.players.map((player, index) => ({
     type: player.type,
-    args: player.type === 'human' ? player.playerId : (player.strategy || 'random')
+    args: player.type === 'human' ? player.playerId.trim() : (player.strategy || 'random').trim(),
+    player_input_id: player.type === 'human' ? player.playerId.trim() : '',
+    strategy_id: player.type === 'ai' ? (player.strategy || 'random').trim() : ''
   }))
 
   const initPlayerOrder = form.playerOrder === '随机'

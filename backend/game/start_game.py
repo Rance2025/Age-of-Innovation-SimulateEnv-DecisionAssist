@@ -5,9 +5,11 @@
 使用 GameStateManager 将游戏状态同步到前端。
 """
 
+import copy
 import threading
 import queue
 import time
+from datetime import datetime
 from typing import Optional, Dict, Any, Callable, Tuple, List
 
 from .aoi_game import GameEngine, ActionRequest
@@ -21,6 +23,13 @@ DEFAULT_TIMER_CONFIG = {
     'grace_period': 300,
     'timeout_strategy': 'random_fast_action'
 }
+
+ACTION_SELECTION_MODE_PLAYER_CHOICE = 'player_choice'
+ACTION_SELECTION_MODE_ACCEPTED = 'accepted'
+ACTION_SELECTION_MODE_REJECTED = 'rejected'
+ACTION_SELECTION_MODE_STRATEGY_EXECUTE = 'strategy_execute'
+ACTION_SELECTION_MODE_AI_AGENT = 'ai_agent'
+ACTION_SELECTION_MODE_TIMEOUT_AGENT = 'timeout_agent'
 
 
 class GameStopped(Exception):
@@ -75,6 +84,7 @@ class GameController:
         # 保存原始和已解析的初始设置
         self._original_init_settings: Optional[Dict] = None
         self._resolved_init_settings: Optional[Dict] = None
+        self._requested_game_payload: Optional[Dict[str, Any]] = None
         self._game_engine = None
 
         # 消息推送回调函数
@@ -85,11 +95,135 @@ class GameController:
         self._action_start_time: int = 0
         self._action_deadline: int = 0
 
+        # 历史存档
+        self._history_repository = None
+        self._history_saved = False
+        self._started_at_iso: Optional[str] = None
+
     def set_message_callback(self, callback: Optional[Callable[[Dict], None]]):
         """设置消息推送回调函数"""
         self._message_callback = callback
         # 同时设置给状态管理器
         self.state_manager.set_message_callback(callback)
+
+    def set_requested_game_payload(self, game_payload: Optional[Dict[str, Any]]):
+        """保存启动时的原始对局配置，供历史存档使用。"""
+        self._requested_game_payload = copy.deepcopy(game_payload) if isinstance(game_payload, dict) else None
+
+    def _get_history_repository(self):
+        if self._history_repository is None:
+            from backend.database import GameRepository
+            self._history_repository = GameRepository()
+        return self._history_repository
+
+    def _extract_game_mode(self) -> str:
+        game_mode = (self._requested_game_payload or {}).get('game_mode', {})
+        if isinstance(game_mode, dict):
+            mode_value = game_mode.get('type')
+            if isinstance(mode_value, str) and mode_value.strip():
+                return mode_value.strip()
+        return 'custom'
+
+    def _build_requested_config(self) -> Dict[str, Any]:
+        requested_payload = self._requested_game_payload or {}
+        init_settings = requested_payload.get('init_settings')
+        if not isinstance(init_settings, dict):
+            init_settings = self._original_init_settings or {}
+
+        game_mode = self._extract_game_mode()
+        raw_timer_config = requested_payload.get('timer_config')
+        if not isinstance(raw_timer_config, dict):
+            raw_timer_config = {}
+        return {
+            'game_mode': game_mode,
+            'timer_mode': game_mode,
+            'timer_config': copy.deepcopy(raw_timer_config),
+            'init_settings': copy.deepcopy(init_settings),
+        }
+
+    def _build_resolved_config(self) -> Dict[str, Any]:
+        return {
+            'timer': {
+                'main_time': self._main_time,
+                'byo_yomi_time': self._byo_yomi_time,
+                'grace_period': self._grace_period,
+                'timeout_strategy_name': self._timeout_strategy,
+            },
+            'setup': copy.deepcopy(self._resolved_init_settings or {}),
+        }
+
+    def _build_player_history_entries(self) -> List[Dict[str, Any]]:
+        players = []
+        raw_players = (self._requested_game_payload or {}).get('players', [])
+        for player_id in range(self.num_players):
+            player = raw_players[player_id] if player_id < len(raw_players) else {}
+            player_type = player.get('type', 'human') if isinstance(player, dict) else 'human'
+            player_input_id = ''
+            strategy_name = ''
+            if isinstance(player, dict):
+                raw_player_arg = player.get('args', '')
+                normalized_player_arg = raw_player_arg.strip() if isinstance(raw_player_arg, str) else ''
+                raw_player_input_id = player.get('player_input_id', '')
+                normalized_player_input_id = raw_player_input_id.strip() if isinstance(raw_player_input_id, str) else ''
+                raw_strategy_id = player.get('strategy_id', '')
+                normalized_strategy_id = raw_strategy_id.strip() if isinstance(raw_strategy_id, str) else ''
+
+                if player_type == 'ai':
+                    strategy_name = normalized_strategy_id or normalized_player_arg
+                    if strategy_name == 'random':
+                        strategy_name = 'random_pure'
+                else:
+                    player_input_id = normalized_player_input_id or normalized_player_arg
+
+            players.append({
+                'player_id': player_id,
+                'player_type': player_type,
+                'player_input_id': player_input_id,
+                'strategy_name': strategy_name,
+            })
+        return players
+
+    def _extract_action_history_for_save(self) -> List[Dict[str, Any]]:
+        full_state = self.state_manager.get_full_state() if self.state_manager else None
+        state = full_state.get('state') if isinstance(full_state, dict) else None
+        raw_history = state.get('action_history', []) if isinstance(state, dict) else []
+        if not isinstance(raw_history, list):
+            return []
+
+        return [
+            copy.deepcopy(entry)
+            for entry in raw_history
+            if isinstance(entry, dict) and entry.get('kind', 'action') == 'action'
+        ]
+
+    def _save_game_history(self, end_status: str, error_message: Optional[str] = None):
+        """保存一局游戏的完整历史记录。"""
+        if self._history_saved or not self._started_at_iso:
+            return None
+
+        ended_at_iso = datetime.now().astimezone().isoformat()
+        action_history = self._extract_action_history_for_save()
+        payload = {
+            'schema_version': '1.0',
+            'game_id': self.game_id,
+            'started_at': self._started_at_iso,
+            'ended_at': ended_at_iso,
+            'end_status': end_status,
+            'error_message': error_message,
+            'num_players': self.num_players,
+            'game_mode': self._extract_game_mode(),
+            'path_length': len(action_history),
+            'requested_config': self._build_requested_config(),
+            'resolved_config': self._build_resolved_config(),
+            'players': self._build_player_history_entries(),
+            'action_history': action_history,
+            'final_player_remaining_ms': self._player_remaining_times.copy(),
+            'final_scores': copy.deepcopy(self.final_scores),
+        }
+
+        self._get_history_repository().create_game(payload)
+        self._history_saved = True
+        return payload
 
     def _clear_input_queue(self):
         while not self._input_queue.empty():
@@ -149,7 +283,7 @@ class GameController:
         基于当前 ActionRequest 计算指定策略的推荐行动。
 
         Returns:
-            包含 action_id / description / player_id / selection_strategy 的推荐结果
+            包含 action_id / description / player_id / strategy_name 的推荐结果
         """
         request = self._validate_current_request_for_strategy(player_id)
         agent = create_action_agent(strategy_id)
@@ -163,7 +297,7 @@ class GameController:
             'action_id': action_id,
             'description': request.available_actions.get(action_id, ''),
             'player_id': request.player_id,
-            'selection_strategy': strategy_name
+            'strategy_name': strategy_name
         }
 
     def execute_strategy_action(
@@ -181,8 +315,8 @@ class GameController:
         success = self.submit_action(
             recommendation['action_id'],
             recommendation['player_id'],
-            selection_source='system',
-            selection_strategy=recommendation['selection_strategy']
+            strategy_name=recommendation['strategy_name'],
+            selection_mode=ACTION_SELECTION_MODE_STRATEGY_EXECUTE
         )
 
         if not success:
@@ -194,8 +328,7 @@ class GameController:
         self,
         action_id: int,
         player_id: Optional[int] = None,
-        selection_source: str = 'manual',
-        selection_strategy: Optional[str] = None,
+        strategy_name: Optional[str] = None,
         selection_mode: Optional[str] = None
     ) -> bool:
         """
@@ -204,9 +337,8 @@ class GameController:
         Args:
             action_id: 选择的行动ID
             player_id: 玩家ID（可选，用于验证）
-            selection_source: 选择来源（manual / system）
-            selection_strategy: 选择策略标识
-            selection_mode: 选择模式（player_choice / accepted / rejected / system）
+            strategy_name: 关联的策略名称
+            selection_mode: 选择模式（player_choice / accepted / rejected / strategy_execute / ai_agent / timeout_agent）
 
         Returns:
             是否成功提交
@@ -222,15 +354,13 @@ class GameController:
         if action_id not in self.current_request.available_actions:
             return False
 
-        normalized_source = 'system' if selection_source == 'system' else 'manual'
-        normalized_strategy = selection_strategy.strip() if isinstance(selection_strategy, str) else None
+        normalized_strategy = strategy_name.strip() if isinstance(strategy_name, str) else None
         normalized_mode = selection_mode.strip() if isinstance(selection_mode, str) else None
 
         # 将行动ID放入输入队列
         payload = {
             'action_id': action_id,
-            'selection_source': normalized_source,
-            'selection_strategy': normalized_strategy
+            'strategy_name': normalized_strategy
         }
         if normalized_mode:
             payload['selection_mode'] = normalized_mode
@@ -289,8 +419,8 @@ class GameController:
             
             strategy_name = getattr(agent, 'strategy_name', None) or getattr(agent, 'name', None) or agent.__class__.__name__
             return action_id, {
-                'selection_source': 'system',
-                'selection_strategy': strategy_name
+                'selection_mode': ACTION_SELECTION_MODE_AI_AGENT,
+                'strategy_name': strategy_name
             }
 
         self._push_available_actions(request)
@@ -301,22 +431,20 @@ class GameController:
 
         if isinstance(payload, dict):
             action_id = int(payload.get('action_id'))
-            selection_source = 'system' if payload.get('selection_source') == 'system' else 'manual'
-            selection_strategy = payload.get('selection_strategy')
+            strategy_name = payload.get('strategy_name')
             selection_mode = payload.get('selection_mode')
-            normalized_strategy = selection_strategy.strip() if isinstance(selection_strategy, str) else None
+            normalized_strategy = strategy_name.strip() if isinstance(strategy_name, str) else None
             normalized_mode = selection_mode.strip() if isinstance(selection_mode, str) else None
             metadata = {
-                'selection_source': selection_source,
-                'selection_strategy': normalized_strategy
+                'strategy_name': normalized_strategy
             }
             if normalized_mode:
                 metadata['selection_mode'] = normalized_mode
             return action_id, metadata
 
         return int(payload), {
-            'selection_source': 'manual',
-            'selection_strategy': None
+            'selection_mode': ACTION_SELECTION_MODE_PLAYER_CHOICE,
+            'strategy_name': None
         }
 
     def _wait_for_action_with_timeout(self, player_id: int) -> Any:
@@ -364,8 +492,8 @@ class GameController:
             action_id = int(agent.get_action(self.current_request))
             return {
                 'action_id': action_id,
-                'selection_source': 'system',
-                'selection_strategy': f'timeout_{self._timeout_strategy}'
+                'selection_mode': ACTION_SELECTION_MODE_TIMEOUT_AGENT,
+                'strategy_name': self._timeout_strategy
             }
         except Exception:
             available = list(self.current_request.available_actions.keys())
@@ -373,8 +501,8 @@ class GameController:
                 raise RuntimeError("No available actions for timeout fallback.")
             return {
                 'action_id': available[0],
-                'selection_source': 'system',
-                'selection_strategy': 'timeout_fallback'
+                'selection_mode': ACTION_SELECTION_MODE_TIMEOUT_AGENT,
+                'strategy_name': None
             }
 
     def _push_incremental_changes(self, changes: List[Dict[str, Any]]):
@@ -472,15 +600,14 @@ class GameController:
             )
 
     def _record_action_selection_metadata(self, request: ActionRequest, metadata: Dict[str, Optional[str]]):
-        """在后端登记下一条行动历史对应的选择来源元数据。"""
+        """在后端登记下一条行动历史对应的策略元数据。"""
         game_state = getattr(request, 'game_state', None)
         raw_history = list(getattr(game_state, 'action_history', []) or [])
         next_raw_action_index = len(raw_history) + 1
 
         self.state_manager.record_action_selection_metadata(
             raw_action_index=next_raw_action_index,
-            selection_source=metadata.get('selection_source', 'manual') or 'manual',
-            selection_strategy=metadata.get('selection_strategy'),
+            strategy_name=metadata.get('strategy_name'),
             selection_mode=metadata.get('selection_mode')
         )
 
@@ -584,13 +711,15 @@ class GameController:
 
             # 游戏结束
             self.final_scores = request.final_scores
+            self._save_game_history('finished')
             self._handle_game_end(request)
 
         except GameStopped:
-            pass
-        except Exception:
+            self._save_game_history('interrupted')
+        except Exception as error:
             import traceback
             traceback.print_exc()
+            self._save_game_history('error', error_message=str(error))
         finally:
             self.is_running = False
             self.current_request = None
@@ -633,6 +762,8 @@ class GameController:
         self._action_start_time = 0
         self._action_deadline = 0
         self._game_engine = None
+        self._history_saved = False
+        self._started_at_iso = datetime.now().astimezone().isoformat()
 
         # 默认初始化设置
         if init_settings is None:
@@ -670,6 +801,9 @@ class GameController:
 
     def stop(self):
         """停止游戏"""
+        if not self._history_saved and self._started_at_iso:
+            self._save_game_history('interrupted')
+
         self.is_running = False
         self._stop_event.set()
         self._clear_input_queue()

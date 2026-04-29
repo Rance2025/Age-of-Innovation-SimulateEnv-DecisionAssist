@@ -1589,7 +1589,7 @@
                   </div>
                 </div>
                 <!-- 第三列：大类、细类-->
-                <div class="action-filter-column">
+                <div class="action-filter-column action-filter-column--stacked">
                   <div class="action-filter-section">
                     <div class="action-filter-section-title">按行动大类筛选</div>
                     <div class="action-filter-options action-filter-options--wrap">
@@ -1791,6 +1791,14 @@ import StrategyPickerModal from '../components/StrategyPickerModal.vue'
 import { useGlobalPopover } from '../composables/useGlobalPopover.js'
 import GlobalPopover from '../components/GlobalPopover.vue'
 import { STRATEGY_OPTIONS, SUPPORTED_STRATEGY_IDS } from '../constants/strategies.js'
+import {
+  ACTION_LOG_SELECTION_MODE_OPTIONS,
+  buildStrategyExecutePendingSelection,
+  resolveControlCenterExecuteSelectionMode,
+  normalizeActionHistorySelectionMode,
+  normalizeActionHistoryStrategyName,
+  resolveActionSelectionMode,
+} from '../utils/actionLogSelection.js'
 import {
   getFinalScoringOverlaySpriteStyleByBackendId,
   getRoundBoosterBackSpriteStyleByBackendId,
@@ -2166,12 +2174,6 @@ const ACTION_LOG_REMAINING_OPTIONS = Object.freeze([
   { id: '0to30', label: '0 ~ 30%', min: 0.001, max: 0.3 },
   { id: '30to80', label: '30 ~ 80%', min: 0.3, max: 0.8 },
   { id: '80to100', label: '80% +', min: 0.8, max: 1 }
-])
-const ACTION_LOG_SELECTION_MODE_OPTIONS = Object.freeze([
-  { id: 'player_choice', label: '玩家选择' },
-  { id: 'accepted', label: '采纳推荐' },
-  { id: 'rejected', label: '拒绝推荐' },
-  { id: 'system', label: '系统执行' }
 ])
 const ACTION_LOG_STRATEGY_TYPE_OPTIONS = Object.freeze([
   { id: 'random_pure', label: '随机 · 完全' },
@@ -2692,8 +2694,8 @@ const renderedActionLogs = computed(() => Array.isArray(actionLogs.value) ? acti
 const availableActionLogStrategyTypeOptions = computed(() => {
   const usedStrategyIds = new Set(
     actionLogs.value
-      .filter((entry) => entry.kind !== 'divider' && entry.selectionStrategy)
-      .map((entry) => entry.selectionStrategy)
+      .filter((entry) => entry.kind !== 'divider' && entry.strategyName)
+      .map((entry) => entry.strategyName)
   )
   return ACTION_LOG_STRATEGY_TYPE_OPTIONS.filter((option) => usedStrategyIds.has(option.id))
 })
@@ -2797,7 +2799,7 @@ const filteredActionLogs = computed(() => {
 
     // 选择方式筛选
     if (appliedActionLogSelectionModeFilters.value.length > 0) {
-      const selectionMode = entry.selectionMode || (entry.selectionSource === 'system' ? 'system' : 'player_choice')
+      const selectionMode = entry.selectionMode || 'player_choice'
       if (!appliedActionLogSelectionModeFilters.value.includes(selectionMode)) {
         return false
       }
@@ -2805,7 +2807,7 @@ const filteredActionLogs = computed(() => {
 
     // 策略类型筛选
     if (appliedActionLogStrategyTypeFilters.value.length > 0) {
-      const strategyType = entry.selectionStrategy || ''
+      const strategyType = entry.strategyName || ''
       if (!appliedActionLogStrategyTypeFilters.value.includes(strategyType)) {
         return false
       }
@@ -4528,8 +4530,8 @@ function appendActionLogEntry(playerId, payload) {
     stageKey: currentStage.id,
     stageLabel: currentStage.label,
     description: text,
-    selectionSource: 'system',
-    selectionStrategy: ''
+    selectionMode: '',
+    strategyName: ''
   })
 }
 
@@ -4562,11 +4564,15 @@ function normalizeActionHistoryEntry(entry, actionSequence) {
   const pendingIndex = pendingSelectionModes.value.findIndex(
     (item) => item.actionId === normalizedActionId
   )
-  let selectionMode = null
+  let pendingSelectionMode = null
   if (pendingIndex !== -1) {
-    selectionMode = pendingSelectionModes.value[pendingIndex].selectionMode
+    pendingSelectionMode = pendingSelectionModes.value[pendingIndex].selectionMode
     pendingSelectionModes.value.splice(pendingIndex, 1)
   }
+
+  const normalizedSelectionMode = normalizeActionHistorySelectionMode(
+    pendingSelectionMode || entry?.selection_mode
+  )
 
   return {
     uid: `act.${String(actionSequence).padStart(3, '0')}`,
@@ -4581,9 +4587,8 @@ function normalizeActionHistoryEntry(entry, actionSequence) {
     stageKey: stageDefinition.id,
     stageLabel: stageDefinition.label,
     description: entry?.description || '未提供行动描述',
-    selectionSource: entry?.selection_source === 'system' ? 'system' : 'manual',
-    selectionStrategy: typeof entry?.selection_strategy === 'string' ? entry.selection_strategy : '',
-    selectionMode: selectionMode || entry?.selection_mode || (entry?.selection_source === 'system' ? 'system' : 'player_choice'),
+    strategyName: normalizeActionHistoryStrategyName(entry?.strategy_name),
+    selectionMode: normalizedSelectionMode,
     actionCategory: entry?.action_category || '',
     actionSubcategory: entry?.action_subcategory || '',
     actionDetail: entry?.action_detail || '',
@@ -4652,7 +4657,7 @@ function openActionLogFilterModal() {
       return
     }
 
-    setRecommendedAction(payload.action_id, payload.selection_strategy || strategyId)
+    setRecommendedAction(payload.action_id, payload.strategy_name || strategyId)
     return
   } finally {
     controlCenterPendingMode.value = ''
@@ -4862,6 +4867,10 @@ async function runControlCenterStrategy() {
       return
     }
 
+    const pendingSelection = buildStrategyExecutePendingSelection(payload)
+    if (pendingSelection) {
+      pendingSelectionModes.value.push(pendingSelection)
+    }
     clearRecommendedAction()
     await syncStateAfterActionSubmission(previousVersion)
   } finally {
@@ -4892,7 +4901,7 @@ async function recommendControlCenterStrategy() {
       return
     }
 
-    setRecommendedAction(payload.action_id, payload.selection_strategy || strategyId)
+    setRecommendedAction(payload.action_id, payload.strategy_name || strategyId)
   } finally {
     controlCenterPendingMode.value = ''
   }
@@ -4914,8 +4923,10 @@ async function executeControlCenterAction() {
 
       try {
         const result = await submitActionAndSync(normalizedActionId, {
-          selectionSource: 'system',
-          selectionStrategy: recommendedActionStrategyId.value || selectedControlStrategyId.value
+          selectionMode: resolveControlCenterExecuteSelectionMode({
+            hasRecommendedAction: true,
+          }),
+          strategyName: recommendedActionStrategyId.value || selectedControlStrategyId.value
         })
 
         if (result.submitted) {
@@ -5047,12 +5058,7 @@ function formatDuration(ms) {
 }
 
 function getRemainingPercentage(log) {
-  const remainingMs = log.playerRemainingMs || 0
-  // 使用玩家总时长计算百分比
-  const totalMs = timerStore.mainTimeLimit || 0
-  if (totalMs <= 0) return remainingMs > 0 ? 100 : 0
-  const pct = Math.round((remainingMs / totalMs) * 100)
-  return Math.min(100, Math.max(0, pct))
+  return timerStore.getActionLogRemainingPercentage(log.playerRemainingMs || 0)
 }
 
 function buildActionLogEntryTitle(log) {
@@ -5084,9 +5090,9 @@ function buildActionLogEntryTitle(log) {
     titleLines.push(selectionModeLabel)
   }
 
-  if (log.selectionStrategy) {
-    const strategyTypeLabel = ACTION_LOG_STRATEGY_TYPE_OPTIONS.find((opt) => opt.id === log.selectionStrategy)?.label
-    titleLines.push(`策略类型：${strategyTypeLabel || log.selectionStrategy}`)
+  if (log.strategyName) {
+    const strategyTypeLabel = ACTION_LOG_STRATEGY_TYPE_OPTIONS.find((opt) => opt.id === log.strategyName)?.label
+    titleLines.push(`策略类型：${strategyTypeLabel || log.strategyName}`)
   }
 
   // 添加行动分类信息（大类、细类、细节），分三行显示
@@ -5810,29 +5816,19 @@ async function syncStateAfterActionSubmission(previousVersion) {
 async function submitActionAndSync(actionId, options = {}) {
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5001'
   const previousVersion = stateVersion.value
-  const normalizedSelectionSource = options.selectionSource === 'system' ? 'system' : 'manual'
-  const normalizedSelectionStrategy = typeof options.selectionStrategy === 'string' && options.selectionStrategy.trim()
-    ? options.selectionStrategy.trim()
+  const normalizedStrategyName = typeof options.strategyName === 'string' && options.strategyName.trim()
+    ? options.strategyName.trim()
     : null
   const normalizedActionId = Number(actionId)
 
-  // 计算选择方式
-  let selectionMode = 'player_choice'
-  if (normalizedSelectionSource === 'system') {
-    if (hasRecommendedAction.value) {
-      const normalizedRecommendedActionId = normalizeAvailableActionId(recommendedActionId.value)
-      selectionMode = (normalizedRecommendedActionId === normalizedActionId) ? 'accepted' : 'system'
-    } else {
-      selectionMode = 'system'
-    }
-  } else {
-    if (hasRecommendedAction.value) {
-      const normalizedRecommendedActionId = normalizeAvailableActionId(recommendedActionId.value)
-      selectionMode = (normalizedRecommendedActionId === normalizedActionId) ? 'accepted' : 'rejected'
-    } else {
-      selectionMode = 'player_choice'
-    }
-  }
+  const explicitSelectionMode = typeof options.selectionMode === 'string' && options.selectionMode.trim()
+    ? normalizeActionHistorySelectionMode(options.selectionMode)
+    : null
+  const selectionMode = explicitSelectionMode || resolveActionSelectionMode({
+    actionId: normalizedActionId,
+    recommendedActionId: hasRecommendedAction.value ? recommendedActionId.value : null,
+    isStrategyExecute: false,
+  })
   pendingSelectionModes.value.push({ actionId: normalizedActionId, selectionMode })
 
   try {
@@ -5842,8 +5838,7 @@ async function submitActionAndSync(actionId, options = {}) {
       body: JSON.stringify({
         action_id: actionId,
         player_id: currentActionPlayerId.value,
-        selection_source: normalizedSelectionSource,
-        selection_strategy: normalizedSelectionStrategy,
+        strategy_name: normalizedStrategyName,
         selection_mode: selectionMode
       })
     })
@@ -5875,9 +5870,7 @@ async function selectAction(action) {
   pendingActionId.value = actionId
 
   try {
-    await submitActionAndSync(actionId, {
-      selectionSource: 'manual'
-    })
+    await submitActionAndSync(actionId)
   } finally {
     pendingActionId.value = null
   }
@@ -9608,7 +9601,7 @@ onUnmounted(() => {
 }
 
 .action-section {
-  --action-toolbar-pill-width: 84px;
+  --action-toolbar-pill-width: 78px;
   --action-toolbar-pill-height: 28px;
   --action-toolbar-pill-gap: 8px;
 }
@@ -9690,6 +9683,7 @@ onUnmounted(() => {
 
 .ai-thinking-badge span {
   line-height: var(--action-toolbar-pill-height);
+  letter-spacing: -0.02em;
 }
 
 @keyframes pulse {
@@ -10515,11 +10509,17 @@ onUnmounted(() => {
 /* 筛选弹窗全屏布局样式 */
 .action-filter-modal-body {
   padding: 20px 0;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .action-filter-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr) minmax(0, 1.15fr);
+  flex: 1;
+  min-height: 0;
 }
 
 .action-filter-column {
@@ -10528,10 +10528,23 @@ onUnmounted(() => {
   gap: 20px;
   padding: 0 20px;
   border-right: 1px solid var(--border);
-  max-height: calc(80vh - 180px);
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   min-width: 0;
+}
+
+.action-filter-column--stacked {
+  overflow: hidden;
+}
+
+.action-filter-column--stacked .action-filter-section {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.action-filter-column--stacked .action-filter-section + .action-filter-section {
+  margin-top: 0;
 }
 
 .action-filter-column:last-child {
@@ -10550,8 +10563,13 @@ onUnmounted(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  max-height: 300px;
+}
+
+.action-filter-column--stacked .action-filter-options--wrap {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
+  align-content: flex-start;
 }
 
 .action-filter-options--inline {
@@ -10563,6 +10581,10 @@ onUnmounted(() => {
 /* 扩大筛选弹窗宽度*/
 .action-log-filter-modal :deep(.modal-content) {
   max-width: 60vw;
+}
+
+.action-log-filter-modal :deep(.modal-body) {
+  overflow: hidden;
 }
 
 .action-filter-modal-footer {

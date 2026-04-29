@@ -349,21 +349,18 @@ class GameStateManager:
     def record_action_selection_metadata(
         self,
         raw_action_index: int,
-        selection_source: str = 'manual',
-        selection_strategy: Optional[str] = None,
+        strategy_name: Optional[str] = None,
         selection_mode: Optional[str] = None
     ):
-        """登记下一条底层行动记录对应的选择来源元数据。"""
+        """登记下一条底层行动记录对应的策略选择元数据。"""
         if not isinstance(raw_action_index, int) or raw_action_index <= 0:
             return
 
-        normalized_source = 'system' if selection_source == 'system' else 'manual'
-        normalized_strategy = selection_strategy.strip() if isinstance(selection_strategy, str) else ''
+        normalized_strategy = strategy_name.strip() if isinstance(strategy_name, str) else ''
         normalized_mode = selection_mode.strip() if isinstance(selection_mode, str) else ''
 
         self._pending_action_selection_metadata[raw_action_index] = {
-            'selection_source': normalized_source,
-            'selection_strategy': normalized_strategy,
+            'strategy_name': normalized_strategy,
             'selection_mode': normalized_mode
         }
 
@@ -438,8 +435,7 @@ class GameStateManager:
             action_type=action_type,
             action_id=action_id,
             description=description,
-            selection_source=selection_metadata.get('selection_source', 'manual'),
-            selection_strategy=selection_metadata.get('selection_strategy', ''),
+            strategy_name=selection_metadata.get('strategy_name', ''),
             selection_mode=selection_metadata.get('selection_mode', ''),
             action_category=category,
             action_subcategory=subcategory,

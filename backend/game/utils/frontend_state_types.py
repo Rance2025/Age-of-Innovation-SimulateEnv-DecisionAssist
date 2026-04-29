@@ -237,9 +237,8 @@ class ActionHistoryEntry:
     action_type: str = ""               # 行动类型（normal / immediate）
     action_id: Optional[int] = None     # 行动ID；阶段分割线为空
     description: str = ""               # 行动描述文本
-    selection_source: str = "manual"    # 选择来源（manual / system）
-    selection_strategy: str = ""        # 选择策略标识
-    selection_mode: str = ""            # 选择模式（player_choice / accepted / rejected / system）
+    strategy_name: str = ""             # 关联策略名称
+    selection_mode: str = ""            # 选择模式（player_choice / accepted / rejected / strategy_execute / ai_agent / timeout_agent）
     action_category: str = ""           # 行动大类（如：选择规划卡、建造、升级等）
     action_subcategory: str = ""        # 行动细类（如：平原、车间等）
     action_detail: str = ""             # 行动细节（额外描述）

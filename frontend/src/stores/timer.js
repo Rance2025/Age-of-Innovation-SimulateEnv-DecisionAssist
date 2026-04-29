@@ -165,6 +165,17 @@ export const useTimerStore = defineStore('timer', () => {
     return `${Math.round(getPlayerTimerProgress(playerId, currentPlayerId) * 100)}%`
   }
 
+  function getActionLogRemainingPercentage(remainingMs) {
+    const normalizedRemaining = normalizeMilliseconds(remainingMs)
+    if (mainTimeLimit.value <= 0) {
+      return normalizedRemaining > 0 ? 100 : 0
+    }
+
+    return Math.round(
+      clamp(normalizedRemaining / mainTimeLimit.value, 0, 1) * 100
+    )
+  }
+
   function reset() {
     stopLocalTimer()
 
@@ -189,6 +200,7 @@ export const useTimerStore = defineStore('timer', () => {
     dispose,
     getPlayerTimerDisplay,
     getPlayerTimerProgress,
-    getPlayerExpandedDisplay
+    getPlayerExpandedDisplay,
+    getActionLogRemainingPercentage
   }
 })

@@ -77,82 +77,102 @@
         </div>
       </div>
 
-      <!-- 对局列表 -->
-      <div v-if="loading" class="empty-state">
-        <i class="fas fa-spinner fa-spin"></i>
-        <p>加载中...</p>
-      </div>
+      <div class="history-body">
+        <!-- 对局列表 -->
+        <div v-if="loading" class="empty-state history-feedback">
+          <i class="fas fa-spinner fa-spin"></i>
+          <p>加载中...</p>
+        </div>
 
-      <div v-else-if="error" class="empty-state">
-        <i class="fas fa-exclamation-circle"></i>
-        <p>{{ error }}</p>
-      </div>
+        <div v-else-if="error" class="empty-state history-feedback">
+          <i class="fas fa-exclamation-circle"></i>
+          <p>{{ error }}</p>
+        </div>
 
-      <div v-else-if="games.length === 0" class="empty-state">
-        <i class="fas fa-inbox"></i>
-        <p>暂无历史对局</p>
-      </div>
+        <div v-else-if="games.length === 0 && deletingGameIds.length === 0" class="empty-state history-feedback">
+          <i class="fas fa-inbox"></i>
+          <p>暂无历史对局</p>
+        </div>
 
-      <div v-else class="games-list">
-        <div v-for="game in games" :key="game.id" class="game-card" @click="showDetail(game)">
-          <div class="game-icon">
-            <i class="fas fa-chess-board"></i>
-          </div>
-          <div class="game-info">
-            <div class="game-title">
-              <span class="game-mode">{{ getModeText(game.setup_mode) }}</span>
-              <span class="game-players">{{ game.num_players }}人局</span>
-            </div>
-            <div class="game-meta">
-              <span><i class="fas fa-calendar"></i> {{ game.created_at }}</span>
-              <span><i class="fas fa-route"></i> {{ game.path_length }} 步</span>
-            </div>
-          </div>
-          <div class="game-actions">
-            <button class="action-btn view-btn" title="查看详情">
-              <i class="fas fa-eye"></i>
-            </button>
-            <button
-              class="action-btn delete-btn"
-              title="删除"
-              @click.stop="deleteGame(game.id)"
+        <template v-else>
+          <div class="games-scroll-area">
+            <TransitionGroup
+              name="history-list"
+              tag="div"
+              class="games-list"
+              @before-leave="pinLeavingGameCard"
             >
-              <i class="fas fa-trash"></i>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- 分页 -->
-      <div v-if="games.length > 0" class="pagination">
-        <div class="pagination-info">
-          第 {{ pagination.page }} / {{ pagination.total_pages }} 页
-        </div>
-        <div class="pagination-buttons">
-          <button class="page-btn" :disabled="pagination.page === 1" @click="changePage(-1)">
-            <i class="fas fa-chevron-left"></i>
-          </button>
-          <div class="page-numbers">
-            <template v-for="pageNum in visiblePageNumbers" :key="pageNum">
-              <span v-if="pageNum === '...'" class="page-ellipsis">...</span>
-              <button
-                v-else
-                class="page-number"
-                :class="{ active: pageNum === pagination.page }"
-                @click="goToPage(pageNum)"
+              <div
+                v-for="game in games"
+                :key="game.id"
+                class="game-card"
+                :class="{ 'is-pending-delete': deletingGameIds.includes(game.id) }"
+                @click="showDetail(game)"
               >
-                {{ pageNum }}
-              </button>
-            </template>
+                <div class="game-icon">
+                  <i :class="getGameModeIcon(game.game_mode)"></i>
+                </div>
+                <div class="game-info">
+                  <div class="game-title">
+                    <span class="game-mode">{{ getModeText(game.game_mode) }}</span>
+                    <span class="game-players">{{ game.num_players }}人局</span>
+                    <span class="game-status" :class="`is-${game.end_status}`">{{ getEndStatusText(game.end_status) }}</span>
+                  </div>
+                  <div class="game-meta">
+                    <span><i class="fas fa-calendar"></i> {{ formatDateTime(game.started_at) }}</span>
+                    <span><i class="fas fa-route"></i> {{ game.path_length }} 步</span>
+                  </div>
+                </div>
+                <div class="game-actions">
+                  <button class="action-btn view-btn" title="查看详情">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                  <button
+                    class="action-btn delete-btn"
+                    :class="{ 'is-confirming': pendingDeleteGameId === game.id }"
+                    :disabled="deletingGameIds.includes(game.id)"
+                    :title="pendingDeleteGameId === game.id ? '再次点击确认删除' : '删除'"
+                    @click.stop="deleteGame(game.id)"
+                  >
+                    <i :class="pendingDeleteGameId === game.id ? 'fas fa-check' : 'fas fa-trash'"></i>
+                  </button>
+                </div>
+              </div>
+            </TransitionGroup>
           </div>
-          <button
-            class="page-btn"
-            :disabled="pagination.page === pagination.total_pages"
-            @click="changePage(1)"
-          >
-            <i class="fas fa-chevron-right"></i>
-          </button>
-        </div>
+
+          <!-- 分页 -->
+          <div class="pagination">
+            <div class="pagination-info">
+              第 {{ pagination.page }} / {{ pagination.total_pages }} 页
+            </div>
+            <div class="pagination-buttons">
+              <button class="page-btn" :disabled="pagination.page === 1" @click="changePage(-1)">
+                <i class="fas fa-chevron-left"></i>
+              </button>
+              <div class="page-numbers">
+                <template v-for="pageNum in visiblePageNumbers" :key="pageNum">
+                  <span v-if="pageNum === '...'" class="page-ellipsis">...</span>
+                  <button
+                    v-else
+                    class="page-number"
+                    :class="{ active: pageNum === pagination.page }"
+                    @click="goToPage(pageNum)"
+                  >
+                    {{ pageNum }}
+                  </button>
+                </template>
+              </div>
+              <button
+                class="page-btn"
+                :disabled="pagination.page === pagination.total_pages"
+                @click="changePage(1)"
+              >
+                <i class="fas fa-chevron-right"></i>
+              </button>
+            </div>
+          </div>
+        </template>
       </div>
     </div>
 
@@ -170,12 +190,20 @@
             <h3>基本信息</h3>
             <div class="detail-grid">
               <div class="detail-item">
-                <span class="detail-label">时间</span>
-                <span class="detail-value">{{ selectedGame.created_at }}</span>
+                <span class="detail-label">开始时间</span>
+                <span class="detail-value">{{ formatDateTime(selectedGame.started_at) }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">结束时间</span>
+                <span class="detail-value">{{ formatDateTime(selectedGame.ended_at) }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">结束状态</span>
+                <span class="detail-value">{{ getEndStatusText(selectedGame.end_status) }}</span>
               </div>
               <div class="detail-item">
                 <span class="detail-label">模式</span>
-                <span class="detail-value">{{ getModeText(selectedGame.setup_mode) }}</span>
+                <span class="detail-value">{{ getModeText(selectedGame.game_mode) }}</span>
               </div>
               <div class="detail-item">
                 <span class="detail-label">玩家数</span>
@@ -193,6 +221,7 @@
             <div class="score-table">
               <div class="score-header">
                 <span>玩家</span>
+                <span>ID/策略</span>
                 <span>总分</span>
                 <span>板块</span>
                 <span>连锁</span>
@@ -200,16 +229,20 @@
                 <span>资源</span>
               </div>
               <div
-                v-for="(pr, idx) in selectedGame.player_results"
+                v-for="(pr, idx) in selectedGameScoreRows"
                 :key="idx"
                 class="score-row"
               >
-                <span class="player-name">玩家 {{ pr.player_id + 1 }}</span>
-                <span class="total-score">{{ pr.total }}</span>
-                <span>{{ pr.board }}</span>
-                <span>{{ pr.chain }}</span>
-                <span>{{ pr.track }}</span>
-                <span>{{ pr.resource }}</span>
+                <span class="player-name" :class="{ 'is-ai': pr.identity_is_ai }">
+                  <span>{{ pr.player_label }}</span>
+                  <i v-if="pr.identity_icon" :class="pr.identity_icon"></i>
+                </span>
+                <span class="player-identity" :title="pr.identity_text">{{ pr.identity_text }}</span>
+                <span class="total-score">{{ formatScoreValue(pr.total) }}</span>
+                <span>{{ formatScoreValue(pr.board) }}</span>
+                <span>{{ formatScoreValue(pr.chain) }}</span>
+                <span>{{ formatScoreValue(pr.track) }}</span>
+                <span>{{ formatScoreValue(pr.resource) }}</span>
               </div>
             </div>
           </div>
@@ -225,9 +258,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { getGameModeIcon } from '../utils/gameModeMeta.js'
+import { buildHistoryScoreRows } from '../utils/historyScoreRows.js'
 
 const API_BASE = 'http://127.0.0.1:5001'
+const GAME_LIST_TRANSITION_MS = 320
 
 // 状态
 const games = ref([])
@@ -246,6 +282,8 @@ const sortDropdownOpen = ref(false)
 const filterPopupOpen = ref(false)
 const searchQuery = ref('')
 const selectedPlayerCounts = ref([])
+const pendingDeleteGameId = ref(null)
+const deletingGameIds = ref([])
 
 // 弹窗
 const modalOpen = ref(false)
@@ -260,6 +298,13 @@ const sortOptions = [
 const hasActiveFilters = computed(() => {
   return searchQuery.value.trim() !== '' || selectedPlayerCounts.value.length > 0
 })
+
+const selectedGameScoreRows = computed(() =>
+  buildHistoryScoreRows({
+    players: selectedGame.value?.players,
+    finalScores: selectedGame.value?.final_scores,
+  })
+)
 
 const visiblePageNumbers = computed(() => {
   const pages = []
@@ -342,11 +387,38 @@ function goToPage(page) {
 
 function getModeText(mode) {
   const modeMap = {
-    target: '目标模式',
-    random: '随机模式',
+    standard: '标准模式',
+    quick: '快速模式',
     custom: '自定义模式',
   }
   return modeMap[mode] || mode
+}
+
+function getEndStatusText(status) {
+  const statusMap = {
+    finished: '已结束',
+    interrupted: '已中断',
+    error: '异常',
+  }
+  return statusMap[status] || status || '--'
+}
+
+function formatDateTime(value) {
+  if (!value) {
+    return '--'
+  }
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
+
+  const pad = (num) => String(num).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+function formatScoreValue(value) {
+  return value ?? '--'
 }
 
 async function loadGames() {
@@ -378,6 +450,12 @@ async function loadGames() {
 }
 
 async function showDetail(game) {
+  if (deletingGameIds.value.includes(game.id)) {
+    return
+  }
+
+  clearPendingDelete()
+
   try {
     const response = await fetch(`${API_BASE}/api/games/${game.id}`)
     const data = await response.json()
@@ -399,12 +477,37 @@ function closeModal() {
   selectedGame.value = null
 }
 
+function clearPendingDelete() {
+  pendingDeleteGameId.value = null
+}
+
+function pinLeavingGameCard(el) {
+  el.style.left = `${el.offsetLeft}px`
+  el.style.top = `${el.offsetTop}px`
+  el.style.width = `${el.offsetWidth}px`
+  el.style.height = `${el.offsetHeight}px`
+}
+
+async function waitForGameListTransition() {
+  await nextTick()
+  await new Promise((resolve) => setTimeout(resolve, GAME_LIST_TRANSITION_MS))
+}
+
 async function deleteGame(id) {
-  if (!confirm('确定要删除这条对局记录吗？')) {
+  if (deletingGameIds.value.includes(id)) {
     return
   }
 
+  if (pendingDeleteGameId.value !== id) {
+    pendingDeleteGameId.value = id
+    return
+  }
+
+  clearPendingDelete()
+  deletingGameIds.value = [...deletingGameIds.value, id]
+
   try {
+    const wasLastGameOnPage = games.value.length === 1 && pagination.value.page > 1
     const response = await fetch(`${API_BASE}/api/games/${id}`, {
       method: 'DELETE',
     })
@@ -414,10 +517,21 @@ async function deleteGame(id) {
       throw new Error(result.error)
     }
 
-    loadGames()
+    games.value = games.value.filter((game) => game.id !== id)
+    pagination.value.total = Math.max(0, pagination.value.total - 1)
+
+    await waitForGameListTransition()
+
+    if (wasLastGameOnPage) {
+      pagination.value.page -= 1
+    }
+
+    await loadGames()
   } catch (err) {
     console.error('Failed to delete game:', err)
     alert('删除失败')
+  } finally {
+    deletingGameIds.value = deletingGameIds.value.filter((gameId) => gameId !== id)
   }
 }
 
@@ -431,6 +545,11 @@ function handleDocumentClick(e) {
   const sortWrapper = e.target.closest('.custom-select-wrapper')
   if (!sortWrapper && sortDropdownOpen.value) {
     sortDropdownOpen.value = false
+  }
+
+  const deleteButton = e.target.closest('.delete-btn')
+  if (!deleteButton && pendingDeleteGameId.value !== null) {
+    clearPendingDelete()
   }
 }
 
@@ -448,16 +567,21 @@ onUnmounted(() => {
 /* ===== 历史对局页面样式 ===== */
 
 .history-page {
+  height: calc(100vh - 56px);
   min-height: calc(100vh - 56px);
   background: var(--bg-primary);
-  padding-top: 56px;
+  overflow: hidden;
 }
 
 .history-container {
   max-width: 900px;
+  height: 100%;
   margin: 0 auto;
-  padding: 32px 24px;
-  min-height: calc(100vh - 56px);
+  padding: 44px 24px 24px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 /* 头部区域 */
@@ -465,9 +589,32 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.history-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-top: 24px;
+}
+
+.history-feedback {
+  flex: 1;
+  min-height: 0;
+}
+
+.games-scroll-area {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  padding-right: 4px;
+  margin-right: -4px;
 }
 
 .header-left {
@@ -796,7 +943,8 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin-bottom: 24px;
+  position: relative;
+  padding-bottom: 24px;
 }
 
 /* 对局卡片 */
@@ -809,13 +957,51 @@ onUnmounted(() => {
   border-radius: 12px;
   padding: 16px 20px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.game-card.is-pending-delete {
+  pointer-events: none;
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.24);
+  box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.18);
 }
 
 .game-card:hover {
   background: var(--bg-tertiary);
   border-color: rgba(0, 123, 255, 0.5);
-  transform: translateY(-1px);
+}
+
+.history-list-enter-active,
+.history-list-leave-active {
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: center center;
+  will-change: opacity, transform;
+}
+
+.history-list-enter-from {
+  opacity: 0;
+  transform: scale(0.985);
+}
+
+.history-list-leave-to {
+  opacity: 0;
+  transform: scale(0.985);
+}
+
+.history-list-leave-active {
+  position: absolute;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.history-list-move {
+  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .game-icon {
@@ -860,6 +1046,31 @@ onUnmounted(() => {
   background: rgba(0, 123, 255, 0.15);
   padding: 2px 8px;
   border-radius: 4px;
+}
+
+.game-status {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.game-status.is-finished {
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.22);
+}
+
+.game-status.is-interrupted {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.22);
+}
+
+.game-status.is-error {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.22);
 }
 
 .game-meta {
@@ -911,6 +1122,17 @@ onUnmounted(() => {
   color: #ef4444;
 }
 
+.action-btn.delete-btn.is-confirming {
+  background: rgba(239, 68, 68, 0.18);
+  color: #fca5a5;
+  box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.36);
+}
+
+.action-btn.delete-btn.is-confirming:hover {
+  background: rgba(239, 68, 68, 0.24);
+  color: #fecaca;
+}
+
 /* 空状态 */
 .empty-state {
   display: flex;
@@ -939,7 +1161,9 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 16px;
+  flex-shrink: 0;
+  margin-top: 24px;
+  padding-top: 20px;
   border-top: 1px solid var(--border);
 }
 
@@ -1140,7 +1364,7 @@ onUnmounted(() => {
 .score-header,
 .score-row {
   display: grid;
-  grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr 1fr;
+  grid-template-columns: 0.72fr 2.18fr 0.9fr 0.9fr 0.9fr 0.9fr 0.9fr;
   gap: 8px;
   padding: 12px 16px;
   align-items: center;
@@ -1164,7 +1388,27 @@ onUnmounted(() => {
 }
 
 .player-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-weight: 500;
+}
+
+.player-name.is-ai i {
+  color: var(--accent-light);
+  font-size: 0.85em;
+  flex-shrink: 0;
+}
+
+.player-identity {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.3;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .total-score {
@@ -1175,7 +1419,7 @@ onUnmounted(() => {
 /* 响应式 */
 @media (max-width: 768px) {
   .history-container {
-    padding: 20px 16px;
+    padding: 28px 16px 16px;
   }
 
   .history-header {
@@ -1223,17 +1467,17 @@ onUnmounted(() => {
 
   .score-header,
   .score-row {
-    grid-template-columns: 1.5fr 1fr 1fr;
+    grid-template-columns: 0.72fr 2.08fr 0.8fr 0.8fr;
     gap: 4px;
     font-size: 0.8rem;
   }
 
-  .score-header span:nth-child(4),
   .score-header span:nth-child(5),
   .score-header span:nth-child(6),
-  .score-row span:nth-child(4),
+  .score-header span:nth-child(7),
   .score-row span:nth-child(5),
-  .score-row span:nth-child(6) {
+  .score-row span:nth-child(6),
+  .score-row span:nth-child(7) {
     display: none;
   }
 }

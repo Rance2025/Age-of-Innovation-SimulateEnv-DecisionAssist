@@ -13,6 +13,85 @@
 - **验证方式**：
   - `待验证`
 
+## 0.9.6.16
+
+- **日期**：2026-04-29
+- **分支**：main
+- **影响范围**：
+  - `backend/api/routes.py`
+  - `backend/config.yaml`
+  - `backend/database/database.py`
+  - `backend/game/start_game.py`
+  - `backend/game/utils/frontend_state_types.py`
+  - `backend/game/utils/game_state_manager.py`
+  - `frontend/src/views/GameView.vue`
+  - `frontend/src/views/HistoryView.layout.test.mjs`
+  - `frontend/src/views/HistoryView.vue`
+  - `frontend/src/views/SetupView.vue`
+  - `frontend/src/utils/actionLogSelection.js`
+  - `frontend/src/utils/actionLogSelection.test.mjs`
+  - `frontend/src/utils/gameModeMeta.js`
+  - `frontend/src/utils/gameModeMeta.test.mjs`
+  - `frontend/src/utils/historyScoreRows.js`
+  - `frontend/src/utils/historyScoreRows.test.mjs`
+  - `frontend/src/stores/timer.js`
+  - `frontend/src/stores/timer.test.mjs`
+  - `frontend/src/views/GameView.actionFilterLayout.test.mjs`
+  - `test/test_action_log_metadata.py`
+  - `test/test_game_history_persistence.py`
+  - `test/test_history_delete_cors.py`
+  - `docs/version-change-log.md`
+- **更新内容**：
+  - `refactor: 统一行动记录中的策略元数据，删除 selection_source 并将 selection_strategy 收敛为 strategy_name，selection_mode 重构为 player_choice、accepted、rejected、strategy_execute、ai_agent、timeout_agent`
+  - `feat: 调整前端行动记录筛选和展示逻辑，按新的 selection_mode 与 strategy_name 口径展示人类执行策略、AI代理与超时代理`
+  - `fix: 修复控制中心无推荐态点击执行按钮时未登记 strategy_execute 待匹配记录的问题，避免行动历史将这类策略直执行误判为 player_choice`
+  - `fix: 修复控制中心已推荐状态下点击执行按钮仍写入 strategy_execute 的问题，调整为将该操作归类为 accepted，确保“推荐后执行”语义与手动采纳推荐一致`
+  - `fix: 修复行动记录剩余时长百分比直接读取未暴露的 timerStore.mainTimeLimit 导致有剩余时间时恒定显示 100% 的问题，改为由 timer store 内部统一计算百分比`
+  - `feat: 重构历史对局存储结构并在 finished、interrupted、error 三种结束状态下自动保存对局记录`
+  - `fix: 修复历史对局详情在中断局无 final_scores 时不渲染玩家行的问题，改为根据 players 与 final_scores 合并构建展示数据`
+  - `feat: 为历史对局玩家存档补充 player_input_id 字段，保存设置页中人类玩家输入的 ID，供历史详情展示使用`
+  - `ui: 调整历史对局详情最终得分表列语义，第一列仅显示玩家序号，第二列对人类显示输入ID、对电脑显示策略名并附加机器人图标`
+  - `fix: 为开局请求玩家配置补充显式的 player_input_id 与 strategy_id 字段，并让历史存档优先使用显式字段，避免人类输入ID继续隐式复用 args 导致记录不稳定`
+  - `ui: 将电脑玩家机器人标记移动到玩家序号列，并将“输入ID / 策略”列改为单行省略展示，避免策略名换行撑高表格`
+  - `ui: 继续压缩历史对局详情的玩家列宽度并将表头文案改为“ID/策略”，把更多横向空间分配给第二列`
+  - `ui: 将历史对局列表左侧模式图标改为复用设置页的游戏模式 icon，并抽取共享游戏模式元数据，避免历史页继续使用固定棋盘图标`
+  - `fix: 为历史对局删除接口的 CORS 预检补充 DELETE 方法，打通前端删除按钮到后端路由的跨域请求`
+  - `fix: 历史对局删除后在当前页仅剩最后一条记录时自动回退上一页，并等待列表刷新完成，避免出现空白分页`
+  - `ui: 将历史对局页面改为固定视口布局，锁定页面整体不滚动，仅允许对局卡片区域在头部分界线与底部分页分界线之间滚动`
+  - `ui: 增加历史对局卡片列表与底部分界线之间的留白，并取消卡片悬停时的上移效果，降低页面视觉紧迫感`
+  - `ui: 继续下移历史对局页顶部内容区，增加标题与首条分界线距离导航栏的呼吸空间`
+  - `ui: 为历史对局删除操作增加卡片退出动画，并为剩余卡片补充自动重排位移动画，删除后列表过渡更平滑`
+  - `fix: 修正历史对局删除卡片时错误的向上闪烁动画，移除离场纵向位移并改为原地缩小渐出`
+  - `fix: 参照 TransitionGroup 列表过渡的正确几何冻结做法，为离场卡片在 before-leave 阶段锁定 top/left/width/height，修复删除时仍然向上偏移的问题`
+  - `ui: 将历史对局删除确认从浏览器 confirm 改为按钮自身的二次点击确认，并为待确认状态增加视觉高亮与自动取消逻辑`
+  - `fix: 去除历史对局卡片基础样式对 opacity/transform 的全量过渡竞争，并取消待删除态预先降透明度，修复退出末端小卡顿与渐隐不明显的问题`
+  - `refactor: 按用户要求回退历史对局删除动画方案，移除手写离场节点思路，改为使用 TransitionGroup 负责元素自身离场与列表重排`
+  - `test: 将历史对局删除动画静态回归测试改回约束 TransitionGroup leave/move 实现，避免继续引入额外的手写动画基础设施`
+  - `refactor: 将历史对局列表模板切回 TransitionGroup，并恢复 before-leave 钩子负责离场卡片的原位几何锁定，移除列表项 ref 映射`
+  - `refactor: 移除历史对局删除流程中的 WAAPI 时长常量、列表容器引用和卡片元素映射，回到 TransitionGroup 负责离场与 move 过渡的更简洁状态管理`
+  - `refactor: 删除历史对局手写的离场克隆、元素动画封装和手动重排逻辑，改为仅保留 TransitionGroup 的 pinLeavingGameCard 与统一过渡等待函数`
+  - `fix: 将历史对局删除成功后的动效链路简化为本地移除数据后等待 TransitionGroup leave/move 完成，再处理分页回退与列表刷新，避免继续叠加额外的并行动画控制`
+  - `ui: 恢复历史对局的 history-list enter/leave/move 过渡类，让卡片直接通过 TransitionGroup 自身缩放渐隐离场，并由 move 过渡承担剩余卡片重排`
+  - `test: 调整历史对局删除动画静态测试对组合选择器的断言方式，直接校验 leave-active 规则片段，避免误抓到前置的合并过渡块`
+  - `test: 新增游戏模式共享元数据回归测试，约束 standard、quick、custom 与设置页使用同一套 icon 映射`
+  - `test: 新增行动记录选择方式与历史存档自动保存的回归测试`
+  - `test: 新增历史对局详情玩家行构建回归测试，并补充 players.strategy_name 的落库断言`
+  - `test: 新增历史对局布局与删除后分页回退的静态回归测试，并新增删除接口 CORS 预检回归测试`
+  - `fix: 重构行动记录筛选弹窗的滚动职责，取消弹窗 body、右侧整列与标签区同时滚动的三层滚动叠加，改为右侧上下筛选区各自在内容超出时内部滚动`
+  - `ui: 调整行动记录筛选弹窗右列为 stacked 布局，让大类与细类两个区块共同占满弹窗内容高度，避免右侧滚动条层级混乱`
+  - `test: 新增行动记录筛选弹窗布局静态回归测试，约束 stacked 右列、高度填充与内部滚动归属`
+- **验证方式**：
+  - `python -m unittest discover -s test -p "test_game_history_persistence.py"`
+  - `python -m unittest discover -s test -p "test_action_log_metadata.py"`
+  - `python -m unittest discover -s test -p "test_history_delete_cors.py"`
+  - `node frontend/src/utils/actionLogSelection.test.mjs`
+  - `node frontend/src/views/HistoryView.layout.test.mjs`
+  - `node frontend/src/utils/historyScoreRows.test.mjs`
+  - `node frontend/src/stores/timer.test.mjs`
+  - `node --test --test-isolation=none frontend/src/views/GameView.actionHeader.test.mjs frontend/src/views/GameView.draftBoard.test.mjs frontend/src/views/GameView.panelAndRoundPopover.test.mjs frontend/src/views/GameView.actionFilterLayout.test.mjs`
+  - `python -m py_compile backend/api/routes.py backend/game/start_game.py backend/game/utils/frontend_state_types.py backend/game/utils/game_state_manager.py backend/database/database.py`
+  - `cd frontend && npm run build`
+
 ## 0.9.6.15
 
 - **日期**：2026-04-28
