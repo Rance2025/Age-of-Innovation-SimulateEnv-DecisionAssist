@@ -25,6 +25,9 @@ let clickOutsideHandler = null
 
 // 切换动画状态
 let isSwitching = false
+let isPlacementAnimating = false
+let placementAnimationToken = 0
+let placementAnimationCleanup = null
 let pendingSwitchConfig = null
 let pendingUpdatePosition = false
 
@@ -67,6 +70,7 @@ export function cleanup() {
   if (popoverEl) {
     cancelFlip(popoverEl)
   }
+  stopPlacementAnimation({ invalidate: true })
 
   unbindEvents()
   isSwitching = false
@@ -134,6 +138,8 @@ function performOpen(config) {
 async function performSwitch(config) {
   if (!popoverEl) return
 
+  stopPlacementAnimation({ invalidate: true })
+
   isSwitching = true
   state.status = 'switching'
 
@@ -192,11 +198,12 @@ function close() {
   // 取消挂起的切换
   pendingSwitchConfig = null
 
-  // 如果正在切换，取消 FLIP 动画并清理样式
+  // 如果正在切换或进行 placement 翻边动画，取消 FLIP 动画并清理样式
   if (isSwitching && popoverEl) {
     cancelFlip(popoverEl)
     isSwitching = false
   }
+  stopPlacementAnimation({ invalidate: true })
 
   state.status = 'closing'
   unbindEvents()
@@ -227,15 +234,99 @@ function updatePosition() {
 
   nextTick(() => {
     requestAnimationFrame(() => {
-      calculatePosition(state.config.triggerEl, state.config.placement, state.config.offset)
+      const nextPlacement = calculatePosition(
+        state.config.triggerEl,
+        state.config.placement,
+        state.config.offset,
+        { apply: false }
+      )
+      if (!nextPlacement) return
+
+      if (nextPlacement.placement !== state.actualPlacement) {
+        animatePlacementFlip(nextPlacement)
+        return
+      }
+
+      applyCalculatedPlacement(nextPlacement)
     })
+  })
+}
+
+async function animatePlacementFlip(nextPlacement) {
+  if (!nextPlacement) return
+
+  if (!popoverEl) {
+    applyCalculatedPlacement(nextPlacement)
+    return
+  }
+
+  const firstRect = popoverEl.getBoundingClientRect()
+  stopPlacementAnimation({ invalidate: true, preserveStyles: true })
+  const animationToken = placementAnimationToken
+
+  applyCalculatedPlacement(nextPlacement)
+  await nextTick()
+
+  if (animationToken !== placementAnimationToken || !popoverEl || !state.visible) {
+    return
+  }
+
+  const lastRect = popoverEl.getBoundingClientRect()
+  const dx = firstRect.left - lastRect.left
+  const dy = firstRect.top - lastRect.top
+  const hasChange = Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5
+
+  if (!hasChange) {
+    stopPlacementAnimation()
+    return
+  }
+
+  const finish = () => {
+    if (animationToken !== placementAnimationToken) return
+    stopPlacementAnimation()
+  }
+
+  isPlacementAnimating = true
+  popoverEl.style.transition = 'none'
+  popoverEl.style.transform = `translate(${dx}px, ${dy}px)`
+  void popoverEl.offsetHeight
+
+  const onTransitionEnd = (event) => {
+    if (event.target !== popoverEl) return
+    if (event.propertyName !== 'transform') return
+    finish()
+  }
+
+  const timeoutId = setTimeout(finish, 230)
+
+  placementAnimationCleanup = ({ restoreStyles = true } = {}) => {
+    clearTimeout(timeoutId)
+    if (!popoverEl) return
+    popoverEl.removeEventListener('transitionend', onTransitionEnd)
+    if (restoreStyles) {
+      popoverEl.style.transition = ''
+      popoverEl.style.transform = ''
+    }
+  }
+
+  popoverEl.addEventListener('transitionend', onTransitionEnd)
+
+  requestAnimationFrame(() => {
+    if (animationToken !== placementAnimationToken || !popoverEl || !state.visible) {
+      return
+    }
+
+    popoverEl.style.transition = 'transform 180ms ease'
+    popoverEl.style.transform = ''
   })
 }
 
 // ==================== 定位计算（保持原有逻辑）====================
 
-function calculatePosition(triggerEl, preferredPlacement = 'auto', offset = 16) {
+function calculatePosition(triggerEl, preferredPlacement = 'auto', offset = 16, options = {}) {
   if (!triggerEl || !popoverEl) return
+
+  const { apply = true } = options
 
   // 处理 display: contents 的 trigger
   let actualTrigger = triggerEl
@@ -260,14 +351,51 @@ function calculatePosition(triggerEl, preferredPlacement = 'auto', offset = 16) 
   for (const placement of placements) {
     const { top, left } = computePosition(placement, triggerRect, popoverWidth, popoverHeight, offset)
     if (isInViewport(top, left, popoverWidth, popoverHeight, viewportPadding)) {
-      state.position = { top, left }
-      state.actualPlacement = placement
-      return
+      const nextPlacement = {
+        position: { top, left },
+        placement
+      }
+      if (apply) {
+        applyCalculatedPlacement(nextPlacement)
+      }
+      return nextPlacement
     }
   }
 
   // 回退：bottom 并限制在视口内
-  fallbackToBottom(triggerRect, popoverWidth, popoverHeight, offset, viewportPadding)
+  const fallbackPlacement = fallbackToBottom(
+    triggerRect,
+    popoverWidth,
+    popoverHeight,
+    offset,
+    viewportPadding
+  )
+  if (apply && fallbackPlacement) {
+    applyCalculatedPlacement(fallbackPlacement)
+  }
+  return fallbackPlacement
+}
+
+function applyCalculatedPlacement(nextPlacement) {
+  if (!nextPlacement) return
+
+  state.position = nextPlacement.position
+  state.actualPlacement = nextPlacement.placement
+}
+
+function stopPlacementAnimation(options = {}) {
+  const { invalidate = false, preserveStyles = false } = options
+
+  if (invalidate) {
+    placementAnimationToken += 1
+  }
+
+  if (placementAnimationCleanup) {
+    placementAnimationCleanup({ restoreStyles: !preserveStyles })
+    placementAnimationCleanup = null
+  }
+
+  isPlacementAnimating = false
 }
 
 function computePosition(placement, triggerRect, popoverWidth, popoverHeight, offset) {
@@ -316,8 +444,10 @@ function fallbackToBottom(triggerRect, popoverWidth, popoverHeight, offset, padd
   top = Math.max(padding, Math.min(top, viewportHeight - popoverHeight - padding))
   left = Math.max(padding, Math.min(left, viewportWidth - popoverWidth - padding))
 
-  state.position = { top, left }
-  state.actualPlacement = 'bottom'
+  return {
+    position: { top, left },
+    placement: 'bottom'
+  }
 }
 
 // ==================== 事件绑定 ====================

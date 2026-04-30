@@ -13,6 +13,26 @@
 - **验证方式**：
   - `待验证`
 
+## 0.9.6.20
+
+- **日期**：2026-05-01
+- **分支**：main
+- **影响范围**：
+  - `frontend/src/composables/useGlobalPopover.js`
+  - `frontend/src/composables/useGlobalPopover.test.mjs`
+  - `docs/version-change-log.md`
+- **更新内容**：
+  - `ui: 回退全局非全屏 Popover 的 top/left 全局过渡，恢复普通滚动与 resize 时的即时跟手定位`
+  - `ui: 为全局非全屏 Popover 新增仅在 placement 翻边时触发的短 transform 位移动画，缓和弹窗从上侧切到下侧、或从左右两侧切换时的跳变`
+  - `fix: 调整 placement 翻边动画为先落到实时正确的新锚点，再仅对视觉差值做 transform 过渡，避免持续滚动时动画终点滞后并在结束后再次跳变`
+  - `fix: 重启 placement 翻边动画时先保留上一段动画的当前视觉样式，再在同一帧内重建新的反向 transform，避免旧 transform 被提前清空后出现预闪`
+  - `fix: 将 placement 翻边动画的反向 transform 建立时机提前到首帧 requestAnimationFrame 之前，避免新终点状态先被浏览器绘制一帧后再开始动画`
+  - `refactor: 将全局 Popover 的定位更新拆分为“先计算、后应用”路径，允许普通重定位与翻边动画分别走不同更新策略，并让 placement 动画期间继续接收实时位置更新`
+  - `test: 更新全局 Popover 回归测试，约束普通滚动不再依赖 top/left 过渡，placement 翻边存在独立动画分支，且动画前先应用实时目标位置`
+- **验证方式**：
+  - `node --test --test-isolation=none frontend/src/composables/useGlobalPopover.test.mjs`
+  - `cd frontend && npm run build`
+
 ## 0.9.6.19
 
 - **日期**：2026-04-30
