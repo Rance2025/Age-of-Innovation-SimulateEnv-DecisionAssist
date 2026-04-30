@@ -13,6 +13,24 @@
 - **验证方式**：
   - `待验证`
 
+## 0.9.6.19
+
+- **日期**：2026-04-30
+- **分支**：main
+- **影响范围**：
+  - `frontend/src/utils/tilePopoverTitle.js`
+  - `frontend/src/utils/tilePopoverTitle.test.mjs`
+  - `frontend/src/views/GameView.vue`
+  - `docs/version-change-log.md`
+- **更新内容**：
+  - `feat: 新增地块弹窗标题构造工具，统一输出中文地形、主建筑、侧楼与城市板块类型文案`
+  - `ui: 将游戏版图地块弹窗标题改为 A1地块 · 地形 · 主建筑 · 侧楼 · 城市板块类型 的按需拼接格式，缺省项自动省略`
+  - `ui: 将地块弹窗标题分隔符调整为前后带空格的 " · "，统一标题阅读节奏`
+  - `test: 新增地块弹窗标题规则与 GameView 接线回归测试`
+- **验证方式**：
+  - `node --test --test-isolation=none frontend/src/utils/tilePopoverTitle.test.mjs`
+  - `cd frontend && npm run build`
+
 ## 0.9.6.18
 
 - **日期**：2026-04-29

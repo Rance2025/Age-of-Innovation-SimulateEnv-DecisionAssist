@@ -1833,6 +1833,7 @@ import {
 } from '../utils/draftSetupState.js'
 import { getDraftSelectionState } from '../utils/draftBoardSelectionState.js'
 import { buildHistoryScoreRows } from '../utils/historyScoreRows.js'
+import { buildTilePopoverTitle } from '../utils/tilePopoverTitle.js'
 import availableActionDisplayGroups from '../../../backend/game/utils/available_action_display_groups.json'
 
 defineOptions({
@@ -2024,9 +2025,16 @@ function handleTileClick(row, col) {
   }
   
   const position = `${MAP_CONFIG.rowLetters[row]}${col + 1}`
-  const terrainName = TERRAIN_TYPES[terrain]
+  const cell = ensureMapCell(row, col)
+  const cityTileId = getCityTileIdForCell(row, col)
   selectedTileDetail.value = {
-    title: `${position} 地块 · ${terrainName}`
+    title: buildTilePopoverTitle({
+      position,
+      terrain,
+      buildingId: cell.building_id,
+      hasAnnex: cell.has_annex,
+      cityTileId
+    })
   }
   
   // 设置 trigger div 位置到六边形中心
